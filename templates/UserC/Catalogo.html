@@ -1,0 +1,332 @@
+{% extends './base.html' %}
+
+{% block title %}Catalogo{% endblock %}
+
+{% block customCSS %}
+<style>
+    .card {
+        transition: transform 0.2s ease-in-out;
+        height: 100%;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .card-img-top {
+        height: 200px;
+        object-fit: cover;
+    }
+    
+    .equipment-status {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: bold;
+    }
+    
+    .status-Disponible {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .status-Prestado {
+        background-color: #dc3545;
+        color: white;
+    }
+    
+    .status-Mantenimiento {
+        background-color: #ffc107;
+        color: black;
+    }
+
+    .btn-filter.active {
+        background-color: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
+    .equipment-details {
+        background-color: #f8f9fa;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .equipment-details p:last-child {
+        margin-bottom: 0;
+    }
+
+    .cart-button {
+        transition: all 0.3s ease;
+    }
+
+    .cart-button:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    .status-disponible {
+        background-color: #28a745;
+        color: white;
+    }
+
+    .status-prestado {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .equipment-status {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 0.3rem 0.8rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        z-index: 1;
+    }
+    .equipment-details {
+        background-color: #f8f9fa;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .equipment-details p:last-child {
+        margin-bottom: 0;
+    }
+
+    .cart-button {
+        transition: all 0.3s ease;
+    }
+
+    .cart-button:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    .status-disponible {
+        background-color: #28a745;
+        color: white;
+    }
+
+    .status-prestado {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .equipment-status {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 0.3rem 0.8rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        z-index: 1;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <div class="btn-group" role="group" aria-label="Filtros de estado">
+                <a href="{{ url_for('equipos.Catalogo', filtro='todos') }}" 
+                   class="btn btn-outline-primary btn-filter {% if filtro == 'todos' %}active{% endif %}">
+                    <i class="fas fa-list-ul me-2"></i>Todos
+                </a>
+                <a href="{{ url_for('equipos.Catalogo', filtro='Disponible') }}" 
+                   class="btn btn-outline-primary btn-filter {% if filtro == 'disponibles' %}active{% endif %}">
+                    <i class="fas fa-check-circle me-2"></i>Disponibles
+                </a>
+                <a href="{{ url_for('equipos.Catalogo', filtro='En uso') }}" 
+                   class="btn btn-outline-primary btn-filter {% if filtro == 'En uso' %}active{% endif %}">
+                    <i class="fas fa-clock me-2"></i>En Uso
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% if equipos %}
+            {% for equipo in equipos %}
+                <div class="col">
+                    <div class="card h-100">
+                        <span class="equipment-status status-{{ equipo.Estado }}">
+                            {{ equipo.Estado }}
+                        </span>
+                        <img src="{{ url_for('static', filename=equipo.Imagen.replace('\\', '/')) if equipo.Imagen else url_for('static', filename='img/logo.png') }}"
+                             class="card-img-top"
+                             alt="{{ equipo.Nombre }}">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">{{ equipo.Nombre }}</h5>
+                            <!-- Nuevos campos añadidos -->
+                            <div class="equipment-details mb-3">
+                                <p class="mb-1">
+                                    <i class="fas fa-barcode me-2"></i>
+                                    <strong>Inventario:</strong> {{ equipo.NumeroDeInventario }}
+                                </p>
+                                <p class="mb-1">
+                                    <i class="fas fa-trademark me-2"></i>
+                                    <strong>Marca:</strong> {{ equipo.Marca }}
+                                </p>
+                                <p class="mb-1">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Modelo:</strong> {{ equipo.Modelo }}
+                                </p>
+                            </div>
+                            <p class="card-text">{{ equipo.Descripcion }}</p>
+                            <div class="mt-auto d-flex flex-column gap-2">
+                                {% if current_user.Permiso == 'Visitante' %}
+                                    <a href="{{ url_for('equipos.solicitar_accesoMenu') }}"
+                                       class="btn btn-warning w-100">
+                                       <i class="fas fa-lock me-2"></i>
+                                       Sin Acceso
+                                    </a>
+                                {% else %}
+                                    <a href="{{ url_for('equipos.solicitar_equipo', IDequipo=equipo.IDequipo) }}"
+                                       class="btn btn-primary w-100 btn-solicitar {% if equipo.Estado != 'Disponible' %}disabled{% endif %}"
+                                       {% if equipo.Estado != 'Disponible' %}aria-disabled="true"{% endif %}>
+                                       <i class="fas fa-hand-holding-medical me-2"></i>
+                                       Solicitar
+                                    </a>
+                                    <!-- Botón del carrito -->
+                                    {% if equipo.Carrito == 'Agregado' %}
+                                        <button type="button"
+                                                id="cart-btn-{{ equipo.IDequipo }}"
+                                                class="btn btn-success w-100 cart-button"
+                                                data-equipo-id="{{ equipo.IDequipo }}">
+                                            <i class="fas fa-shopping-cart me-2"></i>
+                                            Agregado al Carrito
+                                        </button>
+                                    {% else %}
+                                            <button type="button"
+                                            id="cart-btn-{{ equipo.IDequipo }}"
+                                            data-equipo-id="{{ equipo.IDequipo }}"
+                                            class="btn btn-outline-primary w-100 cart-button"
+                                            {% if equipo.Estado != "Disponible" %} disabled {% endif %}>
+                                        <i class="fas fa-cart-plus me-2"></i>
+                                        Agregar al Carrito
+                                    </button>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12 text-center">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle fa-2x mb-3"></i>
+                    <h3>No hay equipos en el catálogo</h3>
+                    <p>Actualmente no hay equipos disponibles.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    
+</div>
+
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Botones de agregar al carrito
+    const cartButtons = document.querySelectorAll('.cart-button');
+    
+    cartButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const equipoId = this.getAttribute('data-equipo-id');
+            const isInCart = this.classList.contains('btn-success');
+            
+            if (isInCart) {
+                // Confirmación para quitar del carrito
+                Swal.fire({
+                    title: '¿Quitar del carrito?',
+                    text: '¿Estás seguro que deseas quitar este equipo del carrito?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Sí, quitar',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed && equipoId) {
+                        fetch(`/quitar-carrito/${equipoId}`)
+                            .then(response => {
+                                if (response.ok) {
+                                    window.location.reload();
+                                } else {
+                                    Swal.fire({
+                                        title: 'Error',
+                                        text: 'No se pudo quitar el equipo del carrito',
+                                        icon: 'error'
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                Swal.fire({
+                                    title: 'Error',
+                                    text: 'Ocurrió un error al procesar la solicitud',
+                                    icon: 'error'
+                                });
+                            });
+                    }
+                });
+            } else {
+                // Confirmación para agregar al carrito
+                Swal.fire({
+                    title: '¿Agregar al carrito?',
+                    text: '¿Estás seguro que deseas agregar este equipo al carrito?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Sí, agregar',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed && equipoId) {
+                        fetch(`/agregar-carrito/${equipoId}`)
+                            .then(response => {
+                                if (response.ok) {
+                                    window.location.reload();
+                                } else {
+                                    Swal.fire({
+                                        title: 'Error',
+                                        text: 'No se pudo agregar el equipo al carrito',
+                                        icon: 'error'
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                Swal.fire({
+                                    title: 'Error',
+                                    text: 'Ocurrió un error al procesar la solicitud',
+                                    icon: 'error'
+                                });
+                            });
+                    }
+                });
+            }
+        });
+    });
+});
+</script>
+
+
+{% endblock %}
+
+
+
+

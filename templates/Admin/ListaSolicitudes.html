@@ -1,0 +1,555 @@
+{% extends './base.html' %}  
+
+{% block title %}Lista de Pedidos{% endblock %}  
+
+{% block customCSS %} 
+<style>
+    .main-content {
+        padding-top: 2rem;
+    }
+     
+    .card {
+        box-shadow: 0 0 10px rgba(0,0,0,.1);
+        border-radius: 8px;
+        border: none;
+        min-height: 200px;
+    }
+ 
+    .table thead th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        font-weight: 600;
+    }
+ 
+    .table td, .table th {
+        vertical-align: middle;
+        padding: 0.75rem;
+    }
+ 
+    .btn-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        min-width: 100px;
+    }
+ 
+    .btn-danger, .btn-success, .btn-warning {
+        transition: all 0.3s ease;
+        margin: 0;
+        width: 100%;
+        white-space: normal; 
+        word-wrap: break-word;
+    }
+ 
+    .btn-danger:hover, .btn-success:hover, .btn-warning:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+    }
+ 
+    .no-pedidos {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 200px;
+        padding: 2rem;
+        text-align: center;
+        color: #6c757d;
+    }
+ 
+    .no-pedidos i {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        color: #adb5bd;
+    }
+ 
+    .no-pedidos p {
+        font-size: 1.2rem;
+        margin: 0;
+        font-weight: 500;
+    }
+
+    .device-image, .user-image {
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        cursor: pointer;
+        transition: transform 0.3s ease;
+    }
+
+    .device-image:hover, .user-image:hover {
+        transform: scale(1.05);
+    }
+
+    .image-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .image-name {
+        margin-top: 10px;
+        font-weight: 500;
+        text-align: center;
+    }
+
+    .motivo-column {
+        max-width: 200px;
+        word-wrap: break-word;
+        white-space: normal;
+    }
+    .main-content {
+        padding-top: 2rem;
+    }
+     
+    .card {
+        box-shadow: 0 0 10px rgba(0,0,0,.1);
+        border-radius: 8px;
+        border: none;
+        min-height: 200px;
+        margin-bottom: 2rem;
+    }
+ 
+    .table thead th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        font-weight: 600;
+    }
+ 
+    .table td, .table th {
+        vertical-align: middle;
+        padding: 0.75rem;
+    }
+ 
+    .btn-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        min-width: 100px;
+    }
+ 
+    .btn-danger, .btn-success, .btn-warning {
+        transition: all 0.3s ease;
+        margin: 0;
+        width: 100%;
+        white-space: normal; 
+        word-wrap: break-word;
+    }
+ 
+    .btn-danger:hover, .btn-success:hover, .btn-warning:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+    }
+ 
+    .no-items {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 200px;
+        padding: 2rem;
+        text-align: center;
+        color: #6c757d;
+    }
+ 
+    .no-items i {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        color: #adb5bd;
+    }
+ 
+    .no-items p {
+        font-size: 1.2rem;
+        margin: 0;
+        font-weight: 500;
+    }
+
+    /* Image Preview Modal Styles */
+    #imagePreviewModal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.9);
+    }
+
+    .modal-content {
+        margin: auto;
+        display: block;
+        width: 80%;
+        max-width: 700px;
+        position: relative;
+    }
+
+    .modal-content img {
+        width: 100%;
+        max-height: 80vh;
+        object-fit: contain;
+    }
+
+    .close-modal {
+        position: absolute;
+        top: 15px;
+        right: 35px;
+        color: #f1f1f1;
+        font-size: 40px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}  
+
+{% block body %} 
+<div class="container main-content">
+    <div class="row">
+        <div class="col-12">
+            <h2>Lista de Pedidos</h2>
+        </div>
+    </div>
+     
+    <div class="card">
+        <div class="card-body">
+            {% if Pedidos and Pedidos|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Imagen de Equipo</th>
+                                <th>Imagen de Usuario</th>
+                                <th>ID Equipo</th>
+                                <th>Fecha de Solicitud</th>
+                                <th>Fecha de Préstamo</th>
+                                <th>Fecha de Devolución</th>
+                                <th>Motivo</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pedido in Pedidos %}
+                                {% if pedido.IDequipo %}
+                                <tr>
+                                    <td>
+                                        <div class="image-container">
+                                            <img src="{{ url_for('static', filename=pedido.ImagenEquipo.replace('\\', '/')) if pedido.ImagenEquipo else url_for('static', filename='img/logo.png') }}" 
+                                                 alt="Imagen de {{ pedido.NombreEquipo }}" 
+                                                 class="device-image preview-image"
+                                                 data-full-src="{{ url_for('static', filename=pedido.ImagenEquipo.replace('\\', '/')) if pedido.ImagenEquipo else url_for('static', filename='img/logo.png') }}"
+                                                 data-name="{{ pedido.NombreEquipo }}">
+                                            <div class="image-name">{{ pedido.NombreEquipo }}</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="image-container">
+                                            <img src="{{ url_for('static', filename=pedido.ImagenUsuario.replace('\\', '/')) if pedido.ImagenUsuario else url_for('static', filename='img/logo.png') }}" 
+                                                 alt="Imagen de {{ pedido.NombreUsuario }}" 
+                                                 class="user-image preview-image"
+                                                 data-full-src="{{ url_for('static', filename=pedido.ImagenUsuario.replace('\\', '/')) if pedido.ImagenUsuario else url_for('static', filename='img/logo.png') }}"
+                                                 data-name="{{ pedido.NombreUsuario }}">
+                                            <div class="image-name">{{ pedido.NombreUsuario }}</div>
+                                        </div>
+                                    </td>
+                                    <td>{{ pedido.IDequipo }}</td>
+                                    <td>{{ pedido.FechaSolicitud }}</td>
+                                    <td>{{ pedido.FechaInicio }}</td>
+                                    <td>{{ pedido.FechaEntrega }}</td>
+                                    <td class="motivo-column">{{ pedido.Motivo }}</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="#" class="btn btn-success btn-sm accept-btn" 
+                                               data-id="{{ pedido.IDequipo }}"
+                                               data-solicitud-id="{{ pedido.IDsolicitud }}">
+                                                <i class="fas fa-check"></i> Aceptar
+                                            </a>
+                                            <a href="#" class="btn btn-warning btn-sm edit-btn"
+                                               data-solicitud-id="{{ pedido.IDsolicitud }}">
+                                                <i class="fas fa-edit"></i> Editar
+                                            </a>
+                                            <a href="#" class="btn btn-danger btn-sm delete-btn"
+                                               data-solicitud-id="{{ pedido.IDsolicitud }}">
+                                                <i class="fas fa-trash-alt"></i> Rechazar
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="no-pedidos">
+                    <i class="fas fa-clipboard-list"></i>
+                    <p>No hay pedidos en este momento</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2>Solicitudes de Acceso</h2>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            {% if SolicitudesAcceso and SolicitudesAcceso  != "No hay solicitudes pendientes" %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Imagen de Usuario</th>
+                                <th>Nombre de Usuario</th>
+                                <th>Motivo</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for solicitud in SolicitudesAcceso %}
+                                <tr>
+                                    <td>
+                                        <div class="image-container">
+                                            <img src="{{ url_for('static', filename=solicitud.ImagenUsuario.replace('\\', '/')) if solicitud.ImagenUsuario else url_for('static', filename='img/logo.png') }}" 
+                                                 alt="Imagen de {{ solicitud.NombreUsuario }}" 
+                                                 class="user-image preview-image"
+                                                 data-full-src="{{ url_for('static', filename=solicitud.ImagenUsuario.replace('\\', '/')) if solicitud.ImagenUsuario else url_for('static', filename='img/logo.png') }}"
+                                                 data-name="{{ solicitud.NombreUsuario }}">
+                                            <div class="image-name">{{ solicitud.NombreUsuario }}</div>
+                                        </div>
+                                    </td>
+                                    <td>{{ solicitud.NombreUsuario }}</td>
+                                    <td class="motivo-column">{{ solicitud.Motivo }}</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="#" class="btn btn-success btn-sm accept-access-btn" 
+                                               data-solicitud-id="{{ solicitud.IDsolicitudAcceso }}">
+                                                <i class="fas fa-check"></i> Aceptar
+                                            </a>
+                                            <a href="#" class="btn btn-danger btn-sm delete-access-btn"
+                                               data-solicitud-id="{{ solicitud.IDsolicitudAcceso }}">
+                                                <i class="fas fa-trash-alt"></i> Rechazar
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="no-items">
+                    <i class="fas fa-clipboard-list"></i>
+                    <p>No hay solicitudes de acceso en este momento</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+<!-- Image Preview Modal -->
+<div id="imagePreviewModal">
+    <span class="close-modal">&times;</span>
+    <div class="modal-content">
+        <img id="previewModalImage" src="" alt="Preview">
+        <div id="previewModalName" class="text-center text-white mt-3"></div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Image Preview Logic
+        const previewImages = document.querySelectorAll('.preview-image');
+        const imagePreviewModal = document.getElementById('imagePreviewModal');
+        const previewModalImage = document.getElementById('previewModalImage');
+        const previewModalName = document.getElementById('previewModalName');
+        const closeModalBtn = document.querySelector('.close-modal');
+    
+        previewImages.forEach(image => {
+            image.addEventListener('click', function() {
+                const fullSrc = this.getAttribute('data-full-src');
+                const imageName = this.getAttribute('data-name');
+                
+                previewModalImage.src = fullSrc;
+                previewModalName.textContent = imageName;
+                imagePreviewModal.style.display = 'block';
+            });
+        });
+    
+        // Close modal when clicking on close button
+        closeModalBtn.addEventListener('click', function() {
+            imagePreviewModal.style.display = 'none';
+        });
+    
+        // Close modal when clicking outside the image
+        imagePreviewModal.addEventListener('click', function(e) {
+            if (e.target === imagePreviewModal) {
+                imagePreviewModal.style.display = 'none';
+            }
+        });
+    
+        // Loan Request Buttons Logic
+        const deleteButtons = document.querySelectorAll('.delete-btn');
+        const acceptButtons = document.querySelectorAll('.accept-btn');
+        const editButtons = document.querySelectorAll('.edit-btn');
+    
+        // Delete Loan Request
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const solicitudId = this.getAttribute('data-solicitud-id');
+                
+                Swal.fire({
+                    title: '¿Estás seguro?',
+                    text: 'No podrás revertir esta eliminación',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        if (solicitudId) {
+                            window.location.href = `/Borrar/${solicitudId}`;
+                        } else {
+                            Swal.fire('Error', 'No se pudo identificar la solicitud', 'error');
+                        }
+                    }
+                });
+            });
+        });
+    
+        // Accept Loan Request
+        acceptButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const equipoId = this.getAttribute('data-id');
+                const solicitudId = this.getAttribute('data-solicitud-id');
+                
+                if (!equipoId || !solicitudId) {
+                    Swal.fire('Error', 'Faltan datos necesarios para procesar la solicitud', 'error');
+                    return;
+                }
+    
+                Swal.fire({
+                    title: '¿Aceptar solicitud de préstamo?',
+                    text: 'Se procederá a prestar el equipo',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Sí, aceptar',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = `/Aceptar/${equipoId}/${solicitudId}`;
+                    }
+                });
+            });
+        });
+    
+        // Edit Loan Request
+        editButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const solicitudId = this.getAttribute('data-solicitud-id');
+                
+                if (!solicitudId) {
+                    Swal.fire('Error', 'No se pudo identificar la solicitud', 'error');
+                    return;
+                }
+    
+                Swal.fire({
+                    title: '¿Editar solicitud de préstamo?',
+                    text: 'Podrás modificar los detalles de la solicitud',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ffc107',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Sí, editar',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = `/Editar/${solicitudId}`;
+                    }
+                });
+            });
+        });
+    
+        // Access Request Buttons Logic
+        const acceptAccessButtons = document.querySelectorAll('.accept-access-btn');
+        const deleteAccessButtons = document.querySelectorAll('.delete-access-btn');
+    
+        // Accept Access Request
+        acceptAccessButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const solicitudId = this.getAttribute('data-solicitud-id');
+                
+                if (!solicitudId) {
+                    Swal.fire('Error', 'No se pudo identificar la solicitud', 'error');
+                    return;
+                }
+    
+                Swal.fire({
+                    title: '¿Aceptar solicitud de acceso?',
+                    text: 'Esta acción otorgará acceso al usuario',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Sí, aceptar',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = `/AceptarAcceso/${solicitudId}`;
+                    }
+                });
+            });
+        });
+    
+        // Delete/Reject Access Request
+        deleteAccessButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const solicitudId = this.getAttribute('data-solicitud-id');
+                
+                if (!solicitudId) {
+                    Swal.fire('Error', 'No se pudo identificar la solicitud', 'error');
+                    return;
+                }
+    
+                Swal.fire({
+                    title: '¿Rechazar solicitud de acceso?',
+                    text: 'No podrás revertir esta acción',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Sí, rechazar',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = `/RechazarAcceso/${solicitudId}`;
+                    }
+                });
+            });
+        });
+    
+        // Keyboard Event for Modal
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && imagePreviewModal.style.display === 'block') {
+                imagePreviewModal.style.display = 'none';
+            }
+        });
+    });
+    </script>
+{% endblock %}

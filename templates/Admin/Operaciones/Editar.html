@@ -1,0 +1,295 @@
+{% extends './base.html' %}  
+
+{% block title %}Editar Equipo{% endblock %}  
+
+{% block customCSS %} 
+<style>
+    .main-content {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+     
+    .card {
+        box-shadow: 0 0 10px rgba(0,0,0,.1);
+        border-radius: 8px;
+        border: none;
+    }
+
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control {
+        border-radius: 0.375rem;
+        border: 1px solid #dee2e6;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .form-control:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    .image-preview-container {
+        width: 100%;
+        max-width: 300px;
+        margin-bottom: 1rem;
+    }
+
+    .image-preview {
+        width: 100%;
+        height: 200px;
+        border-radius: 0.375rem;
+        border: 2px dashed #dee2e6;
+        background-color: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .image-preview img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    .image-preview.no-image {
+        color: #6c757d;
+    }
+
+    .custom-file-upload {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        transition: all 0.3s ease;
+    }
+
+    .custom-file-upload:hover {
+        background-color: #e9ecef;
+    }
+
+    .btn-group-form {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .form-section {
+        margin-bottom: 2rem;
+    }
+
+    .form-section-title {
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    /* Estilo para el input de fecha personalizado */
+    input[type="date"] {
+        min-height: 40px;
+    }
+
+    .form-text {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}  
+
+{% block body %} 
+<div class="container main-content">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title mb-4">Editar Equipo</h3>
+                    
+                    <form action="{{ url_for('admin.AplicarCambios', IDequipo=equipo.IDequipo) }}" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <!-- Sección de Información Básica -->
+                        <div class="col-12 form-section">
+                            <h4 class="form-section-title">Información Básica</h4>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="nombre" class="form-label">Nombre del Equipo</label>
+                                    <input type="text" class="form-control" id="nombre" name="nombre" 
+                                           value="{{ equipo.Nombre }}" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="numeroInventario" class="form-label">Número de Inventario</label>
+                                    <input type="text" class="form-control" id="numeroInventario" name="numeroInventario" 
+                                           value="{{ equipo.NumeroDeInventario }}" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="marca" class="form-label">Marca</label>
+                                    <input type="text" class="form-control" id="marca" name="marca" 
+                                           value="{{ equipo.Marca }}" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="modelo" class="form-label">Modelo</label>
+                                    <input type="text" class="form-control" id="modelo" name="modelo" 
+                                           value="{{ equipo.Modelo }}" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="estado" class="form-label">Estado</label>
+                                    <select class="form-select" id="estado" name="estado" required>
+                                        <option value="Disponible" {% if equipo.Estado == 'Disponible' %}selected{% endif %}>Disponible</option>
+                                        <option value="En uso" {% if equipo.Estado == 'En uso' %}selected{% endif %}>En uso</option>
+                                        <option value="En mantenimiento" {% if equipo.Estado == 'En mantenimiento' %}selected{% endif %}>En mantenimiento</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección de Información Técnica -->
+                        <div class="col-12 form-section">
+                            <h4 class="form-section-title">Información Técnica</h4>
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label for="descripcionTecnica" class="form-label">Descripción Técnica</label>
+                                    <textarea class="form-control" id="descripcionTecnica" name="descripcionTecnica" 
+                                              rows="3">{{ equipo.DescripcionTecnica }}</textarea>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="numeroSerie" class="form-label">Número de Serie</label>
+                                    <input type="text" class="form-control" id="numeroSerie" name="numeroSerie" 
+                                           value="{{ equipo.NumeroDeSerie }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="tipo" class="form-label">Tipo</label>
+                                    <input type="text" class="form-control" id="tipo" name="tipo" 
+                                           value="{{ equipo.Tipo }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="ci" class="form-label">CI</label>
+                                    <input type="text" class="form-control" id="ci" name="ci" 
+                                           value="{{ equipo.CI }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección de Información Adicional -->
+                        <div class="col-12 form-section">
+                            <h4 class="form-section-title">Información Adicional</h4>
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label for="descripcion" class="form-label">Descripción General</label>
+                                    <textarea class="form-control" id="descripcion" name="descripcion" 
+                                              rows="3">{{ equipo.Descripcion }}</textarea>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="fechaAdquisicion" class="form-label">Fecha de Adquisición</label>
+                                    <input type="date" class="form-control" id="fechaAdquisicion" 
+                                           name="fechaAdquisicion" value="{{ equipo.FechaDeAdquisicion }}" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="ubicacion" class="form-label">Ubicación</label>
+                                    <input type="text" class="form-control" id="ubicacion" 
+                                           name="ubicacion" value="{{ equipo.Ubicacion }}" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="mantenimientosAnuales" class="form-label">Mantenimientos Anuales</label>
+                                    <input type="number" class="form-control" id="mantenimientosAnuales" 
+                                           name="mantenimientosAnuales" value="{{ equipo.Mantos_Anuales }}" min="0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección de Imagen -->
+                        <div class="col-12 form-section">
+                            <h4 class="form-section-title">Imagen del Equipo</h4>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="image-preview-container">
+                                        <div class="image-preview" id="imagePreview">
+                                            {% if equipo.Imagen %}
+                                                <img src="{{ url_for('static', filename=equipo.Imagen.replace('\\', '/')) }}" alt="Preview" id="previewImg">
+                                            {% else %}
+                                                <div class="no-image">
+                                                    <i class="fas fa-image fa-3x mb-2"></i>
+                                                    <p>No hay imagen</p>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <label class="custom-file-upload">
+                                        <input type="file" name="imagen" id="imagen" accept="image/*" 
+                                               style="display: none;" onchange="previewImage(this)">
+                                        <i class="fas fa-upload me-2"></i>Seleccionar imagen
+                                    </label>
+                                    <div class="form-text mt-2">
+                                        Formatos permitidos: JPG, PNG. Tamaño máximo: 2MB
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div class="btn-group-form">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Guardar Cambios
+                            </button>
+                            <a href="{{ url_for('admin.Inventario') }}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault(); // Prevenir el envío predeterminado del formulario
+        
+        Swal.fire({
+            title: '¿Confirmar cambios?',
+            text: "¿Estás seguro de que deseas guardar los cambios realizados?",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Sí, guardar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Si se confirma, enviar el formulario
+                form.submit();
+            }
+        });
+    });
+});
+
+function previewImage(input) {
+    const preview = document.getElementById('imagePreview');
+    const file = input.files[0];
+    const reader = new FileReader();
+
+    reader.onloadend = function() {
+        preview.innerHTML = `<img src="${reader.result}" alt="Preview" id="previewImg">`;
+    }
+
+    if (file) {
+        reader.readAsDataURL(file);
+    } else {
+        preview.innerHTML = `
+            <div class="no-image">
+                <i class="fas fa-image fa-3x mb-2"></i>
+                <p>No hay imagen</p>
+            </div>`;
+    }
+}
+</script>
+{% endblock %}

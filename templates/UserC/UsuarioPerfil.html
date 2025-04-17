@@ -1,0 +1,507 @@
+{% extends './base.html' %}
+
+{% block title %}Perfil de Usuario{% endblock %}
+
+{% block customCSS %}
+<style>
+    /* Profile Card Styles */
+    .profile-card {
+        background-color: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+        transition: transform 0.2s ease-in-out;
+    }
+    
+    .profile-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+
+    .profile-header {
+        position: relative;
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .profile-image {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin: 0 auto 1rem;
+        border: 4px solid #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .profile-info {
+        padding: 2rem;
+        border-top: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .info-item {
+        margin-bottom: 1rem;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .info-label {
+        font-weight: bold;
+        color: #6c757d;
+        margin-bottom: 0.25rem;
+    }
+
+    .info-value {
+        color: #212529;
+    }
+
+    .edit-profile-btn {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+    }
+
+    /* Loan Request Sections */
+    .requests-section {
+        margin-top: 3rem;
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .request-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+
+    .request-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        transition: transform 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .request-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .request-image {
+        height: 160px;
+        width: 100%;
+        object-fit: cover;
+    }
+
+    .request-content {
+        padding: 1rem;
+    }
+
+    .request-id {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+    }
+
+    .request-dates {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+        color: #495057;
+    }
+
+    .request-status {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 0.3rem 0.8rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .status-pendiente {
+        background-color: #ffc107;
+        color: #000;
+    }
+
+    .status-aceptado {
+        background-color: #28a745;
+        color: white;
+    }
+
+    .status-rechazado {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .request-motivo {
+        margin: 0.5rem 0;
+        font-size: 0.9rem;
+        color: #495057;
+        max-height: 3.6em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        line-clamp: 2;
+    }
+
+    /* Action Buttons */
+    .request-actions {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(0,0,0,0.05);
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+    }
+
+    .btn-action {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.9rem;
+        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition: all 0.2s ease;
+    }
+
+    .btn-action i {
+        font-size: 0.9rem;
+    }
+
+    .btn-edit {
+        background-color: #ffc107;
+        border-color: #ffc107;
+        color: #000;
+    }
+
+    .btn-edit:hover {
+        background-color: #e0a800;
+        border-color: #e0a800;
+    }
+
+    .btn-cancel {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        color: white;
+    }
+
+    .btn-cancel:hover {
+        background-color: #5a6268;
+        border-color: #545b62;
+    }
+
+    .btn-return {
+        background-color: #17a2b8;
+        border-color: #17a2b8;
+        color: white;
+    }
+
+    .btn-return:hover {
+        background-color: #138496;
+        border-color: #117a8b;
+    }
+
+    .btn-delete {
+        background-color: #dc3545;
+        border-color: #dc3545;
+        color: white;
+    }
+
+    .btn-delete:hover {
+        background-color: #c82333;
+        border-color: #bd2130;
+    }
+    
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .request-cards {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="container py-5">
+    <!-- Profile Card Section -->
+    <div class="row">
+        <div class="col-12 col-lg-8 mx-auto">
+            <!-- Display Profile Card -->
+            <div id="profileCard" class="profile-card">
+                <div class="profile-header">
+                    <!-- Boton editar....
+                    <a href="#" id="editProfileToggle" class="btn btn-outline-primary edit-profile-btn">
+                        <i class="fas fa-edit me-2"></i>Editar Perfil
+                    </a>-->
+                    <img src="{{ url_for('static', filename=usuario.Imagen.replace('\\', '/')) if usuario.Imagen else url_for('static', filename='img/logo.png') }}"
+                         class="profile-image"
+                         alt="Foto de perfil de {{ usuario.NombreUsuario }}">
+                    <h2 class="mb-0">{{ usuario.NombreUsuario }} {{ usuario.Apellido }}</h2>
+                    <p class="text-muted">{{ usuario.Carrera }}</p>
+                </div>
+                
+                <div class="profile-info">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <div class="info-label">
+                                    <i class="fas fa-user me-2"></i>Nombre Completo
+                                </div>
+                                <div class="info-value">{{ usuario.NombreUsuario }} {{ usuario.Apellido }}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">
+                                    <i class="fas fa-graduation-cap me-2"></i>Carrera
+                                </div>
+                                <div class="info-value">{{ usuario.Carrera }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <div class="info-label">
+                                    <i class="fas fa-phone me-2"></i>Teléfono
+                                </div>
+                                <div class="info-value">{{ usuario.Telefono }}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">
+                                    <i class="fas fa-envelope me-2"></i>Email
+                                </div>
+                                <div class="info-value">{{ usuario.Email }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+   
+   
+   
+        <!-- Loan Requests Sections -->
+    <div class="requests-section">
+        <!-- Solicitudes Enviadas -->
+        <h3 class="section-title">
+            <i class="fas fa-paper-plane me-2"></i>Solicitudes Enviadas
+        </h3>
+        <div class="request-cards">
+            {% if solicitudes_pendientes and solicitudes_pendientes != "No hay pedidos activos" %}
+                {% for solicitud in solicitudes_pendientes %}
+                <div class="request-card">
+                    <span class="request-status status-pendiente">Pendiente</span>
+                    <img src="{{ url_for('static', filename=solicitud.ImagenEquipo.replace('\\', '/')) if solicitud.ImagenEquipo else url_for('static', filename='img/logo.png')}}" 
+                         class="request-image" 
+                         alt="Equipo {{ solicitud.IDequipo }}">
+                    <div class="request-content">
+                        <div class="request-id">Equipo: {{ solicitud.NombreEquipo }}</div>
+                        <div class="request-motivo">{{ solicitud.Motivo }}</div>
+                        <div class="request-dates">
+                            <span><i class="fas fa-calendar-alt me-1"></i>Inicio: {{ solicitud.FechaInicio }}</span>
+                            <span><i class="fas fa-calendar-check me-1"></i>Entrega: {{ solicitud.FechaEntrega }}</span>
+                        </div>
+                        <div class="request-actions">
+                            <button class="btn btn-action btn-edit" data-solicitud-id="{{ solicitud.IDsolicitud }}">
+                                <i class="fas fa-edit"></i>Editar
+                            </button>
+                            <button class="btn btn-action btn-cancel" data-solicitud-id="{{ solicitud.IDsolicitud }}">
+                                <i class="fas fa-times"></i>Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>No hay solicitudes pendientes
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Solicitudes Aceptadas -->
+        <h3 class="section-title">
+            <i class="fas fa-check-circle me-2"></i>Solicitudes Aceptadas
+        </h3>
+        <div class="request-cards">
+            {% if solicitudes_aceptadas and solicitudes_aceptadas != "No hay pedidos activos" %}
+                {% for solicitud in solicitudes_aceptadas %}
+                <div class="request-card">
+                    <span class="request-status status-aceptado">Aceptado</span>
+                    <img src="{{ url_for('static', filename=solicitud.ImagenEquipo.replace('\\', '/')) if solicitud.ImagenEquipo else url_for('static', filename='img/logo.png') }}" 
+                         class="request-image" 
+                         alt="Equipo {{ solicitud.IDequipo }}">
+                    <div class="request-content">
+                        <div class="request-id">Equipo: {{ solicitud.NombreEquipo }}</div>
+                        <div class="request-motivo">{{ solicitud.Motivo }}</div>
+                        <div class="request-dates">
+                            <span><i class="fas fa-calendar-alt me-1"></i>Inicio: {{ solicitud.FechaInicio }}</span>
+                            <span><i class="fas fa-calendar-check me-1"></i>Entrega: {{ solicitud.FechaEntrega }}</span>
+                        </div>
+                        <div class="request-actions">
+                            <button class="btn btn-action btn-return" data-solicitud-id="{{ solicitud.IDsolicitud }}">
+                                <i class="fas fa-undo"></i>Devolver
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>No hay solicitudes aceptadas
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Solicitudes Rechazadas -->
+        <h3 class="section-title">
+            <i class="fas fa-times-circle me-2"></i>Solicitudes Rechazadas
+        </h3>
+        <div class="request-cards">
+            {% if solicitudes_rechazadas and solicitudes_rechazadas != "No hay pedidos activos" %}
+                {% for solicitud in solicitudes_rechazadas %}
+                <div class="request-card">
+                    <span class="request-status status-rechazado">Rechazado</span>
+                    <img src="{{ url_for('static', filename=solicitud.ImagenEquipo.replace('\\', '/')) if solicitud.ImagenEquipo else url_for('static', filename='img/logo.png')}}" 
+                         class="request-image" 
+                         alt="Equipo {{ solicitud.IDequipo }}">
+                    <div class="request-content">
+                        <div class="request-id">Equipo: {{ solicitud.NombreEquipo }}</div>
+                        <div class="request-motivo">{{ solicitud.Motivo }}</div>
+                        <div class="request-dates">
+                            <span><i class="fas fa-calendar-alt me-1"></i>Inicio: {{ solicitud.FechaInicio }}</span>
+                            <span><i class="fas fa-calendar-check me-1"></i>Entrega: {{ solicitud.FechaEntrega }}</span>
+                        </div>
+                        <div class="request-actions">
+                            <button class="btn btn-action btn-delete" data-solicitud-id="{{ solicitud.IDsolicitud }}">
+                                <i class="fas fa-trash"></i>Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>No hay solicitudes rechazadas
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Botones de editar solicitud
+    const editButtons = document.querySelectorAll('.btn-edit');
+    editButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const solicitudId = this.getAttribute('data-solicitud-id');
+            
+            Swal.fire({
+                title: '¿Editar solicitud?',
+                text: 'Podrás modificar los detalles de la solicitud',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#ffc107',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sí, editar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed && solicitudId) {
+                    window.location.href = `/Editar/${solicitudId}`;
+                }
+            });
+        });
+    });
+
+    // Botones de cancelar solicitud
+    const cancelButtons = document.querySelectorAll('.btn-cancel');
+    cancelButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const solicitudId = this.getAttribute('data-solicitud-id');
+            
+            Swal.fire({
+                title: '¿Cancelar solicitud?',
+                text: '¿Estás seguro que deseas cancelar esta solicitud?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, cancelar',
+                cancelButtonText: 'Volver'
+            }).then((result) => {
+                if (result.isConfirmed && solicitudId) {
+                    window.location.href = `/Cancelar/${solicitudId}`;
+                }
+            });
+        });
+    });
+
+    // Botones de devolver equipo
+    const returnButtons = document.querySelectorAll('.btn-return');
+    returnButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const solicitudId = this.getAttribute('data-solicitud-id');
+            
+            Swal.fire({
+                title: '¿Devolver equipo?',
+                text: '¿Estás seguro que deseas devolver este equipo?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sí, devolver',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed && solicitudId) {
+                    window.location.href = `/Devolver/${solicitudId}`;
+                }
+            });
+        });
+    });
+
+    // Botones de eliminar solicitud
+    const deleteButtons = document.querySelectorAll('.btn-delete');
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const solicitudId = this.getAttribute('data-solicitud-id');
+            
+            Swal.fire({
+                title: '¿Eliminar solicitud?',
+                text: 'Esta acción no se puede deshacer',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed && solicitudId) {
+                    window.location.href = `/Eliminar/${solicitudId}`;
+                }
+            });
+        });
+    });
+});
+
+</script>
+{% endblock %}

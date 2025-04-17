@@ -1,0 +1,83 @@
+<!-- Solicitudes Aceptadas -->
+<h3 class="section-title">
+    <i class="fas fa-check-circle me-2"></i>Solicitudes Aceptadas
+</h3>
+<div class="request-cards">
+    {% if solicitudes_aceptadas and solicitudes_aceptadas != "No hay pedidos activos" %}
+        {% for solicitud in solicitudes_aceptadas %}
+        <div class="request-card">
+            <span class="request-status status-aceptado">Aceptado</span>
+            <img src="{{ url_for('static', filename=solicitud.ImagenEquipo.replace('\\', '/')) if solicitud.ImagenEquipo else url_for('static', filename='img/logo.png') }}" 
+                 class="request-image" 
+                 alt="Equipo {{ solicitud.IDequipo }}">
+            <div class="request-content">
+                <div class="request-id">Equipo: {{ solicitud.NombreEquipo }}</div>
+                <div class="request-motivo">{{ solicitud.Motivo }}</div>
+                <div class="request-dates">
+                    <span><i class="fas fa-calendar-alt me-1"></i>Inicio: {{ solicitud.FechaInicio }}</span>
+                    <span><i class="fas fa-calendar-check me-1"></i>Entrega: {{ solicitud.FechaEntrega }}</span>
+                </div>
+                <div class="request-actions">
+                    <button class="btn btn-action btn-return" data-solicitud-id="{{ solicitud.IDsolicitud }}">
+                        <i class="fas fa-undo"></i>Devolver
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>No hay solicitudes aceptadas
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Solicitudes Rechazadas -->
+<h3 class="section-title">
+    <i class="fas fa-times-circle me-2"></i>Solicitudes Rechazadas
+</h3>
+<div class="request-cards">
+    {% if solicitudes_rechazadas and solicitudes_rechazadas != "No hay pedidos activos" %}
+        {% for solicitud in solicitudes_rechazadas %}
+        <div class="request-card">
+            <span class="request-status status-rechazado">Rechazado</span>
+            <img src="{{ url_for('static', filename=solicitud.ImagenEquipo.replace('\\', '/')) if solicitud.ImagenEquipo else url_for('static', filename='img/logo.png')}}" 
+                 class="request-image" 
+                 alt="Equipo {{ solicitud.IDequipo }}">
+            <div class="request-content">
+                <div class="request-id">Equipo: {{ solicitud.NombreEquipo }}</div>
+                <div class="request-motivo">{{ solicitud.Motivo }}</div>
+                <div class="request-dates">
+                    <span><i class="fas fa-calendar-alt me-1"></i>Inicio: {{ solicitud.FechaInicio }}</span>
+                    <span><i class="fas fa-calendar-check me-1"></i>Entrega: {{ solicitud.FechaEntrega }}</span>
+                </div>
+                <div class="request-actions">
+                    <button class="btn btn-action btn-delete" data-solicitud-id="{{ solicitud.IDsolicitud }}">
+                        <i class="fas fa-trash"></i>Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>No hay solicitudes rechazadas
+            </div>
+        </div>
+    {% endif %}
+</div>
+</div>
+</div>
+
+<!-- Importar scripts de SweetAlert -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+// Mismo script de manejo de eventos que estaba en el archivo original
+document.addEventListener('DOMContentLoaded', function() {
+// Código para manejar botones de editar, cancelar, devolver y eliminar solicitudes
+// (copiar el mismo script del documento original)
+});
+</script>

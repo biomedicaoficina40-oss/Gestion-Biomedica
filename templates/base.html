@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sistema de Préstamo{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="{{ url_for('static', filename='img/flask.svg') }}">
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" 
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" 
+        integrity="sha512-z3gLpd7yknf1YoNbCzqNKDSN2Z/9SLS0bFGpOH8I5w3rGO2CjqRhUnS6F50g5VJ2Qm7LnqeG6J8I6vJ5067nQ==" 
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+    
+    <!-- Google Fonts (Roboto) -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --danger-color: #dc3545;
+            --light-bg: #f8f9fa;
+        }
+    
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f6f9;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+    
+        /* Estilos específicos para páginas de auth */
+        body.auth-page {
+            padding-top: 0 !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    
+        .auth-page .main-content {
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+    
+        .auth-page main.container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+        }
+    
+        /* Estilos del navbar */
+        .navbar-custom {
+            background-color: var(--light-bg) !important;
+            padding: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            min-height: 80px;
+        }
+    
+        .navbar-brand {
+            font-weight: 700;
+            color: var(--primary-color) !important;
+            display: flex;
+            align-items: center;
+        }
+    
+        .navbar-brand i {
+            margin-right: 0.5rem;
+            font-size: 1.5rem;
+        }
+    
+        .navbar-brand img {
+            height: 50px;
+            width: auto;
+            margin-right: 0.75rem;
+        }
+    
+        .navbar-nav .nav-link {
+            color: var(--secondary-color);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+        }
+    
+        .navbar-nav .nav-link:hover {
+            color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+    
+        .navbar-nav .nav-link i {
+            margin-right: 0.5rem;
+            opacity: 0.7;
+        }
+    
+        .btn-logout {
+            color: var(--danger-color);
+            border-color: var(--danger-color);
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+    
+        .btn-logout:hover {
+            color: white;
+            background-color: var(--danger-color);
+        }
+    
+        .user-profile-btn {
+            color: var(--secondary-color);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+    
+        .user-profile-btn:hover {
+            color: var(--primary-color);
+        }
+    
+        /* Estilos para navegación móvil */
+        @media (max-width: 991.98px) {
+            .navbar-collapse {
+                background-color: var(--light-bg);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                margin-top: 0.5rem;
+                position: fixed;
+                top: 80px;
+                left: 0;
+                right: 0;
+                background-color: white;
+                padding: 1rem;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                max-height: calc(100vh - 80px);
+                overflow-y: auto;
+                z-index: 1000;
+            }
+    
+            .navbar-nav {
+                padding-bottom: 0.5rem;
+            }
+    
+            .navbar-nav .nav-link {
+                padding: 1rem;
+                border-bottom: 1px solid rgba(0,0,0,0.05);
+            }
+    
+            .navbar-nav .nav-link:last-child {
+                border-bottom: none;
+            }
+    
+            .d-flex.align-items-center {
+                flex-direction: column;
+                width: 100%;
+                gap: 0.5rem;
+            }
+    
+            .navbar-text {
+                margin-bottom: 0.5rem;
+                text-align: center;
+                width: 100%;
+            }
+    
+            .btn-logout {
+                width: 100%;
+                margin-top: 0.5rem;
+            }
+    
+            .user-profile-btn {
+                display: block;
+                width: 100%;
+                text-align: center;
+                padding: 0.5rem;
+            }
+    
+            .cart-link {
+                width: 100%;
+                justify-content: center;
+                margin: 0.5rem 0;
+            }
+    
+            .cart-badge {
+                position: relative;
+                margin-left: 0.5rem;
+            }
+        }
+    
+        /* Ajustes para el botón hamburguesa */
+        .navbar-toggler {
+            border: 1px solid var(--primary-color);
+            padding: 0.5rem;
+        }
+    
+        .navbar-toggler:focus {
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(0, 123, 255, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        }
+    </style>
+
+
+    {% block customCSS %}{% endblock %}
+</head>
+
+<body class="{{ 'auth-page' if request.endpoint in ['auth.login', 'auth.register'] else '' }}">
+    {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.register'] %}
+    <nav class="navbar navbar-expand-lg navbar-light navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('equipos.Catalogo') }}">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
+                Sistema de Préstamo
+            </a>
+            <button class="navbar-toggler" 
+                    type="button" 
+                    data-bs-toggle="collapse" 
+                    data-bs-target="#navbarNavDropdown" 
+                    aria-controls="navbarNavDropdown" 
+                    aria-expanded="false" 
+                    aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNavDropdown">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('equipos.Catalogo') }}">
+                            <i class="fas fa-list-ul"></i> Catálogo de Equipos
+                        </a>
+                    </li>
+                    
+                    {% if current_user.Permiso == 'Administrador' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin.ListaPedidos') }}">
+                                <i class="fas fa-list-ul"></i> Pedidos Activos
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin.ListaSolicitudes') }}">
+                                <i class="fas fa-list-ul"></i> Solicitudes de Préstamo
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin.Inventario') }}">
+                                <i class="fas fa-box"></i> Inventario
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin.ListaUsuario') }}">
+                                <i class="fas fa-users"></i> Usuarios
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin.HistorialList') }}">
+                                <i class="fas fa-history"></i> Historial
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+                <div class="d-flex align-items-center">
+                    <a href="{{ url_for('auth.Carrito') }}" class="cart-link me-3">
+                        <i class="fas fa-shopping-cart cart-icon"></i>
+                        <span>Carrito</span>
+                        {% if session.get('carrito_count', 0) > 0 %}
+                        <span class="cart-badge">{{ session.get('carrito_count', 0) }}</span>
+                        {% endif %}
+                    </a>
+                    <span class="navbar-text me-3">
+                        <i class="fas fa-user-circle me-2"></i>
+                        <form action="{{ url_for('auth.perfil') }}" method="GET" class="d-inline">
+                            <input type="hidden" name="user_id" value="{{ current_user.id }}">
+                            <button type="submit" class="btn btn-link p-0 user-profile-btn">
+                                {{ current_user.NombreUsuario }}
+                            </button>
+                        </form>
+                    </span>
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger btn-logout">
+                        <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <div class="container main-content">
+        <div class="row">
+            <div class="col-12">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+    </div>
+    <main class="container mt-4">
+        {% block body %}{% endblock %}
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" 
+        integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyK/zVqL7XGsNMW8U6Tz" 
+        crossorigin="anonymous"></script>
+        
+    </main>
+    
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Mejorar funcionalidad móvil
+            const navbarToggler = document.querySelector('.navbar-toggler');
+            const navbarCollapse = document.querySelector('.navbar-collapse');
+            
+            if (navbarToggler && navbarCollapse) {
+                // Cerrar menú al hacer clic en un enlace
+                const navLinks = document.querySelectorAll('.nav-link, .cart-link, .user-profile-btn, .btn-logout');
+                navLinks.forEach(link => {
+                    link.addEventListener('click', () => {
+                        if (window.innerWidth < 992) {
+                            const bsCollapse = new bootstrap.Collapse(navbarCollapse);
+                            bsCollapse.hide();
+                        }
+                    });
+                });
+
+                // Cerrar menú al hacer clic fuera
+                document.addEventListener('click', (e) => {
+                    if (window.innerWidth < 992 && 
+                        !navbarCollapse.contains(e.target) && 
+                        !navbarToggler.contains(e.target) && 
+                        navbarCollapse.classList.contains('show')) {
+                        const bsCollapse = new bootstrap.Collapse(navbarCollapse);
+                        bsCollapse.hide();
+                    }
+                });
+            }
+        });
+    </script>
+
+        
+    {% block scripts %} {% endblock %}
+</body>
+</html>

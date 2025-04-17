@@ -1,0 +1,138 @@
+{% extends './base.html' %}
+
+{% block title %}Solicitar Equipo{% endblock %}
+
+{% block customCSS %}
+<style>
+    .card-img-request {
+        max-height: 300px;
+        object-fit: cover;
+        width: 100%;
+    }
+
+    .form-request-container {
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 30px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .form-label {
+        font-weight: bold;
+        color: #495057;
+    }
+
+    .btn-submit-request {
+        transition: all 0.3s ease;
+    }
+
+    .btn-submit-request:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card form-request-container">
+                <div class="row g-4">
+                    <div class="col-md-5">
+                        <img src="{{ url_for('static', filename=equipo.Imagen.replace('\\', '/')) if equipo.Imagen else url_for('static', filename='img/logo.png') }}"
+                             class="card-img-request rounded" 
+                             alt="{{ equipo.Nombre }}">
+                        <h3 class="mt-3 text-center">{{ equipo.Nombre }}</h3>
+                    </div>
+                    <div class="col-md-7">
+                        <form action="{{ url_for('equipos.enviar_solicitud') }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="equipo_id" value="{{ equipo.IDequipo }}">
+                            
+                            <div class="mb-3">
+                                <label for="motivo" class="form-label">Motivo de Solicitud</label>
+                                <textarea class="form-control" id="motivo" name="motivo" rows="3" placeholder="Describe el propósito de solicitar este equipo" required></textarea>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="fecha_inicio" class="form-label">Fecha de Préstamo</label>
+                                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="fecha_entrega" class="form-label">Fecha de Entrega</label>
+                                    <input type="date" class="form-control" id="fecha_entrega" name="fecha_entrega" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="materia" class="form-label">Materia</label>
+                                    <select class="form-control" id="materia" name="materia" required>
+                                        <option value="">Seleccione una materia</option>
+                                        <option value="DESIBM">DESIBM - Diseño de Sistemas Biomédicos</option>
+                                        <option value="ISBB">ISBB - Integración de Sistemas Biomédicos</option>
+                                        <option value="FMED">FMED - Física Médica</option>
+                                        <option value="PROSIBM">PROSIBM - Procesamiento de Señales Biomédicas</option>
+                                        <option value="APSBB">APSBB - Aplicaciones del Procesamiento de Señales Biomédicas</option>
+                                        <option value="BINS">BINS - Bioinstrumentación</option>
+                                        <option value="PRIMG">PRIMG - Procesamiento de Imágenes</option>
+                                        <option value="OP1B">OP1B - Biomecánica</option>
+                                        <option value="OP2B">OP2B - Telesalud</option>
+                                        <option value="INTB">INTB - Introducción a la Ingeniería Biomédica</option>
+                                        <option value="INCL">INCL - Ingeniería Clínica</option>
+                                        <option value="SYACB">SYACB - Sensores y Actuadores Biomédicos</option>
+                                        <option value="MEME">MEME - Mantenimiento de Equipos Médicos</option>
+                                        <option value="PRIE">PRIE - Principios de Electrónica</option>
+                                        <option value="ELAN">ELAN - Electrónica Analógica</option>
+                                        <option value="ELDI">ELDI - Electrónica Digital</option>
+                                        <option value="EDP">EDP - Electrónica de Potencia</option>
+                                        <option value="MICB">MICB - Microcontroladores</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="profesor" class="form-label">Profesor</label>
+                                    <input type="text" class="form-control" id="profesor" name="profesor" placeholder="Nombre del profesor" required>
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-submit-request">
+                                    <i class="fas fa-paper-plane me-2"></i>Enviar Solicitud
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fechaInicio = document.getElementById('fecha_inicio');
+    const fechaEntrega = document.getElementById('fecha_entrega');
+    
+    // Set minimum date for both inputs to today
+    const today = new Date().toISOString().split('T')[0];
+    fechaInicio.min = today;
+    fechaEntrega.min = today;
+    
+    // Ensure delivery date is after start date
+    fechaInicio.addEventListener('change', function() {
+        fechaEntrega.min = fechaInicio.value;
+    });
+    
+    fechaEntrega.addEventListener('change', function() {
+        if (new Date(fechaEntrega.value) <= new Date(fechaInicio.value)) {
+            alert('La fecha de entrega debe ser posterior a la fecha de inicio');
+            fechaEntrega.value = '';
+        }
+    });
+});
+</script>
+{% endblock %}

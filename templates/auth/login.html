@@ -1,0 +1,99 @@
+{% extends './base.html' %}
+
+{% block title %}Login{% endblock %}
+
+{% block customCSS %}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<style>
+    html, body {
+        height: 100%;
+    }
+
+    body {
+        display: flex;
+        align-items: center;
+        padding-top: 40px;
+        padding-bottom: 40px;
+        background-color: #f5f5f5;
+    }
+
+    .form-signin {
+        width: 100%;
+        max-width: 330px;
+        padding: 15px;
+        margin: auto;
+    }
+
+    .form-signin .form-floating:focus-within {
+        z-index: 2;
+    }
+
+    .form-signin input[type="text"] {
+        margin-bottom: -1px;
+        border-bottom-right-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+
+    .form-signin input[type="password"] {
+        margin-bottom: 12px;
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+    }
+
+    /* Additional responsive adjustments */
+    @media (max-width: 576px) {
+        .form-signin {
+            max-width: 100%;
+            margin: auto 15px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<main class="form-signin">
+    <form action="/login" method="POST">
+        <div class="text-center">
+            <img class="mb-4" src="{{ url_for('static', filename='img/logo.png') }}" alt="" width="200" height="200">
+        </div>
+        
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <br />
+        {% for message in messages %}
+        <div class="alert alert-primary alert-dismissible" role="alert">
+            <strong>{{ message }}</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <h1 class="h3 mb-3 fw-normal text-center">Please sign in</h1>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- Campo de email -->
+        <div class="form-floating">
+            <input type="text" class="form-control" id="email" name="email" placeholder="email">
+            <label for="email">Email</label>
+        </div>
+
+        <!-- Campo de contraseña con ícono de "ojito" -->
+        <div class="form-floating position-relative">
+            <input type="password" class="form-control" id="password" name="password" placeholder="Password">
+            <label for="password">Password</label>
+            <i class="fas fa-eye toggle-password position-absolute" style="top: 50%; right: 15px; cursor: pointer;" onclick="togglePassword()"></i>
+        </div>
+        
+        <button class="w-100 btn btn-lg btn-primary mt-3" type="submit">Sign in</button>
+
+        <div class="mt-3 text-center">
+            <a href="{{ url_for('auth.register') }}">¿No tienes una cuenta? Regístrate aquí</a>
+        </div>
+    </form>
+</main>
+
+<!-- Enlace al archivo JavaScript externo -->
+<script src="{{ url_for('static', filename='js/togglePassword.js') }}"></script>
+{% endblock %}
