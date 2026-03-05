@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarjeta de Equipo Médico - Galenia</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .card-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .equipment-card {
+            --card-bg: #1B2C4C;
+            --area-color: #00BFFF; /* Color por defecto, se cambia dinámicamente */
+            
+            width: 280px;
+            height: 400px;
+            background: var(--card-bg);
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Franjas diagonales doradas */
+        .equipment-card::before,
+        .equipment-card::after {
+            content: '';
+            position: absolute;
+            width: 150%;
+            height: 60px;
+            background: linear-gradient(135deg, 
+                transparent 0%, 
+                transparent 40%, 
+                #D4AF37 40%, 
+                #F4D03F 50%, 
+                #D4AF37 60%, 
+                transparent 60%, 
+                transparent 100%
+            );
+            z-index: 1;
+        }
+
+        .equipment-card::before {
+            top: -20px;
+            right: -50%;
+            transform: rotate(-15deg);
+        }
+
+        .equipment-card::after {
+            bottom: -20px;
+            left: -50%;
+            transform: rotate(-15deg);
+        }
+
+        /* Logo Galenia superior */
+        .logo-top {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            padding: 15px 0 10px 0;
+        }
+
+        .logo-top img {
+            height: 45px;
+            filter: brightness(0) invert(1); /* Convierte el logo a blanco */
+        }
+
+        /* Sección de letras grandes del área */
+        .area-section {
+            position: relative;
+            z-index: 2;
+            margin: 10px 20px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .area-codes {
+            display: flex;
+            background: white;
+        }
+
+        .area-left {
+            flex: 0 0 80px;
+            background: var(--card-bg);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 10px 5px;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .area-code-line {
+            margin: 2px 0;
+        }
+
+        .area-right {
+            flex: 1;
+            background: var(--area-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .area-letters {
+            font-size: 72px;
+            font-weight: 900;
+            color: white;
+            letter-spacing: -5px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Información del equipo */
+        .equipment-info {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            padding: 15px 20px;
+        }
+
+        .equipment-code {
+            font-size: 24px;
+            font-weight: 900;
+            color: white;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .equipment-name {
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Logos inferiores */
+        .logos-bottom {
+            position: absolute;
+            bottom: 15px;
+            left: 0;
+            right: 0;
+            z-index: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 0 20px;
+        }
+
+        .logos-bottom img {
+            height: 35px;
+            filter: brightness(0) invert(1);
+            opacity: 0.9;
+        }
+
+        /* Responsivo */
+        @media (max-width: 768px) {
+            .equipment-card {
+                width: 250px;
+                height: 360px;
+            }
+
+            .area-letters {
+                font-size: 60px;
+            }
+
+            .equipment-code {
+                font-size: 20px;
+            }
+
+            .equipment-name {
+                font-size: 12px;
+            }
+
+            .logos-bottom img {
+                height: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="card-container">
+        
+        <!-- Ejemplo 1: QUIRÓFANO -->
+        <div class="equipment-card" style="--area-color: #E8E8E8;">
+            <div class="logo-top">
+                <img src="C:\Users\Biomedica\Desktop\Gestion de informacion de equipos/Logo-Galenia.png" alt="Logo-Galenia">
+            </div>
+            
+            <div class="area-section">
+                <div class="area-codes">
+                    <div class="area-left">
+                        <div class="area-code-line">FMS.7 (UCI)</div>
+                        <div class="area-code-line">FMS.6 (MUEO)</div>
+                    </div>
+                    <div class="area-right">
+                        <div class="area-letters">QX</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="equipment-info">
+                <div class="equipment-code">EQ-ME0071</div>
+                <div class="equipment-name">DESFIBRILADOR</div>
+            </div>
+            
+            <div class="logos-bottom">
+                <img src="C:\Users\Biomedica\Desktop\Gestion de informacion de equipos/join.png" alt="Joint Commission">
+                <img src="C:\Users\Biomedica\Desktop\Gestion de informacion de equipos/canada.png" alt="Accredited Canada">
+                <img src="C:\Users\Biomedica\Desktop\Gestion de informacion de equipos/consejo.png" alt="Consejo Salubridad">
+            </div>
+        </div>
+
+        <!-- Ejemplo 2: CIRUGÍA ELECTIVA -->
+        <div class="equipment-card" style="--area-color: #90EE90;">
+            <div class="logo-top">
+                <img src="https://via.placeholder.com/150x50/1B2C4C/FFFFFF?text=GALENIA" alt="Galenia">
+            </div>
+            
+            <div class="area-section">
+                <div class="area-codes">
+                    <div class="area-left">
+                        <div class="area-code-line">FMS.7 (UCI)</div>
+                        <div class="area-code-line">FMS.6 (MUEO)</div>
+                    </div>
+                    <div class="area-right">
+                        <div class="area-letters">CE</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="equipment-info">
+                <div class="equipment-code">EQ-ME0173</div>
+                <div class="equipment-name">MONITOR SIGNOS VITALES</div>
+            </div>
+            
+            <div class="logos-bottom">
+                <img src="https://via.placeholder.com/50x50/FFFFFF/000000?text=JC" alt="Joint Commission">
+                <img src="https://via.placeholder.com/50x50/FFFFFF/000000?text=AC" alt="Accredited Canada">
+                <img src="https://via.placeholder.com/50x50/FFFFFF/000000?text=CS" alt="Consejo Salubridad">
+            </div>
+        </div>
+
+        <!-- Ejemplo 3: URGENCIAS -->
+        <div class="equipment-card" style="--area-color: #FF0000;">
+            <div class="logo-top">
+                <img src="https://via.placeholder.com/150x50/1B2C4C/FFFFFF?text=GALENIA" alt="Galenia">
+            </div>
+            
+            <div class="area-section">
+                <div class="area-codes">
+                    <div class="area-left">
+                        <div class="area-code-line">FMS.7 (UCI)</div>
+                        <div class="area-code-line">FMS.6 (MUEO)</div>
+                    </div>
+                    <div class="area-right">
+                        <div class="area-letters">UR</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="equipment-info">
+                <div class="equipment-code">EQ-ME0318</div>
+                <div class="equipment-name">ELECTROCARDIÓGRAFO</div>
+            </div>
+            
+            <div class="logos-bottom">
+                <img src="https://via.placeholder.com/50x50/FFFFFF/000000?text=JC" alt="Joint Commission">
+                <img src="https://via.placeholder.com/50x50/FFFFFF/000000?text=AC" alt="Accredited Canada">
+                <img src="https://via.placeholder.com/50x50/FFFFFF/000000?text=CS" alt="Consejo Salubridad">
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

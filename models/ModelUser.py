@@ -1,9 +1,11 @@
 from .entities.User import User
 import re
 
+
 class ModelUser():
+
     @classmethod
-    def login(self, db, user):
+    def login(cls, db, user):
         cursor = None
         try:
             cursor = db.cursor()
@@ -18,64 +20,82 @@ class ModelUser():
                     u.Rol, 
                     u.Email, 
                     u.Permiso, 
-                    u.Imagen,
-                    COALESCE(cp.CarritoID, NULL) AS CarritoID
-                FROM 
-                    dbo.usuario u
-                LEFT JOIN 
-                    dbo.CarritoPedidos cp 
-                ON 
-                    u.IDusuario = cp.IDusuario
-                WHERE 
-                    u.Email = ?
-                """
-
-            
+                    u.Imagen
+                    
+                FROM dbo.usuario u
+                WHERE u.Email = ? 
+            """
             cursor.execute(sql, (user.email,))
             row = cursor.fetchone()
 
-            if row != None:
-                user = User(row[0], row[1], User.check_password(row[2], user.password), row[3],row[4],row[5],row[6],row[7],row[8],row[9],row[10])
-
-                return user
+            if row is not None:
+                if User.check_password(row[2], user.password):
+                    return User(
+                        IDusuario=row[0],
+                        NombreUsuario=row[1],
+                        password=row[2],
+                        Apellido=row[3],
+                        Carrera=row[4],
+                        Telefono=row[5],
+                        Rol=row[6],
+                        email=row[7],
+                        Permiso=row[8],
+                        Imagen=row[9]
+                        
+                    )
+                else:
+                    return None
             else:
                 return None
+
         except Exception as ex:
-            print(f"Error en login: {str(ex)}")  
+            print(f"Error en login: {str(ex)}")
             raise Exception(ex)
         finally:
             if cursor:
                 cursor.close()
 
     @classmethod
-    def get_by_id(self, db, IDusuario):
+    def get_by_id(cls, db, IDusuario):
         cursor = None
         try:
             cursor = db.cursor()
-            sql = """SELECT IDusuario, NombreUsuario, Password, Apellido, Carrera, Telefono, Rol, Email, Permiso 
-                    FROM dbo.usuario WHERE IDusuario = ?"""
+            sql = """
+                SELECT IDusuario, NombreUsuario, Password, Apellido, 
+                       Carrera, Telefono, Rol, Email, Permiso, Imagen
+                FROM dbo.usuario 
+                WHERE IDusuario = ? 
+            """
             cursor.execute(sql, (IDusuario,))
             row = cursor.fetchone()
-            if row != None:
-                return User(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8])
-            else:
-                return None
+            if row is not None:
+                return User(
+                    IDusuario=row[0],
+                    NombreUsuario=row[1],
+                    password=row[2],
+                    Apellido=row[3],
+                    Carrera=row[4],
+                    Telefono=row[5],
+                    Rol=row[6],
+                    email=row[7],
+                    Permiso=row[8],
+                    Imagen=row[9]
+                )
+            return None
         except Exception as ex:
-            print(f"Error en get_by_id: {str(ex)}")  # Para depuración
+            print(f"Error en get_by_id: {str(ex)}")
             raise Exception(ex)
         finally:
             if cursor:
                 cursor.close()
 
     @classmethod
-    def check_email_exists(self, db, email):
+    def check_email_exists(cls, db, email):
         cursor = None
         try:
             cursor = db.cursor()
-            sql = "SELECT COUNT(*) FROM dbo.usuario WHERE Email = ?"
-            cursor.execute(sql, (email,))
-            count = cursor.fetchone()[0]
-            return count > 0
+            cursor.execute("SELECT COUNT(*) FROM dbo.usuario WHERE Email = ?", (email,))
+            return cursor.fetchone()[0] > 0
         except Exception as ex:
             raise Exception(ex)
         finally:
@@ -83,15 +103,13 @@ class ModelUser():
                 cursor.close()
 
     @classmethod
-    def check_username_exists(self, db, nombre, apellido):
+    def check_username_exists(cls, db, nombre, apellido):
         cursor = None
         try:
             cursor = db.cursor()
-            nombre_usuario = f"{nombre}{apellido}"  # Combinación simple de nombre y apellido
-            sql = "SELECT COUNT(*) FROM dbo.usuario WHERE NombreUsuario = ?"
-            cursor.execute(sql, (nombre_usuario,))
-            count = cursor.fetchone()[0]
-            return count > 0
+            nombre_usuario = f"{nombre}{apellido}"
+            cursor.execute("SELECT COUNT(*) FROM dbo.usuario WHERE NombreUsuario = ?", (nombre_usuario,))
+            return cursor.fetchone()[0] > 0
         except Exception as ex:
             raise Exception(ex)
         finally:
@@ -99,49 +117,46 @@ class ModelUser():
                 cursor.close()
 
     @classmethod
-    def register(self, db, user_data):
+    def register(cls, db, user_data):
         cursor = None
         try:
             # Validaciones
-            if not self._validate_password(user_data['password']):
+            if not cls._validate_password(user_data['password']):
                 return False, "La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número"
 
-
-
-            if not self._validate_email(user_data['email']):
+            if not cls._validate_email(user_data['email']):
                 return False, "Formato de correo electrónico inválido"
 
-            if not self._validate_phone(user_data['telefono']):
+            if not cls._validate_phone(user_data['telefono']):
                 return False, "Formato de teléfono inválido"
 
-            if self.check_email_exists(db, user_data['email']):
+            if cls.check_email_exists(db, user_data['email']):
                 return False, "El correo electrónico ya está registrado"
 
-            nombre_usuario = f"{user_data['nombre']}{user_data['apellido']}"
-            if self.check_username_exists(db, user_data['nombre'], user_data['apellido']):
+            if cls.check_username_exists(db, user_data['nombre'], user_data['apellido']):
                 return False, "Ya existe un usuario con ese nombre y apellido"
+
+            # Hashear contraseña antes de guardar
+            hashed_password = User.hash_password(user_data['password'])
 
             cursor = db.cursor()
             sql = """
-                    INSERT INTO dbo.usuario (NombreUsuario, Password, Apellido, 
-                    Carrera, Telefono, Rol, Email, Permiso) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'Visitante')
-                    """  # Ocho marcadores de parámetros
-
+                INSERT INTO dbo.usuario 
+                    (NombreUsuario, Password, Apellido, Carrera, Telefono, Rol, Email, Permiso) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'Visitante')
+            """
             cursor.execute(sql, (
                 user_data['nombre'],
-                user_data['password'], # Usar la contraseña hasheada
+                hashed_password,        # ✅ Contraseña hasheada
                 user_data['apellido'],
                 user_data['carrera'],
                 user_data['telefono'],
                 user_data['rol'],
                 user_data['email']
-                 
             ))
             db.commit()
-
             return True, "Usuario registrado exitosamente"
-            
+
         except Exception as ex:
             db.rollback()
             return False, f"Error al registrar usuario: {str(ex)}"
@@ -151,15 +166,12 @@ class ModelUser():
 
     @staticmethod
     def _validate_password(password):
-        # Al menos 8 caracteres, una mayúscula, una minúscula y un número
         return bool(re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$', password))
 
     @staticmethod
     def _validate_email(email):
-        # Validación básica de email
         return bool(re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email))
 
     @staticmethod
     def _validate_phone(phone):
-        # Validación básica de teléfono (10 dígitos)
         return bool(re.match(r'^\d{10}$', phone))

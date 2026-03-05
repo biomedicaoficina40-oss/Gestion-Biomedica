@@ -1,332 +1,936 @@
-{% extends './base.html' %}
+{% extends './base.html' %} 
 
-{% block title %}Catalogo{% endblock %}
+{% block title %}
+    {% if equipo %}
+        {{ equipo.equipo_unidad }} - Hospital Galenia
+    {% else %}
+        Catálogo de Equipos - Hospital Galenia
+    {% endif %}
+{% endblock %}
 
 {% block customCSS %}
 <style>
-    .card {
-        transition: transform 0.2s ease-in-out;
-        height: 100%;
+    /* Ajustes para integración con base.html */
+    .main-content {
+        padding: 2rem;
     }
-    
-    .card:hover {
+
+    .equipment-container,
+    .container-fluid {
+        max-width: 100%;
+    }
+    /* Estilos del buscador */
+    .search-container {
+        background-color: white;
+        border-radius: 1rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .search-container h2 {
+        color: var(--hospital-primary);
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+
+    .search-form {
+        display: flex;
+        gap: 1rem;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .search-input {
+        flex: 1;
+        padding: 0.75rem 1.25rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        transition: border-color 0.3s ease;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--hospital-primary);
+    }
+
+    .btn-search {
+        padding: 0.75rem 2rem;
+        background-color: var(--hospital-primary);
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-search:hover {
+        background-color: #2d6f8a;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(61, 144, 174, 0.3);
+    }
+
+    /* Estilos de resultados de búsqueda */
+    .results-container {
+        background-color: white;
+        border-radius: 1rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--hospital-primary);
+    }
+
+    .results-header h3 {
+        color: var(--hospital-primary);
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .results-count {
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+
+    .results-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .result-card {
+        border: 2px solid #e0e0e0;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    .result-card:hover {
+        border-color: var(--hospital-primary);
         transform: translateY(-5px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    
-    .card-img-top {
-        height: 200px;
-        object-fit: cover;
-    }
-    
-    .equipment-status {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        padding: 5px 10px;
-        border-radius: 15px;
-        font-size: 0.8rem;
-        font-weight: bold;
-    }
-    
-    .status-Disponible {
-        background-color: #28a745;
-        color: white;
-    }
-    
-    .status-Prestado {
-        background-color: #dc3545;
-        color: white;
-    }
-    
-    .status-Mantenimiento {
-        background-color: #ffc107;
-        color: black;
+        box-shadow: 0 6px 16px rgba(61, 144, 174, 0.2);
+        text-decoration: none;
     }
 
-    .btn-filter.active {
-        background-color: #0d6efd;
-        color: white;
-        border-color: #0d6efd;
-    }
-    .equipment-details {
-        background-color: #f8f9fa;
-        padding: 0.75rem;
-        border-radius: 0.5rem;
-        font-size: 0.9rem;
-    }
-
-    .equipment-details p:last-child {
-        margin-bottom: 0;
-    }
-
-    .cart-button {
-        transition: all 0.3s ease;
-    }
-
-    .cart-button:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
-    }
-
-    .status-disponible {
-        background-color: #28a745;
-        color: white;
-    }
-
-    .status-prestado {
-        background-color: #dc3545;
-        color: white;
-    }
-
-    .equipment-status {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        padding: 0.3rem 0.8rem;
-        border-radius: 15px;
-        font-size: 0.8rem;
+    .result-card-title {
+        color: var(--hospital-primary);
+        font-size: 1.125rem;
         font-weight: 600;
-        z-index: 1;
+        margin-bottom: 0.75rem;
     }
-    .equipment-details {
-        background-color: #f8f9fa;
-        padding: 0.75rem;
+
+    .result-card-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+
+    .result-card-info span {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .result-card-info i {
+        color: var(--hospital-primary);
+        width: 16px;
+    }
+
+    .no-results {
+        text-align: center;
+        padding: 3rem;
+        color: #6c757d;
+    }
+
+    .no-results i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+    }
+
+    /* Botón de regreso */
+    .btn-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        border: 2px solid var(--hospital-primary);
+        color: var(--hospital-primary);
+        background-color: white;
         border-radius: 0.5rem;
-        font-size: 0.9rem;
-    }
-
-    .equipment-details p:last-child {
-        margin-bottom: 0;
-    }
-
-    .cart-button {
+        text-decoration: none;
+        font-weight: 500;
         transition: all 0.3s ease;
+        margin-bottom: 1.5rem;
     }
 
-    .cart-button:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
-    }
-
-    .status-disponible {
-        background-color: #28a745;
+    .btn-back:hover {
+        background-color: var(--hospital-primary);
         color: white;
+        transform: translateX(-5px);
     }
 
-    .status-prestado {
-        background-color: #dc3545;
+    /* Card principal del equipo */
+    .equipment-card {
+        background-color: white;
+        border-radius: 1rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .equipment-header {
+        background-color: var(--hospital-primary);
         color: white;
+        padding: 1.5rem;
     }
 
-    .equipment-status {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        padding: 0.3rem 0.8rem;
-        border-radius: 15px;
-        font-size: 0.8rem;
+    .equipment-header h2 {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 700;
+    }
+
+    .equipment-body {
+        padding: 2rem;
+    }
+
+.equipment-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    justify-content: center;
+}
+
+.equipment-image-container {
+    background-color: #f8f9fa;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    width: min(300px, 90vw);
+    height: clamp(250px, 60vw, 480px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+    .equipment-image {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        border-radius: 0.5rem;
+    }
+
+    .equipment-placeholder {
+        text-align: center;
+        color: #6c757d;
+    }
+
+    .equipment-placeholder i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    .equipment-data {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+    }
+
+    .data-field {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .data-label {
+        font-size: 0.875rem;
         font-weight: 600;
-        z-index: 1;
+        color: #6c757d;
+        margin-bottom: 0.25rem;
     }
+
+    .data-value {
+        font-size: 1.125rem;
+        font-weight: 500;
+        color: #212529;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border-radius: 2rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-top: 0.25rem;
+        width: fit-content;
+    }
+
+    .status-operativo {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .status-mantenimiento {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .status-fuera,
+    .status-fueradeservicio {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .documentation-section {
+        border-top: 3px solid var(--hospital-primary);
+        padding-top: 2rem;
+    }
+
+    .documentation-section h3 {
+        color: var(--hospital-primary);
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+    }
+
+    .documentation-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .doc-button {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1.5rem;
+        border: 2px solid var(--hospital-primary);
+        border-radius: 0.75rem;
+        background-color: white;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        color: var(--hospital-primary);
+    }
+
+    .doc-button:hover {
+        background-color: #f8f9fa;
+        transform: translateY(-5px);
+        box-shadow: 0 4px 12px rgba(61, 144, 174, 0.2);
+        color: var(--hospital-primary);
+        text-decoration: none;
+    }
+
+    .doc-button i {
+        font-size: 2rem;
+        color: var(--hospital-primary);
+    }
+
+    .doc-button span {
+        color: var(--hospital-primary);
+        font-weight: 600;
+        text-align: center;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .search-form {
+            flex-direction: column;
+        }
+
+        .results-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .equipment-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .equipment-data {
+            grid-template-columns: 1fr;
+        }
+
+        .documentation-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 480px) {
+        .documentation-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* ==================== LIGHTBOX ==================== */
+    .lightbox-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background-color: rgba(0, 0, 0, 0.85);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+        cursor: zoom-out;
+    }
+
+    .lightbox-overlay.active {
+        display: flex;
+    }
+
+    .lightbox-overlay img {
+        max-width: 90vw;
+        max-height: 90vh;
+        object-fit: contain;
+        border-radius: 0.5rem;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        cursor: default;
+    }
+
+    .lightbox-close {
+        position: absolute;
+        top: 1.25rem;
+        right: 1.5rem;
+        color: white;
+        font-size: 2.5rem;
+        cursor: pointer;
+        line-height: 1;
+        transition: color 0.2s;
+    }
+
+    .lightbox-close:hover {
+        color: var(--hospital-primary);
+    }
+
+    .equipment-image {
+        cursor: zoom-in;
+    }
+/* ==================== FIN LIGHTBOX ==================== */
+    /* ==================== TARJETA GALENIA ==================== */
+:root {
+    --azul-galenia: #0e1d3e;
+    --dorado: #d4af37;
+}
+
+.galenia-card {
+    width: min(320px, 75vw);
+    aspect-ratio: 2 / 3;
+    height: auto;
+    background-color: var(--azul-galenia);
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    margin: 0 auto;
+}
+
+.galenia-line {
+    position: absolute;
+    background: linear-gradient(90deg, transparent, var(--dorado), transparent);
+    height: 2px;
+    width: 150%;
+    transform: rotate(-25deg);
+    z-index: 1;
+}
+.galenia-line-1 { top: 40px; right: -50px; }
+.galenia-line-2 { top: 60px; right: -30px; }
+.galenia-line-3 { bottom: 100px; left: -50px; }
+
+.galenia-logo-header {
+    z-index: 2;
+    padding: 25px 0 15px 0;
+    text-align: center;
+}
+
+.galenia-logo-header img {
+    height: 50px;
+    display: block;
+}
+
+.galenia-white-box {
+    z-index: 2;
+    background: white;
+    width: 90%;
+    height: 37%;
+    border: 2px solid #000;
+    display: flex;
+    overflow: hidden;
+}
+
+.galenia-codes-vertical {
+    width: 28%;
+    border-right: 3px solid #000;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    padding: 8px 0;
+    overflow: hidden;
+}
+
+.galenia-fms-slot {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    overflow: hidden;
+}
+
+.galenia-vertical-text {
+    transform: rotate(-90deg);
+    white-space: nowrap;
+    font-weight: bold;
+    font-size: clamp(9px, 2.5vw, 13px);
+    color: #000;
+    text-align: center;
+    max-width: 160px;
+}
+
+.galenia-area-display {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.galenia-area-display span {
+    font-size: clamp(50px, 22vw, 100px);
+    font-weight: bold;
+    letter-spacing: -2px;
+}
+
+.galenia-equipment-info {
+    z-index: 2;
+    text-align: center;
+    color: white;
+    margin-top: 25px;
+}
+
+.galenia-eq-id {
+    font-size: 30px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.galenia-eq-name {
+    font-size: 15px;
+    letter-spacing: 1px;
+    font-weight: bold;
+}
+
+.galenia-cert-footer {
+    position: absolute;
+    bottom: 20px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    z-index: 2;
+}
+
+.galenia-cert-logo {
+    width: 55px;
+    height: 55px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    padding: 5px;
+}
+
+.galenia-cert-logo img {
+    width: 100%;
+    height: auto;
+}
+
+/* Contenedor que agrupa tarjeta + imagen + datos */
+.equipment-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+}
+
+.equipment-image-container {
+    background-color: #f8f9fa;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    width: 300px;
+    height: 480px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.equipment-data {
+    flex: 1;
+    min-width: 250px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    align-content: start;
+}
+/* ==================== FIN TARJETA GALENIA ==================== */
 </style>
 {% endblock %}
 
 {% block body %}
-<div class="container py-5">
-    <div class="row mb-4">
-        <div class="col-12 text-center">
-            <div class="btn-group" role="group" aria-label="Filtros de estado">
-                <a href="{{ url_for('equipos.Catalogo', filtro='todos') }}" 
-                   class="btn btn-outline-primary btn-filter {% if filtro == 'todos' %}active{% endif %}">
-                    <i class="fas fa-list-ul me-2"></i>Todos
-                </a>
-                <a href="{{ url_for('equipos.Catalogo', filtro='Disponible') }}" 
-                   class="btn btn-outline-primary btn-filter {% if filtro == 'disponibles' %}active{% endif %}">
-                    <i class="fas fa-check-circle me-2"></i>Disponibles
-                </a>
-                <a href="{{ url_for('equipos.Catalogo', filtro='En uso') }}" 
-                   class="btn btn-outline-primary btn-filter {% if filtro == 'En uso' %}active{% endif %}">
-                    <i class="fas fa-clock me-2"></i>En Uso
-                </a>
+<div class="container-fluid">
+    {% if equipo %}
+        <!-- Vista de detalle del equipo -->
+        <a href="{{ url_for('equipos.Catalogo') }}" class="btn-back">
+            <i class="fas fa-arrow-left"></i>
+            Nueva Búsqueda
+        </a>
+
+        <div class="equipment-card">
+            <div class="equipment-header">
+                <h2>Información del Equipo</h2>
+            </div>
+
+            <div class="equipment-body">
+<div class="equipment-grid">
+
+    <!-- TARJETA GALENIA -->
+    <div class="galenia-card">
+        <div class="galenia-line galenia-line-1"></div>
+        <div class="galenia-line galenia-line-2"></div>
+        <div class="galenia-line galenia-line-3"></div>
+
+        <div class="galenia-logo-header">
+            <img src="{{ url_for('static', filename='img/Logo-Galenia.png') }}" alt="GALENIA">
+        </div>
+
+        <div class="galenia-white-box">
+            <div class="galenia-codes-vertical">
+                <div class="galenia-fms-slot">
+                    <span class="galenia-vertical-text">FMS.7 (JCI)</span>
+                </div>
+                <div class="galenia-fms-slot">
+                    <span class="galenia-vertical-text">FMS.6 (MUEC)</span>
+                </div>
+            </div>
+            <div class="galenia-area-display" id="galenia-area-box">
+                <span id="galenia-area-sigla" style="font-weight:bold; color:#000;">
+                  --
+                </span>
+            </div>
+        </div>
+
+        <!-- Input oculto para que JS lea el departamento real -->
+        <input type="hidden" id="depto-raw" value="{{ equipo.departamento or '' }}">
+
+        <div class="galenia-equipment-info">
+            <div class="galenia-eq-id">{{ equipo.numero_inventario or 'N/A' }}</div>
+            <div class="galenia-eq-name">{{ equipo.equipo_unidad | upper if equipo.equipo_unidad else 'N/A' }}</div>
+        </div>
+
+        <div class="galenia-cert-footer">
+            <div class="galenia-cert-logo">
+                <img src="{{ url_for('static', filename='img/consejo.png') }}" alt="CS">
+            </div>
+            <div class="galenia-cert-logo">
+                <img src="{{ url_for('static', filename='img/join.png') }}" alt="JCI">
+            </div>
+            <div class="galenia-cert-logo">
+                <img src="{{ url_for('static', filename='img/canada.png') }}" alt="AC">
             </div>
         </div>
     </div>
 
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-        {% if equipos %}
-            {% for equipo in equipos %}
-                <div class="col">
-                    <div class="card h-100">
-                        <span class="equipment-status status-{{ equipo.Estado }}">
-                            {{ equipo.Estado }}
-                        </span>
-                        <img src="{{ url_for('static', filename=equipo.Imagen.replace('\\', '/')) if equipo.Imagen else url_for('static', filename='img/logo.png') }}"
-                             class="card-img-top"
-                             alt="{{ equipo.Nombre }}">
-                        <div class="card-body d-flex flex-column">
-                            <h5 class="card-title">{{ equipo.Nombre }}</h5>
-                            <!-- Nuevos campos añadidos -->
-                            <div class="equipment-details mb-3">
-                                <p class="mb-1">
-                                    <i class="fas fa-barcode me-2"></i>
-                                    <strong>Inventario:</strong> {{ equipo.NumeroDeInventario }}
-                                </p>
-                                <p class="mb-1">
-                                    <i class="fas fa-trademark me-2"></i>
-                                    <strong>Marca:</strong> {{ equipo.Marca }}
-                                </p>
-                                <p class="mb-1">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    <strong>Modelo:</strong> {{ equipo.Modelo }}
-                                </p>
-                            </div>
-                            <p class="card-text">{{ equipo.Descripcion }}</p>
-                            <div class="mt-auto d-flex flex-column gap-2">
-                                {% if current_user.Permiso == 'Visitante' %}
-                                    <a href="{{ url_for('equipos.solicitar_accesoMenu') }}"
-                                       class="btn btn-warning w-100">
-                                       <i class="fas fa-lock me-2"></i>
-                                       Sin Acceso
-                                    </a>
-                                {% else %}
-                                    <a href="{{ url_for('equipos.solicitar_equipo', IDequipo=equipo.IDequipo) }}"
-                                       class="btn btn-primary w-100 btn-solicitar {% if equipo.Estado != 'Disponible' %}disabled{% endif %}"
-                                       {% if equipo.Estado != 'Disponible' %}aria-disabled="true"{% endif %}>
-                                       <i class="fas fa-hand-holding-medical me-2"></i>
-                                       Solicitar
-                                    </a>
-                                    <!-- Botón del carrito -->
-                                    {% if equipo.Carrito == 'Agregado' %}
-                                        <button type="button"
-                                                id="cart-btn-{{ equipo.IDequipo }}"
-                                                class="btn btn-success w-100 cart-button"
-                                                data-equipo-id="{{ equipo.IDequipo }}">
-                                            <i class="fas fa-shopping-cart me-2"></i>
-                                            Agregado al Carrito
-                                        </button>
-                                    {% else %}
-                                            <button type="button"
-                                            id="cart-btn-{{ equipo.IDequipo }}"
-                                            data-equipo-id="{{ equipo.IDequipo }}"
-                                            class="btn btn-outline-primary w-100 cart-button"
-                                            {% if equipo.Estado != "Disponible" %} disabled {% endif %}>
-                                        <i class="fas fa-cart-plus me-2"></i>
-                                        Agregar al Carrito
-                                    </button>
-                                    {% endif %}
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
+    <!-- IMAGEN DEL EQUIPO -->
+    <div class="equipment-image-container">
+        {% if equipo.imagen %}
+            <img src="{{ url_for('static', filename='uploads/' + equipo.imagen) }}"
+                alt="{{ equipo.equipo_unidad }}"
+                class="equipment-image"
+                id="equipo-img-thumb"
+                onclick="abrirLightbox(this.src)">
         {% else %}
-            <div class="col-12 text-center">
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle fa-2x mb-3"></i>
-                    <h3>No hay equipos en el catálogo</h3>
-                    <p>Actualmente no hay equipos disponibles.</p>
-                </div>
+            <div class="equipment-placeholder">
+                <i class="fas fa-box"></i>
+                <p>Imagen del Equipo</p>
             </div>
         {% endif %}
     </div>
-    
+
+    <!-- DATOS DEL EQUIPO -->
+    <div class="equipment-data">
+        <div class="data-field">
+            <span class="data-label">Equipo/Unidad</span>
+            <span class="data-value">{{ equipo.equipo_unidad or 'N/A' }}</span>
+        </div>
+        <div class="data-field">
+            <span class="data-label">Número de Serie</span>
+            <span class="data-value">{{ equipo.numero_serie or 'N/A' }}</span>
+        </div>
+        <div class="data-field">
+            <span class="data-label">No. Inventario</span>
+            <span class="data-value">{{ equipo.numero_inventario or 'N/A' }}</span>
+        </div>
+        <div class="data-field">
+            <span class="data-label">Marca</span>
+            <span class="data-value">{{ equipo.marca or 'N/A' }}</span>
+        </div>
+        <div class="data-field">
+            <span class="data-label">Modelo</span>
+            <span class="data-value">{{ equipo.modelo or 'N/A' }}</span>
+        </div>
+        <div class="data-field">
+            <span class="data-label">Departamento</span>
+            <span class="data-value">{{ equipo.departamento or 'N/A' }}</span>
+        </div>
+        <div class="data-field">
+            <span class="data-label">Estado</span>
+            <span class="status-badge status-{{ equipo.estado|lower|replace(' ', '')|replace('_', '') if equipo.estado else 'operativo' }}">
+                {{ equipo.estado or 'N/A' }}
+            </span>
+        </div>
+        <div class="data-field">
+            <span class="data-label">Fecha de Adquisición</span>
+            <span class="data-value">
+                {% if equipo.fecha_adquisicion %}
+                    {{ equipo.fecha_adquisicion.strftime('%d/%m/%Y') if equipo.fecha_adquisicion is not string else equipo.fecha_adquisicion }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </span>
+        </div>
+        <div class="data-field">
+            <span class="data-label">Garantía</span>
+            <span class="data-value">
+                {% if equipo.fecha_fin_garantia %}
+                    Hasta {{ equipo.fecha_fin_garantia.strftime('%d/%m/%Y') if equipo.fecha_fin_garantia is not string else equipo.fecha_fin_garantia }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </span>
+        </div>
+    </div>
+
 </div>
 
+                <div class="documentation-section">
+                    <h3>Documentación y Recursos</h3>
+                    
+                    <div class="documentation-grid">
+                        <a href="{{ url_for('equipos.GuiasRapidas', numero_inventario=equipo.numero_inventario) }}" class="doc-button">
+                            <i class="fas fa-file-alt"></i>
+                            <span>Guías Rápidas</span>
+                        </a>
+
+                        <a href="{{ url_for('equipos.InformacionTecnica', numero_inventario=equipo.numero_inventario) }}" class="doc-button">
+                            <i class="fas fa-cogs"></i>
+                            <span>Info. Técnica</span>
+                        </a>
+
+                        <a href="{{ url_for('equipos.ManualServicio', numero_inventario=equipo.numero_inventario) }}" class="doc-button">
+                            <i class="fas fa-wrench"></i>
+                            <span>Manual Servicio</span>
+                        </a>
+
+                        <a href="{{ url_for('equipos.ManualUsuario', numero_inventario=equipo.numero_inventario) }}" class="doc-button">
+                            <i class="fas fa-book-open"></i>
+                            <span>Manual Usuario</span>
+                        </a>
+
+                        <a href="{{ url_for('equipos.ProgramaMantenimiento', numero_inventario=equipo.numero_inventario) }}" class="doc-button">
+                            <i class="fas fa-calendar-check"></i>
+                            <span>Prog. Mantenimiento</span>
+                        </a>
+
+                        <a href="{{ url_for('equipos.Capacitacion', numero_inventario=equipo.numero_inventario) }}" class="doc-button">
+                            <i class="fas fa-video"></i>
+                            <span>Capacitación</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
 
 
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Botones de agregar al carrito
-    const cartButtons = document.querySelectorAll('.cart-button');
-    
-    cartButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const equipoId = this.getAttribute('data-equipo-id');
-            const isInCart = this.classList.contains('btn-success');
-            
-            if (isInCart) {
-                // Confirmación para quitar del carrito
-                Swal.fire({
-                    title: '¿Quitar del carrito?',
-                    text: '¿Estás seguro que deseas quitar este equipo del carrito?',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#dc3545',
-                    cancelButtonColor: '#6c757d',
-                    confirmButtonText: 'Sí, quitar',
-                    cancelButtonText: 'Cancelar'
-                }).then((result) => {
-                    if (result.isConfirmed && equipoId) {
-                        fetch(`/quitar-carrito/${equipoId}`)
-                            .then(response => {
-                                if (response.ok) {
-                                    window.location.reload();
-                                } else {
-                                    Swal.fire({
-                                        title: 'Error',
-                                        text: 'No se pudo quitar el equipo del carrito',
-                                        icon: 'error'
-                                    });
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error:', error);
-                                Swal.fire({
-                                    title: 'Error',
-                                    text: 'Ocurrió un error al procesar la solicitud',
-                                    icon: 'error'
-                                });
-                            });
-                    }
-                });
-            } else {
-                // Confirmación para agregar al carrito
-                Swal.fire({
-                    title: '¿Agregar al carrito?',
-                    text: '¿Estás seguro que deseas agregar este equipo al carrito?',
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonColor: '#28a745',
-                    cancelButtonColor: '#6c757d',
-                    confirmButtonText: 'Sí, agregar',
-                    cancelButtonText: 'Cancelar'
-                }).then((result) => {
-                    if (result.isConfirmed && equipoId) {
-                        fetch(`/agregar-carrito/${equipoId}`)
-                            .then(response => {
-                                if (response.ok) {
-                                    window.location.reload();
-                                } else {
-                                    Swal.fire({
-                                        title: 'Error',
-                                        text: 'No se pudo agregar el equipo al carrito',
-                                        icon: 'error'
-                                    });
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error:', error);
-                                Swal.fire({
-                                    title: 'Error',
-                                    text: 'Ocurrió un error al procesar la solicitud',
-                                    icon: 'error'
-                                });
-                            });
-                    }
-                });
-            }
-        });
-    });
-});
-</script>
+    {% elif resultados is not none %}
+        <!-- Vista de resultados de búsqueda -->
+        <a href="{{ url_for('equipos.Catalogo') }}" class="btn-back">
+            <i class="fas fa-arrow-left"></i>
+            Nueva Búsqueda
+        </a>
 
+        <div class="results-container">
+            <div class="results-header">
+                <h3>Resultados de búsqueda: "{{ query }}"</h3>
+                <span class="results-count">{{ resultados|length }} equipo(s) encontrado(s)</span>
+            </div>
 
+            {% if resultados|length > 0 %}
+                <div class="results-grid">
+                    {% for resultado in resultados %}
+                        <a href="{{ url_for('equipos.DetalleEquipo', numero_inventario=resultado.numero_inventario) }}" class="result-card">
+                            <div class="result-card-title">{{ resultado.equipo_unidad }}</div>
+                            <div class="result-card-info">
+                                <span>
+                                    <i class="fas fa-barcode"></i>
+                                    <strong>Inv:</strong> {{ resultado.numero_inventario }}
+                                </span>
+                                <span>
+                                    <i class="fas fa-hashtag"></i>
+                                    <strong>Serie:</strong> {{ resultado.numero_serie or 'N/A' }}
+                                </span>
+                                <span>
+                                    <i class="fas fa-building"></i>
+                                    <strong>Depto:</strong> {{ resultado.departamento or 'N/A' }}
+                                </span>
+                                <span>
+                                    <i class="fas fa-circle"></i>
+                                    <strong>Estado:</strong> {{ resultado.estado or 'N/A' }}
+                                </span>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="no-results">
+                    <i class="fas fa-search"></i>
+                    <p>No se encontraron equipos que coincidan con tu búsqueda.</p>
+                </div>
+            {% endif %}
+        </div>
+
+    {% else %}
+        <!-- Vista inicial - solo buscador -->
+        <div class="search-container">
+            <h2>Catálogo de Equipos Médicos</h2>
+            <form action="{{ url_for('equipos.BuscarEquipos') }}" method="GET" class="search-form">
+                <input 
+                    type="text" 
+                    name="q" 
+                    class="search-input" 
+                    placeholder="Buscar por nombre, número de inventario, serie, marca..." 
+                    required
+                    autofocus>
+                <button type="submit" class="btn-search">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
+            </form>
+        </div>
+    {% endif %}
+    <!-- LIGHTBOX -->
+    <div class="lightbox-overlay" id="lightbox" onclick="cerrarLightbox()">
+        <span class="lightbox-close" onclick="cerrarLightbox()">&times;</span>
+        <img id="lightbox-img" src="" alt="Vista ampliada" onclick="event.stopPropagation()">
+    </div>
+</div>
 {% endblock %}
 
+{% block scripts %}
+<script>
 
+    // Mapa de departamentos a siglas y colores
+const departamentoMap = {
+    'AMBULANCIA':       { sigla: 'AM', color: '#FF9999', textColor: '#000000' },  // No aparece en imagen
+    'CEYE':             { sigla: 'CY', color: '#808080', textColor: '#FFFFFF' },  // ❌ Gris oscuro, tenías #99CCFF
+    'CIRUGIA ELECTIVA': { sigla: 'CE', color: '#92D050', textColor: '#000000' },  // ✅ Verde claro correcto
+    'CUNEROS':          { sigla: 'CU', color: '#00BFFF', textColor: '#000000' },  // ❌ Cyan/azul claro, tenías #FFCC99
+    'GINECOLOGIA':      { sigla: 'GI', color: '#FF33CC', textColor: '#FFFFFF' },  // ✅ Rosa/magenta correcto
+    'HEMODINAMIA':      { sigla: 'HE', color: '#FFFF00', textColor: '#000000' },  // ✅ Amarillo correcto
+    'H2':               { sigla: 'H2', color: '#0080FF', textColor: '#FFFFFF' },  // ❌ Azul medio, tenías #CCCCCC
+    'H3':               { sigla: 'H3', color: '#C8A8FF', textColor: '#000000' },  // ❌ Lila claro, tenías #999999
+    'HOSPITAL':         { sigla: 'HO', color: '#9933FF', textColor: '#FFFFFF' },  // ❌ Morado, tenías #00CC99
+    'IMAGENOLOGIA':     { sigla: 'IM', color: '#FF6600', textColor: '#FFFFFF' },  // ✅ Naranja correcto
+    'LAB CLINICO':      { sigla: 'LA', color: '#FF33CC', textColor: '#FFFFFF' },  // ❌ Rosa (igual que GI), sigla era LC
+    'LABORATORIO CLINICO': { sigla: 'LA', color: '#FF33CC', textColor: '#FFFFFF' },  // Alias
+    'MED NUCLEAR':      { sigla: 'MN', color: '#FF8C00', textColor: '#000000' },  // ❌ Naranja oscuro, tenías #9933FF
+    'MEDICINA NUCLEAR': { sigla: 'MN', color: '#FF8C00', textColor: '#000000' },  // Alias
+    'QUIROFANO':        { sigla: 'QX', color: '#FFFFFF', textColor: '#000000' },  // ✅ Blanco correcto
+    'QUIRÓFANO':        { sigla: 'QX', color: '#FFFFFF', textColor: '#000000' },  // ✅ Blanco correcto
+    'TOCOLOGIA':        { sigla: 'TC', color: '#FFC0CB', textColor: '#000000' },  // ❌ Rosa claro, sigla era TO
+    'TOCOLOGÍA':        { sigla: 'TC', color: '#FFC0CB', textColor: '#000000' },  // Alias
+    'TRANSDUCTORES':    { sigla: 'TR', color: '#00CCCC', textColor: '#000000' },  // No aparece en imagen
+    'UCI':              { sigla: 'UC', color: '#000000', textColor: '#FFFFFF' },  // ✅ Negro correcto
+    'TERAPIA INTENSIVA':{ sigla: 'UC', color: '#000000', textColor: '#FFFFFF' },  // Alias
+    'UCIP':             { sigla: 'UP', color: '#333333', textColor: '#FFFFFF' },  // No aparece en imagen
+    'URGENCIAS':        { sigla: 'UR', color: '#FF0000', textColor: '#FFFFFF' },  // ✅ Rojo correcto
+    'NUTRIOLOGIA':      { sigla: 'NT', color: '#00FF00', textColor: '#000000' },  // Verde brillante (aparece en imagen)
+    'NUTRIOLOGÍA':      { sigla: 'NT', color: '#00FF00', textColor: '#000000' },  // Alias
+};
 
+// Aplica sigla y color a la tarjeta
+const deptoRaw = document.getElementById('depto-raw');
+if (deptoRaw) {
+    const key = deptoRaw.value.trim().toUpperCase();
+    const match = departamentoMap[key];
+    if (match) {
+        const areaSpan = document.getElementById('galenia-area-sigla');
+        const areaBox  = document.getElementById('galenia-area-box');
+        if (areaSpan) areaSpan.textContent = match.sigla;
+        if (areaBox)  {
+            areaBox.style.backgroundColor = match.color;
+            areaSpan.style.color = match.textColor;
+        }
+    }
+}
 
+    // Lightbox
+    function abrirLightbox(src) {
+        document.getElementById('lightbox-img').src = src;
+        document.getElementById('lightbox').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function cerrarLightbox() {
+        document.getElementById('lightbox').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    // Cerrar con tecla ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') cerrarLightbox();
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-submit al presionar Enter
+        const searchInput = document.querySelector('.search-input');
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.target.closest('form').submit();
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

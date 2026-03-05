@@ -3,49 +3,169 @@
 {% block title %}Login{% endblock %}
 
 {% block customCSS %}
-
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 <style>
     html, body {
         height: 100%;
+        margin: 0;
     }
 
     body {
         display: flex;
         align-items: center;
-        padding-top: 40px;
-        padding-bottom: 40px;
-        background-color: #f5f5f5;
+        justify-content: center;
+        padding: 2rem;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        font-family: Arial, sans-serif;
     }
 
     .form-signin {
         width: 100%;
-        max-width: 330px;
-        padding: 15px;
-        margin: auto;
+        max-width: 750px;
+        padding: 3rem 2.5rem;
+        background-color: white;
+        border-radius: 1rem;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
     }
 
-    .form-signin .form-floating:focus-within {
-        z-index: 2;
+    .logo-container {
+        text-align: center;
+        margin-bottom: 2rem;
     }
 
-    .form-signin input[type="text"] {
-        margin-bottom: -1px;
-        border-bottom-right-radius: 0;
-        border-bottom-left-radius: 0;
+    .logo-container img {
+        width: 180px;
+        height: auto;
+        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+    }
+    .logo-img {
+        width: 100%;
+        max-width: 500px;   /* Ajusta si lo quieres más grande */
+        height: auto;
+        display: block;
+        margin: 0 auto 1.5rem auto;
     }
 
-    .form-signin input[type="password"] {
-        margin-bottom: 12px;
-        border-top-left-radius: 0;
-        border-top-right-radius: 0;
+    .form-signin h1 {
+        color: var(--hospital-primary, #3d90ae);
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        text-align: center;
     }
 
-    /* Additional responsive adjustments */
+    .form-floating {
+        margin-bottom: 1rem;
+    }
+
+    .form-control {
+        padding: 0.875rem 1rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--hospital-primary, #3d90ae);
+        box-shadow: 0 0 0 3px rgba(61, 144, 174, 0.1);
+    }
+
+    .form-floating label {
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    .password-wrapper {
+        position: relative;
+    }
+
+    .toggle-password {
+        position: absolute;
+        top: 50%;
+        right: 15px;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #6c757d;
+        transition: color 0.3s ease;
+        z-index: 10;
+    }
+
+    .toggle-password:hover {
+        color: var(--hospital-primary, #3d90ae);
+    }
+
+    .btn-primary {
+        padding: 0.875rem;
+        background-color: var(--hospital-primary, #3d90ae);
+        border: none;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        font-size: 1.125rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(61, 144, 174, 0.3);
+    }
+
+    .btn-primary:hover {
+        background-color: #2d6f8a;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(61, 144, 174, 0.4);
+    }
+
+    .btn-primary:active {
+        transform: translateY(0);
+    }
+
+    .alert {
+        border-radius: 0.5rem;
+        border: none;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .alert-primary {
+        background-color: #e7f3f8;
+        color: var(--hospital-primary, #3d90ae);
+        font-weight: 500;
+    }
+
+    .register-link {
+        text-align: center;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .register-link a {
+        color: var(--hospital-primary, #3d90ae);
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .register-link a:hover {
+        color: #2d6f8a;
+        text-decoration: underline;
+    }
+
+    /* Responsive */
     @media (max-width: 576px) {
+        body {
+            padding: 1rem;
+        }
+
         .form-signin {
             max-width: 100%;
-            margin: auto 15px;
+            padding: 2rem 1.5rem;
+        }
+
+        .logo-container img {
+            width: 140px;
+        }
+
+        .form-signin h1 {
+            font-size: 1.5rem;
         }
     }
 </style>
@@ -55,7 +175,7 @@
 <main class="form-signin">
     <form action="/login" method="POST">
         <div class="text-center">
-            <img class="mb-4" src="{{ url_for('static', filename='img/logo.png') }}" alt="" width="200" height="200">
+            <img class="mb-4" src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
         </div>
         
         {% with messages = get_flashed_messages() %}
@@ -80,20 +200,34 @@
         </div>
 
         <!-- Campo de contraseña con ícono de "ojito" -->
-        <div class="form-floating position-relative">
+        <div class="form-floating password-wrapper">
             <input type="password" class="form-control" id="password" name="password" placeholder="Password">
             <label for="password">Password</label>
-            <i class="fas fa-eye toggle-password position-absolute" style="top: 50%; right: 15px; cursor: pointer;" onclick="togglePassword()"></i>
+            <i class="fas fa-eye toggle-password" onclick="togglePassword()"></i>
         </div>
         
         <button class="w-100 btn btn-lg btn-primary mt-3" type="submit">Sign in</button>
 
         <div class="mt-3 text-center">
-            <a href="{{ url_for('auth.register') }}">¿No tienes una cuenta? Regístrate aquí</a>
+            <a href="{{ url_for('equipos.Catalogo') }}">Explorar sin cuenta</a>
         </div>
     </form>
 </main>
 
-<!-- Enlace al archivo JavaScript externo -->
-<script src="{{ url_for('static', filename='js/togglePassword.js') }}"></script>
+<script>
+function togglePassword() {
+    const passwordField = document.getElementById("password");
+    const passwordToggle = document.querySelector(".toggle-password");
+
+    if (passwordField.type === "password") {
+        passwordField.type = "text";
+        passwordToggle.classList.remove("fa-eye");
+        passwordToggle.classList.add("fa-eye-slash");
+    } else {
+        passwordField.type = "password";
+        passwordToggle.classList.remove("fa-eye-slash");
+        passwordToggle.classList.add("fa-eye");
+    }
+}
+</script>
 {% endblock %}
