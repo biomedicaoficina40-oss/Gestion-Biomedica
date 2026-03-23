@@ -32,18 +32,11 @@
         margin-bottom: 2rem;
     }
 
-    .logo-container img {
-        width: 180px;
-        height: auto;
-        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
-    }
-    .logo-img {
-        width: 100%;
-        max-width: 500px;   /* Ajusta si lo quieres más grande */
-        height: auto;
-        display: block;
-        margin: 0 auto 1.5rem auto;
-    }
+ .logo-container img {
+    width: clamp(100px, 40vw, 180px);
+    height: auto;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+}
 
     .form-signin h1 {
         color: var(--hospital-primary, #3d90ae);
@@ -150,24 +143,29 @@
     }
 
     /* Responsive */
-    @media (max-width: 576px) {
-        body {
-            padding: 1rem;
-        }
-
-        .form-signin {
-            max-width: 100%;
-            padding: 2rem 1.5rem;
-        }
-
-        .logo-container img {
-            width: 140px;
-        }
-
-        .form-signin h1 {
-            font-size: 1.5rem;
-        }
+@media (max-width: 576px) {
+    body {
+        padding: 0.75rem;
+        align-items: flex-start;
+        padding-top: 2rem;
     }
+
+    .form-signin {
+        max-width: 100%;
+        padding: 1.5rem 1.25rem;
+        border-radius: 0.75rem;
+    }
+
+    .form-signin h1 {
+        font-size: 1.3rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .btn-primary {
+        font-size: 1rem;
+        padding: 0.75rem;
+    }
+}
 </style>
 {% endblock %}
 
@@ -175,7 +173,8 @@
 <main class="form-signin">
     <form action="/login" method="POST">
         <div class="text-center">
-            <img class="mb-4" src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
+            <img class="mb-4" src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo"
+         style="width:clamp(100px,40vw,180px);height:auto;display:block;margin:0 auto;">
         </div>
         
         {% with messages = get_flashed_messages() %}

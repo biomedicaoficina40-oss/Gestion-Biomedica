@@ -2,6 +2,7 @@ from flask import Flask, url_for, redirect
 from flask_wtf.csrf import CSRFProtect
 from flask_login import LoginManager
 from config import config
+from datetime import timedelta
 
 # Models
 from models.ModelUser import ModelUser
@@ -14,7 +15,7 @@ login_manager_app = LoginManager()
 def create_app():
     # Crear la aplicación
     app = Flask(__name__)
-    
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(days=30)
     # Configuración
     app.config.from_object(config['development'])
     # Asegúrate de que tu config tenga SECRET_KEY, si no:

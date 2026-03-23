@@ -1,0 +1,186 @@
+{# ══════════════════════════════════
+   inventario_fragment.html
+   Solo el bloque de resultados —
+   sin extends, sin block, sin head
+══════════════════════════════════ #}
+
+{# ── RESULTS BAR ── #}
+<div class="inv-results-bar">
+  <span class="inv-results-text">
+    <strong>{{ total }}</strong> equipo{{ 's' if total != 1 else '' }} encontrado{{ 's' if total != 1 else '' }}
+  </span>
+  {% if q or depto or estado or marca or propiedad %}
+  <span class="inv-results-badge">{{ stats.total }} → {{ total }}</span>
+  {% endif %}
+</div>
+
+{# ── TABLE CARD ── #}
+<div class="inv-table-card">
+
+  {# Tabla desktop + tablet #}
+  <div class="inv-table-scroll">
+    <table class="inv-table">
+      <thead>
+        <tr>
+          <th class="sortable {% if sort == 'numero_inventario' %}{{ 'sorted-asc' if dir == 'asc' else 'sorted-desc' }}{% endif %}"
+              onclick="invSortBy('numero_inventario')">No. Inventario</th>
+          <th class="sortable inv-col-serie {% if sort == 'numero_serie' %}{{ 'sorted-asc' if dir == 'asc' else 'sorted-desc' }}{% endif %}"
+              onclick="invSortBy('numero_serie')">No. Serie</th>
+          <th class="sortable {% if sort == 'equipo_unidad' %}{{ 'sorted-asc' if dir == 'asc' else 'sorted-desc' }}{% endif %}"
+              onclick="invSortBy('equipo_unidad')">Equipo / Modelo</th>
+          <th class="sortable {% if sort == 'marca' %}{{ 'sorted-asc' if dir == 'asc' else 'sorted-desc' }}{% endif %}"
+              onclick="invSortBy('marca')">Marca</th>
+          <th class="sortable {% if sort == 'departamento' %}{{ 'sorted-asc' if dir == 'asc' else 'sorted-desc' }}{% endif %}"
+              onclick="invSortBy('departamento')">Departamento</th>
+          <th class="sortable {% if sort == 'estado' %}{{ 'sorted-asc' if dir == 'asc' else 'sorted-desc' }}{% endif %}"
+              onclick="invSortBy('estado')">Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if equipos %}
+          {% for eq in equipos %}
+          <tr>
+            <td><span class="inv-inv-num">{{ eq.numero_inventario }}</span></td>
+            <td class="inv-col-serie"><span class="inv-serie">{{ eq.numero_serie }}</span></td>
+            <td>
+              <div class="inv-eq-name">{{ eq.equipo_unidad }}</div>
+              <div class="inv-eq-model">{{ eq.modelo }}</div>
+            </td>
+            <td>{{ eq.marca }}</td>
+            <td>{{ eq.departamento }}</td>
+            <td>
+              <div class="inv-estado-cell">
+                {% if eq.estado == 'Operativo' %}
+                  <span class="inv-estado-badge badge-operativo">Operativo</span>
+                {% elif eq.estado == 'Mantenimiento' %}
+                  <span class="inv-estado-badge badge-mantenimiento">Mantenimiento</span>
+                {% else %}
+                  <span class="inv-estado-badge badge-fuera">Fuera de Servicio</span>
+                {% endif %}
+                {% if eq.fecha_fin_garantia %}
+                  {% set dias = (eq.fecha_fin_garantia - today).days %}
+                  {% if dias < 0 %}
+                    <span class="inv-garantia garantia-vencida" data-tip="Garantía vencida ({{ eq.fecha_fin_garantia.strftime('%d/%m/%Y') }})"><i class="fas fa-times"></i></span>
+                  {% elif dias <= 30 %}
+                    <span class="inv-garantia garantia-proxima" data-tip="Vence en {{ dias }} días"><i class="fas fa-exclamation"></i></span>
+                  {% else %}
+                    <span class="inv-garantia garantia-vigente" data-tip="Vigente hasta {{ eq.fecha_fin_garantia.strftime('%d/%m/%Y') }}"><i class="fas fa-check"></i></span>
+                  {% endif %}
+                {% else %}
+                  <span class="inv-garantia garantia-sin" data-tip="Sin garantía registrada"><i class="fas fa-minus"></i></span>
+                {% endif %}
+              </div>
+            </td>
+            <td>
+              <div class="inv-actions">
+                <a href="{{ url_for('admin.ver_equipo', id=eq.id) }}"      class="inv-act-btn inv-act-view"   title="Ver"><i class="fas fa-eye"></i></a>
+                <a href="{{ url_for('admin.editar_equipo', id=eq.id) }}"   class="inv-act-btn inv-act-edit"   title="Editar"><i class="fas fa-edit"></i></a>
+                <a href="{{ url_for('admin.eliminar_equipo', id=eq.id) }}"  class="inv-act-btn inv-act-delete" title="Eliminar"
+                   onclick="return confirm('¿Eliminar {{ eq.equipo_unidad }}?')"><i class="fas fa-trash"></i></a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="7">
+              <div class="inv-empty">
+                <i class="fas fa-boxes"></i>
+                <p>No se encontraron equipos con los filtros aplicados.</p>
+              </div>
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  {# Cards mobile #}
+  <div class="inv-cards-list">
+    {% if equipos %}
+      {% for eq in equipos %}
+      {% set border =
+        '#16a34a' if eq.estado == 'Operativo' else
+        '#d97706' if eq.estado == 'Mantenimiento' else
+        '#dc2626' %}
+      <div class="inv-card" style="--card-border:{{border}};border-left-color:var(--card-border)">
+        <div class="inv-card-top">
+          <span class="inv-card-inv">{{ eq.numero_inventario }}</span>
+          <div class="inv-card-badges">
+            {% if eq.estado == 'Operativo' %}
+              <span class="inv-estado-badge badge-operativo">Operativo</span>
+            {% elif eq.estado == 'Mantenimiento' %}
+              <span class="inv-estado-badge badge-mantenimiento">Mantenimiento</span>
+            {% else %}
+              <span class="inv-estado-badge badge-fuera">Fuera de Servicio</span>
+            {% endif %}
+            {% if eq.fecha_fin_garantia %}
+              {% set dias = (eq.fecha_fin_garantia - today).days %}
+              {% if dias < 0 %}
+                <span class="inv-garantia garantia-vencida" data-tip="Garantía vencida"><i class="fas fa-times"></i></span>
+              {% elif dias <= 30 %}
+                <span class="inv-garantia garantia-proxima" data-tip="Vence en {{ dias }} días"><i class="fas fa-exclamation"></i></span>
+              {% else %}
+                <span class="inv-garantia garantia-vigente" data-tip="Garantía vigente"><i class="fas fa-check"></i></span>
+              {% endif %}
+            {% else %}
+              <span class="inv-garantia garantia-sin" data-tip="Sin garantía"><i class="fas fa-minus"></i></span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="inv-card-name">{{ eq.equipo_unidad }}</div>
+        <div class="inv-card-depto"><i class="fas fa-map-marker-alt me-1" style="font-size:10px;opacity:0.6;"></i>{{ eq.departamento }}</div>
+        <div class="inv-card-actions">
+          <a href="{{ url_for('admin.ver_equipo', id=eq.id) }}"      class="inv-card-act inv-card-act-view"><i class="fas fa-eye"></i> Ver</a>
+          <a href="{{ url_for('admin.editar_equipo', id=eq.id) }}"   class="inv-card-act inv-card-act-edit"><i class="fas fa-edit"></i> Editar</a>
+          <a href="{{ url_for('admin.eliminar_equipo', id=eq.id) }}" class="inv-card-act inv-card-act-delete"
+             onclick="return confirm('¿Eliminar {{ eq.equipo_unidad }}?')"><i class="fas fa-trash"></i> Eliminar</a>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="inv-empty" style="padding:2.5rem 1rem;">
+        <i class="fas fa-boxes"></i>
+        <p>No se encontraron equipos.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  {# Paginación #}
+  {% set total_pages = (total / per_page) | round(0, 'ceil') | int %}
+  {% if total_pages > 1 %}
+  <div class="inv-pagination">
+    <span class="inv-pagination-info">
+      Mostrando
+      <strong>{{ ((page-1)*per_page)+1 }}–{{ [page*per_page, total]|min }}</strong>
+      de <strong>{{ total }}</strong> equipos
+    </span>
+    <div class="inv-pagination-btns">
+      {% if page > 1 %}
+        <a class="inv-pg-btn" href="{{ url_for('admin.ver_inventario', q=q, depto=depto, estado=estado, marca=marca, propiedad=propiedad, sort=sort, dir=dir, page=page-1) }}"><i class="fas fa-chevron-left"></i></a>
+      {% else %}
+        <span class="inv-pg-btn disabled"><i class="fas fa-chevron-left"></i></span>
+      {% endif %}
+
+      {% for p in range(1, total_pages + 1) %}
+        {% if p == 1 or p == total_pages or (p >= page-1 and p <= page+1) %}
+          <a class="inv-pg-btn {{ 'active' if p == page else '' }}"
+             href="{{ url_for('admin.ver_inventario', q=q, depto=depto, estado=estado, marca=marca, propiedad=propiedad, sort=sort, dir=dir, page=p) }}">{{ p }}</a>
+        {% elif p == 2 and page > 3 %}
+          <span class="inv-pg-btn disabled">…</span>
+        {% elif p == total_pages - 1 and page < total_pages - 2 %}
+          <span class="inv-pg-btn disabled">…</span>
+        {% endif %}
+      {% endfor %}
+
+      {% if page < total_pages %}
+        <a class="inv-pg-btn" href="{{ url_for('admin.ver_inventario', q=q, depto=depto, estado=estado, marca=marca, propiedad=propiedad, sort=sort, dir=dir, page=page+1) }}"><i class="fas fa-chevron-right"></i></a>
+      {% else %}
+        <span class="inv-pg-btn disabled"><i class="fas fa-chevron-right"></i></span>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>{# /table-card #}
