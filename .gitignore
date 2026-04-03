@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+
+# Entorno virtual
+env/
+venv/
+
+# Archivos subidos (usuarios / sistema)
+static/uploads/
+static/Recursos/
+
+# Archivos pesados
+*.pdf
+*.jpg
+*.png
+
+# VSCode
+.vscode/
