@@ -2,7 +2,10 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from database.db import get_connection
 from datetime import date
+import os
 from models.ModelInventario import ModelInventario
+# Agregar esta línea junto a los imports existentes
+from models.model_recursos import ModelRecursos
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -92,18 +95,18 @@ def ver_equipo(id):
 @admin_bp.route('/inventario/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
 def editar_equipo(id):
-    # TODO: Implementar edición completa
-    # GET  → redirigir a ver_equipo (la edición ocurre inline en esa página)
-    #        o mostrar página de edición separada si lo prefieres
-    # POST → recoger todos los campos del formulario de ver_equipo_admin.html
-    #        Campos esperados del form:
-    #          equipo_unidad, marca, modelo, numero_serie, numero_inventario,
-    #          area, departamento, estado, propiedad, observaciones,
-    #          fecha_adquisicion, fecha_fabricacion, fecha_fin_garantia
-    #        → llamar ModelEquipos.actualizar(db, id, datos)
-    #        → flash('Cambios guardados', 'success')
-    #        → redirect a ver_equipo(id)
-    flash('Edición en construcción', 'info')
+    if request.method == 'GET':
+        return redirect(url_for('admin.ver_equipo', id=id))
+
+    db = get_connection()
+    ok = ModelInventario.actualizar(db, id, request.form.to_dict())
+    db.close()
+
+    if ok:
+        flash('Cambios guardados correctamente', 'success')
+    else:
+        flash('Error al guardar los cambios', 'error')
+
     return redirect(url_for('admin.ver_equipo', id=id))
 
 
@@ -126,18 +129,37 @@ def eliminar_equipo(id):
 @admin_bp.route('/inventario/<int:id>/imagen', methods=['POST'])
 @login_required
 def actualizar_imagen(id):
-    # TODO: Implementar subida de imagen
-    # 1. Verificar que viene archivo: request.files.get('imagen')
-    # 2. Validar extensión permitida: {'png','jpg','jpeg','webp'}
-    # 3. Generar nombre único: f"{id}_{uuid4().hex[:8]}.{ext}"
-    #    → from uuid import uuid4
-    # 4. Guardar en: os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    #    → UPLOAD_FOLDER suele ser: 'static/uploads'
-    # 5. Si ya tenía imagen anterior, eliminar el archivo viejo
-    # 6. ModelEquipos.actualizar_imagen(db, id, filename)
-    # 7. flash('Imagen actualizada', 'success')
-    # 8. redirect a ver_equipo(id)
-    flash('Subida de imagen en construcción', 'info')
+    imagen_file = request.files.get('imagen')
+    if not imagen_file or imagen_file.filename == '':
+        flash('No se seleccionó ninguna imagen', 'error')
+        return redirect(url_for('admin.ver_equipo', id=id))
+
+    try:
+        # Obtener imagen actual para eliminarla después
+        db  = get_connection()
+        eq  = ModelInventario.get_by_id(db, id)
+
+        # Guardar nueva imagen en disco
+        nueva = ModelInventario.guardar_imagen(imagen_file)
+
+        # Eliminar imagen vieja del disco si existía
+        if eq and eq.get('imagen'):
+            ruta_vieja = os.path.join(
+                os.path.dirname(__file__), '..', 'static', eq['imagen']
+            )
+            ruta_vieja = os.path.abspath(ruta_vieja)
+            if os.path.exists(ruta_vieja):
+                os.remove(ruta_vieja)
+
+        # Actualizar BD
+        ModelInventario.actualizar_imagen(db, id, nueva)
+        db.close()
+
+        flash('Imagen actualizada correctamente', 'success')
+
+    except ValueError as e:
+        flash(str(e), 'error')
+
     return redirect(url_for('admin.ver_equipo', id=id))
 
 
@@ -226,3 +248,115 @@ def usuarios():
     flash('Gestión de usuarios en construcción', 'info')
     return redirect(url_for('admin.ver_inventario'))
 
+# ── Recursos de Equipos ────────────────────────────────────────
+
+@admin_bp.route('/inventario/<int:id>/recursos')
+@login_required
+def ver_recursos(id):
+    db     = get_connection()
+    equipo = ModelInventario.get_by_id(db, id)
+
+    if not equipo:
+        db.close()
+        flash('Equipo no encontrado', 'error')
+        return redirect(url_for('admin.ver_inventario'))
+
+    recursos  = ModelRecursos.get_recursos_por_equipo(db, id)
+    coinciden = ModelRecursos.contar_equipos_coincidentes(
+        db, equipo['marca'], equipo['modelo']
+    )
+    db.close()
+
+    return render_template('admin/recursos_equipo.html',
+        equipo=equipo,
+        recursos=recursos,
+        coinciden=coinciden,
+        categorias=ModelRecursos.CATEGORIAS_VALIDAS,
+        tipos=list(ModelRecursos.TIPOS_PERMITIDOS.keys()),
+        today=date.today()
+    )
+
+
+@admin_bp.route('/inventario/<int:id>/recursos/subir', methods=['POST'])
+@login_required
+def subir_recurso(id):
+    db     = get_connection()
+    equipo = ModelInventario.get_by_id(db, id)
+
+    if not equipo:
+        db.close()
+        flash('Equipo no encontrado', 'error')
+        return redirect(url_for('admin.ver_inventario'))
+
+    tipo      = request.form.get('tipo', '').strip()
+    categoria = request.form.get('categoria', '').strip()
+    nombre    = request.form.get('nombre', '').strip()
+    descripcion = request.form.get('descripcion', '').strip()
+    archivo_file = request.files.get('archivo')
+    url_link     = request.form.get('url_link', '').strip()
+
+    # Construir datos para validar
+    datos = {
+        'nombre':      nombre,
+        'tipo':        tipo,
+        'categoria':   categoria,
+        'descripcion': descripcion,
+        'archivo':     url_link if tipo == 'link' else '',
+        'subido_por':  current_user.NombreUsuario
+    }
+
+    tiene_archivo = archivo_file and archivo_file.filename != ''
+
+    # Validar
+    ok, mensaje = ModelRecursos.validar_datos(datos, tiene_archivo)
+    if not ok:
+        db.close()
+        flash(mensaje, 'error')
+        return redirect(url_for('admin.ver_recursos', id=id))
+
+    # Guardar archivo físico si no es link
+    if tipo != 'link':
+        try:
+            datos['archivo'] = ModelRecursos.guardar_archivo(
+                archivo_file, categoria, tipo
+            )
+        except ValueError as e:
+            db.close()
+            flash(str(e), 'error')
+            return redirect(url_for('admin.ver_recursos', id=id))
+
+    # Insertar en BD y vincular equipos
+    ok, recurso_id, total_vinculados = ModelRecursos.crear_recurso(db, datos, id)
+    db.close()
+
+    if ok:
+        flash(
+            f'Recurso subido correctamente y vinculado a {total_vinculados} equipo(s).',
+            'success'
+        )
+    else:
+        # Si falló la BD pero el archivo ya se guardó, limpiarlo
+        if tipo != 'link' and datos.get('archivo'):
+            ModelRecursos.eliminar_archivo_fisico(datos['archivo'])
+        flash('Error al guardar el recurso. Intenta de nuevo.', 'error')
+
+    return redirect(url_for('admin.ver_recursos', id=id))
+
+
+@admin_bp.route('/inventario/<int:id>/recursos/<int:recurso_id>/eliminar')
+@login_required
+def eliminar_recurso(id, recurso_id):
+    db = get_connection()
+
+    ok, archivo = ModelRecursos.eliminar_recurso(db, recurso_id)
+    db.close()
+
+    if ok:
+        # Borrar archivo físico si existía
+        if archivo:
+            ModelRecursos.eliminar_archivo_fisico(archivo)
+        flash('Recurso eliminado correctamente.', 'success')
+    else:
+        flash('Error al eliminar el recurso.', 'error')
+
+    return redirect(url_for('admin.ver_recursos', id=id))

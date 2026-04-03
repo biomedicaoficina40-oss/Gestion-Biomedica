@@ -24,36 +24,41 @@ def login():
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '')
 
+        # Validación básica
         if not email or not password:
             flash("Por favor ingresa correo y contraseña.")
-            return render_template('auth/login.html')
+            return redirect(url_for('auth.login'))
 
         db = None
         try:
             db = get_db()
-            # Solo pasamos email y password, los demás campos no son necesarios aquí
+
+            # Crear usuario temporal para validación
             user_temp = User(0, "", password, email=email)
             logged_user = ModelUser.login(db, user_temp)
 
             if logged_user is not None:
                 login_user(logged_user)
 
+                # Redirección según permisos
                 if logged_user.Permiso == 'Total':
                     return redirect(url_for('auth.index'))
                 else:
                     return redirect(url_for('equipos.Catalogo'))
             else:
                 flash("Correo o contraseña incorrectos.")
-                return render_template('auth/login.html')
+                return redirect(url_for('auth.login'))
 
         except Exception as ex:
             print(f"Error en login route: {str(ex)}")
             flash("Error interno. Intenta de nuevo.")
-            return render_template('auth/login.html')
+            return redirect(url_for('auth.login'))
+
         finally:
             if db:
-                db.close()  # ✅ Siempre se cierra la conexión
+                db.close()
 
+    # GET request
     return render_template('auth/login.html')
 
 

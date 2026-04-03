@@ -4,6 +4,7 @@ from datetime import datetime
 from models.ModelCatalogo import ModelEquipos
 from database.db import get_connection
 from models.entities.Utils import verificar_permiso
+from models.model_recursos import ModelRecursos
 
 equipos_bp = Blueprint('equipos', __name__)
 
@@ -69,28 +70,70 @@ def DetalleEquipo(numero_inventario):
 # DOCUMENTACIÓN DEL EQUIPO
 # ==============================
 
-@equipos_bp.route('/GuiasRapidas')
-def GuiasRapidas():
-    return "Guías Rápidas"
+@equipos_bp.route('/GuiasRapidas/<string:numero_inventario>')
+def GuiasRapidas(numero_inventario):
+    db     = get_connection()
+    equipo = ModelEquipos.obtener_equipo(db, numero_inventario)
 
-@equipos_bp.route('/tarjeta')
-def prueba():
-    return render_template('UserC/prueba.html')
+    if not equipo:
+        db.close()
+        flash('Equipo no encontrado', 'warning')
+        return redirect(url_for('equipos.Catalogo'))
+
+    guias = ModelRecursos.get_recursos_por_equipo(
+        db, equipo['id'], categoria='guia_rapida'
+    )
+    db.close()
+
+    return render_template('UserC/Recursos/Guias_rapidas_user.html',
+        equipo=equipo,
+        guias=guias
+    )
+
+@equipos_bp.route('/InformacionTecnica/<string:numero_inventario>')
+def InformacionTecnica(numero_inventario):
+    db     = get_connection()
+    equipo = ModelEquipos.obtener_equipo(db, numero_inventario)
+
+    if not equipo:
+        db.close()
+        flash('Equipo no encontrado', 'warning')
+        return redirect(url_for('equipos.Catalogo'))
+
+    recursos = ModelRecursos.get_recursos_por_equipo(
+        db, equipo['id'], categoria='ficha_tecnica'
+    )
+    db.close()
+
+    return render_template('UserC/Recursos/Info_tecnica_user.html',
+        equipo=equipo,
+        fichas=recursos
+    )
 
 
-@equipos_bp.route('/InformacionTecnica')
-def InformacionTecnica():
-    return "Información Técnica"
+@equipos_bp.route('/Manuales/<string:numero_inventario>')
+def Manuales(numero_inventario):
+    db     = get_connection()
+    equipo = ModelEquipos.obtener_equipo(db, numero_inventario)
 
+    if not equipo:
+        db.close()
+        flash('Equipo no encontrado', 'warning')
+        return redirect(url_for('equipos.Catalogo'))
 
-@equipos_bp.route('/ManualServicio')
-def ManualServicio():
-    return "Manual de Servicio"
+    manuales_servicio = ModelRecursos.get_recursos_por_equipo(
+        db, equipo['id'], categoria='manual_servicio'
+    )
+    manuales_usuario = ModelRecursos.get_recursos_por_equipo(
+        db, equipo['id'], categoria='manual_usuario'
+    )
+    db.close()
 
-
-@equipos_bp.route('/ManualUsuario')
-def ManualUsuario():
-    return "Manual de Usuario"
+    return render_template('UserC/Recursos/Manuales_user.html',
+        equipo=equipo,
+        manuales_servicio=manuales_servicio,
+        manuales_usuario=manuales_usuario
+    )
 
 
 @equipos_bp.route('/ProgramaMantenimiento')
@@ -98,9 +141,30 @@ def ProgramaMantenimiento():
     return "Programa de Mantenimiento"
 
 
-@equipos_bp.route('/Capacitacion')
-def Capacitacion():
-    return "Capacitación"
+@equipos_bp.route('/Capacitacion/<string:numero_inventario>')
+def Capacitacion(numero_inventario):
+    db     = get_connection()
+    equipo = ModelEquipos.obtener_equipo(db, numero_inventario)
+
+    if not equipo:
+        db.close()
+        flash('Equipo no encontrado', 'warning')
+        return redirect(url_for('equipos.Catalogo'))
+
+    recursos = ModelRecursos.get_recursos_por_equipo(
+        db, equipo['id'], categoria='capacitacion'
+    )
+    db.close()
+
+    # Separar en el backend para no hacer lógica en Jinja
+    videos = [r for r in recursos if r['tipo'] in ('video', 'link')]
+    pdfs   = [r for r in recursos if r['tipo'] not in ('video', 'link')]
+
+    return render_template('UserC/Recursos/Capacitacion_user.html',
+        equipo=equipo,
+        videos=videos,
+        pdfs=pdfs
+    )
 
 
 

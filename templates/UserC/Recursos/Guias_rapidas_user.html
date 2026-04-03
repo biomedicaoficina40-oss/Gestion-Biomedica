@@ -1,0 +1,486 @@
+{% extends 'base.html' %}
+
+{% block title %}Guía Rápida — {{ equipo.modelo }}{% endblock %}
+
+{% block customCSS %}
+<style>
+    :root {
+        --gr-primary:   #3D90AE;
+        --gr-light:     #e8f4f8;
+        --gr-border:    #cde6ef;
+        --gr-text:      #1e3a47;
+        --gr-muted:     #6c8a96;
+        --gr-success:   #2e9e6b;
+        --gr-radius:    12px;
+        --gr-shadow:    0 4px 20px rgba(61, 144, 174, 0.12);
+    }
+
+    .gr-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.75rem;
+    }
+    .gr-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.9rem;
+        background: white;
+        border: 1.5px solid var(--gr-border);
+        border-radius: 8px;
+        color: var(--gr-primary);
+        font-size: 0.82rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+    }
+    .gr-back-btn:hover { background: var(--gr-light); border-color: var(--gr-primary); }
+
+    .gr-header-info { flex: 1; }
+    .gr-header-info h2 {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--gr-text);
+        margin: 0 0 0.15rem;
+    }
+    .gr-breadcrumb {
+        font-size: 0.78rem;
+        color: var(--gr-muted);
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+    .gr-breadcrumb i { font-size: 0.6rem; }
+
+    /* ── Ficha ── */
+    .gr-equipo-card {
+        background: white;
+        border: 1px solid var(--gr-border);
+        border-radius: var(--gr-radius);
+        padding: 1.1rem 1.4rem;
+        margin-bottom: 1.4rem;
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        box-shadow: var(--gr-shadow);
+    }
+    .gr-equipo-icon {
+        width: 52px; height: 52px;
+        border-radius: 12px;
+        background: var(--gr-light);
+        color: var(--gr-primary);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.4rem;
+        flex-shrink: 0;
+    }
+    .gr-equipo-fields { display: flex; gap: 2rem; flex-wrap: wrap; flex: 1; }
+    .gr-field label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--gr-muted);
+        margin-bottom: 0.2rem;
+        display: block;
+    }
+    .gr-field span { font-size: 0.9rem; font-weight: 600; color: var(--gr-text); }
+    .gr-status-badge {
+        padding: 0.3rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        background: #e8f8f2;
+        color: var(--gr-success);
+    }
+
+    /* ── Tabs ── */
+    .gr-tabs-bar {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+        padding: 6px;
+        background: white;
+        border: 1px solid var(--gr-border);
+        border-radius: var(--gr-radius);
+        box-shadow: var(--gr-shadow);
+    }
+    .gr-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1.5px solid transparent;
+        background: #f1f5f9;
+        color: var(--gr-muted);
+        transition: all 0.15s;
+        white-space: nowrap;
+    }
+    .gr-tab:hover  { background: var(--gr-light); color: var(--gr-primary); }
+    .gr-tab.active { background: var(--gr-primary); color: white; border-color: var(--gr-primary); }
+    .gr-guia-hidden { display: none; }
+
+    /* ── Visor contenedor ── */
+    .gr-viewer-wrap {
+        background: white;
+        border: 1px solid var(--gr-border);
+        border-radius: var(--gr-radius);
+        overflow: hidden;
+        box-shadow: var(--gr-shadow);
+        margin-left: -1rem;
+        margin-right: -1rem;
+    }
+    .gr-viewer-toolbar {
+        background: var(--gr-primary);
+        padding: 0.7rem 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+    .gr-viewer-toolbar-left {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        color: white;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    .gr-viewer-toolbar-left i { font-size: 1rem; opacity: 0.9; }
+    .gr-viewer-toolbar-right { display: flex; align-items: center; gap: 0.5rem; }
+    .gr-tool-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.8rem;
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 6px;
+        color: white;
+        font-size: 0.78rem;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+    .gr-tool-btn:hover { background: rgba(255,255,255,0.28); color: white; }
+
+    /* ── PDF iframe (PDF.js) ── */
+    .gr-pdf-frame {
+        width: 100%;
+        height: 88vh;
+        min-height: 600px;
+        border: none;
+        display: block;
+        background: #525659;
+    }
+
+    /* ── Imagen ── */
+    .gr-img-container {
+        background: #f5f7f8;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 600px;
+        overflow: auto;
+        position: relative;
+    }
+    .gr-img-container img {
+        max-width: 100%;
+        max-height: 85vh;
+        object-fit: contain;
+        border-radius: 6px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+        transition: transform 0.25s ease;
+        cursor: zoom-in;
+        display: block;
+    }
+    .gr-zoom-hint {
+        position: absolute;
+        bottom: 0.75rem;
+        right: 0.9rem;
+        background: rgba(0,0,0,0.45);
+        color: white;
+        font-size: 0.72rem;
+        padding: 0.25rem 0.65rem;
+        border-radius: 20px;
+        pointer-events: none;
+        opacity: 1;
+        transition: opacity 0.4s ease;
+    }
+    .gr-zoom-hint.hidden { opacity: 0; }
+
+    /* ── Estado vacío ── */
+    .gr-empty-state {
+        background: white;
+        border: 1px solid var(--gr-border);
+        border-radius: var(--gr-radius);
+        padding: 4rem 2rem;
+        text-align: center;
+        box-shadow: var(--gr-shadow);
+    }
+    .gr-empty-icon {
+        width: 80px; height: 80px;
+        border-radius: 50%;
+        background: #fff4f2;
+        color: #e07b6a;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 2rem;
+        margin: 0 auto 1.25rem;
+    }
+    .gr-empty-state h4 {
+        font-size: 1.05rem; font-weight: 700;
+        color: var(--gr-text); margin-bottom: 0.4rem;
+    }
+    .gr-empty-state p {
+        font-size: 0.875rem; color: var(--gr-muted);
+        max-width: 360px; margin: 0 auto 1.5rem; line-height: 1.6;
+    }
+    .gr-empty-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.55rem 1.2rem;
+        background: var(--gr-primary);
+        color: white;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: opacity 0.2s;
+    }
+    .gr-empty-back:hover { opacity: 0.88; color: white; }
+
+    @media (max-width: 576px) {
+        .gr-equipo-card  { flex-direction: column; align-items: flex-start; }
+        .gr-equipo-fields { gap: 1rem; }
+        .gr-pdf-frame    { height: 75vh; }
+        .gr-img-container { min-height: 280px; }
+        .gr-viewer-toolbar { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+        .gr-tab { font-size: 0.75rem; padding: 6px 10px; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid px-3">
+
+    <!-- Cabecera -->
+    <div class="gr-header">
+        <a href="{{ url_for('equipos.Catalogo') }}" class="gr-back-btn">
+            <i class="fas fa-chevron-left"></i> Volver
+        </a>
+        <div class="gr-header-info">
+            <h2>
+                <i class="fas fa-file-alt me-2" style="color:var(--hospital-primary)"></i>
+                Guías Rápidas
+            </h2>
+            <div class="gr-breadcrumb">
+                <span>Equipos</span>
+                <i class="fas fa-chevron-right"></i>
+                <span>{{ equipo.modelo | upper }}</span>
+                <i class="fas fa-chevron-right"></i>
+                <span style="color:var(--hospital-primary)">Guías Rápidas</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ficha del equipo -->
+    <div class="gr-equipo-card">
+        <div class="gr-equipo-icon">
+            <i class="fas fa-procedures"></i>
+        </div>
+        <div class="gr-equipo-fields">
+            <div class="gr-field">
+                <label>Equipo / Unidad</label>
+                <span>{{ equipo.equipo_unidad or '—' }}</span>
+            </div>
+            <div class="gr-field">
+                <label>Marca</label>
+                <span>{{ equipo.marca | upper if equipo.marca else '—' }}</span>
+            </div>
+            <div class="gr-field">
+                <label>Modelo</label>
+                <span>{{ equipo.modelo | upper if equipo.modelo else '—' }}</span>
+            </div>
+            <div class="gr-field">
+                <label>Estado</label>
+                <span class="gr-status-badge">
+                    <i class="fas fa-circle" style="font-size:0.5rem"></i>
+                    {{ equipo.estado or 'Sin estado' }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── TIENE GUÍAS ── -->
+    {% if guias %}
+
+        <!-- Tabs — solo si hay más de una guía -->
+        {% if guias | length > 1 %}
+        <div class="gr-tabs-bar">
+            {% for guia in guias %}
+            <button
+                class="gr-tab {% if loop.first %}active{% endif %}"
+                onclick="mostrarGuia({{ loop.index0 }})"
+                id="tab-{{ loop.index0 }}">
+                <i class="fas
+                    {% if guia.tipo == 'pdf' %}fa-file-pdf
+                    {% elif guia.tipo == 'imagen' %}fa-file-image
+                    {% else %}fa-file{% endif %}"></i>
+                {{ guia.nombre | truncate(35) }}
+            </button>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Panel por cada guía -->
+        {% for guia in guias %}
+        <div class="gr-viewer-wrap {% if not loop.first %}gr-guia-hidden{% endif %}"
+             id="panel-{{ loop.index0 }}">
+
+            <div class="gr-viewer-toolbar">
+                <div class="gr-viewer-toolbar-left">
+                    <i class="fas
+                        {% if guia.tipo == 'pdf' %}fa-file-pdf
+                        {% elif guia.tipo == 'imagen' %}fa-file-image
+                        {% else %}fa-file{% endif %}"></i>
+                    <span>{{ guia.nombre }}</span>
+                </div>
+                <div class="gr-viewer-toolbar-right">
+                    {% if guia.tipo != 'link' %}
+                    <a href="{{ url_for('static', filename=guia.archivo) }}"
+                       download class="gr-tool-btn">
+                        <i class="fas fa-download"></i> Descargar
+                    </a>
+                    <a href="{{ url_for('static', filename=guia.archivo) }}"
+                       target="_blank" class="gr-tool-btn">
+                        <i class="fas fa-external-link-alt"></i> Abrir pestaña
+                    </a>
+                    {% else %}
+                    <a href="{{ guia.archivo }}" target="_blank" class="gr-tool-btn">
+                        <i class="fas fa-external-link-alt"></i> Abrir enlace
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if guia.tipo == 'pdf' %}
+            <!-- PDF.js — funciona en móvil y desktop -->
+            <iframe
+                class="gr-pdf-frame"
+                src="{{ url_for('static', filename='pdfjs/web/viewer.html') }}?file={{ url_for('static', filename=guia.archivo) | urlencode }}"
+                title="{{ guia.nombre }}"
+                loading="lazy">
+            </iframe>
+
+            {% elif guia.tipo == 'imagen' %}
+            <!-- Visor imagen con zoom -->
+            <div class="gr-img-container" id="imgContainer-{{ loop.index0 }}">
+                <img
+                    src="{{ url_for('static', filename=guia.archivo) }}"
+                    alt="{{ guia.nombre }}"
+                    class="guia-img"
+                    data-idx="{{ loop.index0 }}"
+                    title="Clic para ampliar">
+                <span class="gr-zoom-hint" id="zoomHint-{{ loop.index0 }}">
+                    <i class="fas fa-search-plus me-1"></i>Clic para ampliar
+                </span>
+            </div>
+
+            {% elif guia.tipo == 'link' %}
+            <iframe
+                class="gr-pdf-frame"
+                src="{{ guia.archivo }}"
+                title="{{ guia.nombre }}"
+                loading="lazy"
+                allowfullscreen>
+            </iframe>
+            {% endif %}
+
+        </div>
+        {% endfor %}
+
+    <!-- ── SIN GUÍAS ── -->
+    {% else %}
+    <div class="gr-empty-state">
+        <div class="gr-empty-icon">
+            <i class="fas fa-file-slash"></i>
+        </div>
+        <h4>No hay guías rápidas para este equipo</h4>
+        <p>
+            Aún no se han cargado guías rápidas para
+            <strong>{{ equipo.marca }} {{ equipo.modelo | upper }}</strong>.
+            Contacta al administrador si necesitas este documento.
+        </p>
+        <a href="{{ url_for('equipos.Catalogo') }}" class="gr-empty-back">
+            <i class="fas fa-arrow-left"></i> Volver al catálogo
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    /* ── Tabs ── */
+    window.mostrarGuia = function(idx) {
+        document.querySelectorAll('.gr-viewer-wrap').forEach((p, i) => {
+            p.classList.toggle('gr-guia-hidden', i !== idx);
+        });
+        document.querySelectorAll('.gr-tab').forEach((t, i) => {
+            t.classList.toggle('active', i === idx);
+        });
+    };
+
+    /* ── Zoom para imágenes ── */
+    document.querySelectorAll('.guia-img').forEach(img => {
+        const idx       = img.dataset.idx;
+        const container = document.getElementById('imgContainer-' + idx);
+        const hint      = document.getElementById('zoomHint-' + idx);
+        let zoomed = false;
+
+        img.addEventListener('click', function () {
+            zoomed = !zoomed;
+            if (zoomed) {
+                img.style.maxWidth          = 'none';
+                img.style.maxHeight         = 'none';
+                img.style.cursor            = 'zoom-out';
+                container.style.alignItems      = 'flex-start';
+                container.style.justifyContent  = 'flex-start';
+                if (hint) hint.innerHTML = '<i class="fas fa-search-minus me-1"></i>Clic para reducir';
+            } else {
+                img.style.maxWidth          = '100%';
+                img.style.maxHeight         = '85vh';
+                img.style.cursor            = 'zoom-in';
+                container.style.alignItems      = 'center';
+                container.style.justifyContent  = 'center';
+                if (hint) hint.innerHTML = '<i class="fas fa-search-plus me-1"></i>Clic para ampliar';
+            }
+        });
+
+        if (hint) {
+            setTimeout(() => hint.classList.add('hidden'), 3000);
+            container.addEventListener('mouseenter', () => hint.classList.remove('hidden'));
+            container.addEventListener('mouseleave', () => {
+                setTimeout(() => hint.classList.add('hidden'), 1500);
+            });
+        }
+    });
+
+});
+</script>
+{% endblock %}

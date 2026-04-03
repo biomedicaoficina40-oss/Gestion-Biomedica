@@ -604,6 +604,26 @@
     gap: 1.5rem;
     align-content: start;
 }
+
+/* Contenedor de alertas */
+.alerts-container {
+    width: 100%;
+}
+
+/* Evita que se desborde */
+.alert {
+    width: 100%;
+    margin-bottom: 1rem;
+    word-wrap: break-word;
+}
+
+/* Mejora visual */
+.alert-primary {
+    background-color: #e7f3f8;
+    color: #3d90ae;
+    font-weight: 500;
+    border-left: 4px solid #3d90ae;
+}
 /* ==================== FIN TARJETA GALENIA ==================== */
 </style>
 {% endblock %}
@@ -746,26 +766,19 @@
 
                 <div class="documentation-section">
                     <h3>Documentación y Recursos</h3>
-                    
-                    <div class="documentation-grid">
-                        <a href="{{ url_for('equipos.GuiasRapidas', numero_inventario=equipo.numero_inventario) }}" class="doc-button">
+                        <div class="documentation-grid">  
+                        <a href="{{ url_for('equipos.GuiasRapidas', numero_inventario=equipo['numero_inventario']) }}" class="doc-button">
                             <i class="fas fa-file-alt"></i>
                             <span>Guías Rápidas</span>
                         </a>
-
                         <a href="{{ url_for('equipos.InformacionTecnica', numero_inventario=equipo.numero_inventario) }}" class="doc-button">
                             <i class="fas fa-cogs"></i>
                             <span>Info. Técnica</span>
                         </a>
 
-                        <a href="{{ url_for('equipos.ManualServicio', numero_inventario=equipo.numero_inventario) }}" class="doc-button">
-                            <i class="fas fa-wrench"></i>
-                            <span>Manual Servicio</span>
-                        </a>
-
-                        <a href="{{ url_for('equipos.ManualUsuario', numero_inventario=equipo.numero_inventario) }}" class="doc-button">
+                        <a href="{{ url_for('equipos.Manuales', numero_inventario=equipo.numero_inventario) }}" class="doc-button">
                             <i class="fas fa-book-open"></i>
-                            <span>Manual Usuario</span>
+                            <span>Manuales</span>
                         </a>
 
                         <a href="{{ url_for('equipos.ProgramaMantenimiento', numero_inventario=equipo.numero_inventario) }}" class="doc-button">
@@ -777,6 +790,7 @@
                             <i class="fas fa-video"></i>
                             <span>Capacitación</span>
                         </a>
+                    </div>
                     </div>
                 </div>
             </div>

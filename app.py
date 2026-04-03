@@ -31,9 +31,13 @@ def create_app():
     db = get_connection()
     
     # User loader callback
+# ✅ Correcto — abrir y cerrar conexión en cada llamada
     @login_manager_app.user_loader
     def load_user(id):
-        return ModelUser.get_by_id(db, id)
+        db = get_connection()
+        user = ModelUser.get_by_id(db, id)
+        db.close()
+        return user
     
     # Registrar los blueprints
     from routes.auth_routes import auth_bp
@@ -43,6 +47,15 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(equipos_bp)
+    
+    # Filtros Jinja2
+    import re
+
+    def get_youtube_id(url):
+        m = re.search(r'(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})', url or '')
+        return m.group(1) if m else ''
+
+    app.jinja_env.filters['youtube_id'] = get_youtube_id
     
     # Manejadores de error
     @app.errorhandler(401)

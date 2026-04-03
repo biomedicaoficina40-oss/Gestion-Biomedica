@@ -642,9 +642,12 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
         </div>
         <form method="POST" action="{{ url_for('admin.actualizar_imagen', id=equipo.id) }}"
               enctype="multipart/form-data" id="admImgForm" style="display:none;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">   {# ← ADENTRO #}
           <input type="file" name="imagen" id="imgFileInput" accept="image/*"
                 onchange="admPreviewImg(this); admSubmitImgForm();">
         </form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         {% if equipo.imagen %}
         <div style="margin-top:8px;">
           <a href="{{ url_for('admin.eliminar_imagen', id=equipo.id) }}"
@@ -727,7 +730,16 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
             <span>Como lo ve el personal</span>
           </div>
         </a>
-
+        <a href="{{ url_for('admin.ver_recursos', id=equipo.id) }}"
+          class="adm-qa-btn" style="background:#e8f4f8;color:#3D90AE;">
+          <div class="adm-qa-icon" style="background:rgba(61,144,174,0.15);">
+            <i class="fas fa-folder-open"></i>
+          </div>
+          <div class="adm-qa-label">
+            <strong>Recursos</strong>
+            <span>Documentos y archivos</span>
+          </div>
+        </a>
         {# ESPACIO RESERVADO para futuras funciones #}
         <div style="margin-top:4px;padding:10px 12px;border-radius:var(--adm-radius-sm);
                     border:2px dashed var(--adm-border);text-align:center;
@@ -891,11 +903,8 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
             <a href="{{ url_for('equipos.InformacionTecnica', numero_inventario=equipo.numero_inventario) }}" class="adm-doc-btn">
               <i class="fas fa-cogs"></i><span>Info. Técnica</span>
             </a>
-            <a href="{{ url_for('equipos.ManualServicio', numero_inventario=equipo.numero_inventario) }}" class="adm-doc-btn">
-              <i class="fas fa-wrench"></i><span>Manual Servicio</span>
-            </a>
-            <a href="{{ url_for('equipos.ManualUsuario', numero_inventario=equipo.numero_inventario) }}" class="adm-doc-btn">
-              <i class="fas fa-book-open"></i><span>Manual Usuario</span>
+            <a href="{{ url_for('equipos.Manuales', numero_inventario=equipo.numero_inventario) }}" class="adm-doc-btn">
+              <i class="fas fa-book-open"></i><span>Manuales</span>
             </a>
             <a href="{{ url_for('equipos.ProgramaMantenimiento', numero_inventario=equipo.numero_inventario) }}" class="adm-doc-btn">
               <i class="fas fa-calendar-check"></i><span>Prog. Mantenimiento</span>
@@ -917,6 +926,7 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
         <div class="adm-edit-form" id="admEditMode">
           <hr style="border-color:var(--adm-border);margin:1.5rem 0;">
           <form method="POST" action="{{ url_for('admin.editar_equipo', id=equipo.id) }}" id="admMainForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="adm-section-header">
               <span class="adm-section-title">

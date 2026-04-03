@@ -770,14 +770,14 @@
               onclick="invSortBy('departamento')">Departamento</th>
           <th class="sortable {% if sort == 'estado' %}{{ 'sorted-asc' if dir == 'asc' else 'sorted-desc' }}{% endif %}"
               onclick="invSortBy('estado')">Estado</th>
-          <th>Acciones</th>
+          
         </tr>
       </thead>
       <tbody>
         {% if equipos %}
-          {% for eq in equipos %}
-          <tr>
-            <td><span class="inv-inv-num">{{ eq.numero_inventario }}</span></td>
+        {% for eq in equipos %}
+                  <tr style="cursor:pointer;" ondblclick="window.location.href='{{ url_for('admin.editar_equipo', id=eq.id) }}'">
+                    <td><span class="inv-inv-num">{{ eq.numero_inventario }}</span></td>
             <td class="inv-col-serie"><span class="inv-serie">{{ eq.numero_serie }}</span></td>
             <td>
               <div class="inv-eq-name">{{ eq.equipo_unidad }}</div>
@@ -806,14 +806,6 @@
                 {% else %}
                   <span class="inv-garantia garantia-sin" data-tip="Sin garantía registrada"><i class="fas fa-minus"></i></span>
                 {% endif %}
-              </div>
-            </td>
-            <td>
-              <div class="inv-actions">
-                <a href="{{ url_for('admin.ver_equipo', id=eq.id) }}"     class="inv-act-btn inv-act-view"   title="Ver"><i class="fas fa-eye"></i></a>
-                <a href="{{ url_for('admin.editar_equipo', id=eq.id) }}"  class="inv-act-btn inv-act-edit"   title="Editar"><i class="fas fa-edit"></i></a>
-                <a href="{{ url_for('admin.eliminar_equipo', id=eq.id) }}" class="inv-act-btn inv-act-delete" title="Eliminar"
-                   onclick="return confirm('¿Eliminar {{ eq.equipo_unidad }}?')"><i class="fas fa-trash"></i></a>
               </div>
             </td>
           </tr>
@@ -867,11 +859,10 @@
         </div>
         <div class="inv-card-name">{{ eq.equipo_unidad }}</div>
         <div class="inv-card-depto"><i class="fas fa-map-marker-alt me-1" style="font-size:10px;opacity:0.6;"></i>{{ eq.departamento }}</div>
-        <div class="inv-card-actions">
-          <a href="{{ url_for('admin.ver_equipo', id=eq.id) }}"      class="inv-card-act inv-card-act-view"><i class="fas fa-eye"></i> Ver</a>
-          <a href="{{ url_for('admin.editar_equipo', id=eq.id) }}"   class="inv-card-act inv-card-act-edit"><i class="fas fa-edit"></i> Editar</a>
-          <a href="{{ url_for('admin.eliminar_equipo', id=eq.id) }}" class="inv-card-act inv-card-act-delete"
-             onclick="return confirm('¿Eliminar {{ eq.equipo_unidad }}?')"><i class="fas fa-trash"></i> Eliminar</a>
+          <div class="inv-card-actions">
+          <a href="{{ url_for('admin.editar_equipo', id=eq.id) }}" class="inv-card-act inv-card-act-edit" style="flex:2;">
+            <i class="fas fa-edit"></i> Ver / Editar
+          </a>
         </div>
       </div>
       {% endfor %}

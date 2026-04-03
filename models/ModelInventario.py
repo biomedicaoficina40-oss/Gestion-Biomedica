@@ -1,5 +1,8 @@
+import os
+import uuid
 from datetime import datetime
-
+from PIL import Image
+from werkzeug.utils import secure_filename
 
 class ModelInventario:
     """
@@ -177,11 +180,52 @@ class ModelInventario:
 
     @classmethod
     def actualizar(cls, db, id, datos):
-        """
-        TODO: UPDATE de equipo existente.
-        datos = dict con campos editables (los del form de ver_equipo_admin).
-        """
-        raise NotImplementedError
+        fechas = ('fecha_adquisicion', 'fecha_fabricacion', 'fecha_fin_garantia')
+        for f in fechas:
+            if datos.get(f) == '':
+                datos[f] = None
+
+        try:
+            cursor = db.cursor()
+            cursor.execute(f"""
+                UPDATE {cls.TABLE} SET
+                    equipo_unidad      = ?,
+                    marca              = ?,
+                    modelo             = ?,
+                    numero_serie       = ?,
+                    numero_inventario  = ?,
+                    area               = ?,
+                    departamento       = ?,
+                    estado             = ?,
+                    propiedad          = ?,
+                    observaciones      = ?,
+                    fecha_adquisicion  = ?,
+                    fecha_fabricacion  = ?,
+                    fecha_fin_garantia = ?
+                WHERE id = ?
+            """, (
+                datos.get('equipo_unidad'),
+                datos.get('marca'),
+                datos.get('modelo'),
+                datos.get('numero_serie'),
+                datos.get('numero_inventario'),
+                datos.get('area'),
+                datos.get('departamento'),
+                datos.get('estado'),
+                datos.get('propiedad'),
+                datos.get('observaciones'),
+                datos.get('fecha_adquisicion'),
+                datos.get('fecha_fabricacion'),
+                datos.get('fecha_fin_garantia'),
+                id
+            ))
+            db.commit()
+            cursor.close()
+            return True
+        except Exception as e:
+            print(f"Error actualizar [{id}]: {e}")
+            db.rollback()
+            return False
 
     @classmethod
     def eliminar(cls, db, id):
@@ -193,9 +237,87 @@ class ModelInventario:
 
     @classmethod
     def actualizar_imagen(cls, db, id, filename):
-        """
-        TODO: UPDATE solo del campo imagen.
-        filename = nombre del archivo guardado en /static/uploads/
-        Pasar None para borrar la imagen.
-        """
-        raise NotImplementedError
+        try:
+            cursor = db.cursor()
+
+            # Obtener marca y modelo del equipo actual
+            cursor.execute(f"SELECT marca, modelo FROM {cls.TABLE} WHERE id = ?", (id,))
+            row = cursor.fetchone()
+            if not row:
+                return False
+            marca, modelo = row
+
+            # Actualizar todos los equipos con la misma marca y modelo
+            cursor.execute(
+                f"UPDATE {cls.TABLE} SET imagen = ? WHERE marca = ? AND modelo = ?",
+                (filename, marca, modelo)
+            )
+            db.commit()
+            cursor.close()
+            return True
+        except Exception as e:
+            print(f"Error actualizar_imagen [{id}]: {e}")
+            db.rollback()
+            return False
+        
+    @classmethod
+    def guardar_imagen(cls, imagen_file, flag='equipos', max_size_mb=2,
+                    allowed_extensions=None, output_size=(800, 800)):
+        if allowed_extensions is None:
+            allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp']
+
+        if not imagen_file:
+            raise ValueError("No se proporcionó ninguna imagen")
+
+        # Validar tamaño
+        imagen_file.seek(0, 2)          # ir al final
+        size = imagen_file.tell()
+        imagen_file.seek(0)             # resetear
+        if size > max_size_mb * 1024 * 1024:
+            raise ValueError(f"El archivo excede {max_size_mb}MB")
+
+        # Validar extensión
+        file_ext = os.path.splitext(imagen_file.filename)[1].lower()
+        if file_ext not in allowed_extensions:
+            raise ValueError(f"Extensión no permitida. Use: {', '.join(allowed_extensions)}")
+
+        # Validar que sea imagen real
+        try:
+            img = Image.open(imagen_file)
+            img.verify()
+            imagen_file.seek(0)
+            img = Image.open(imagen_file)
+        except Exception:
+            raise ValueError("El archivo no es una imagen válida")
+
+        # Nombre único
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        unique_id = uuid.uuid4().hex[:8]
+        filename  = secure_filename(f"{timestamp}_{unique_id}.jpg")
+
+        # Ruta destino: static/uploads/equipos/
+        base_path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), '..', 'static', 'uploads', flag)
+        )
+        os.makedirs(base_path, exist_ok=True)
+        filepath = os.path.join(base_path, filename)
+
+        # Procesar y guardar
+        try:
+            if img.mode in ('RGBA', 'LA'):
+                bg = Image.new('RGB', img.size, 'white')
+                bg.paste(img, mask=img.split()[-1])
+                img = bg
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+
+            img.thumbnail(output_size, Image.Resampling.LANCZOS)
+            img.save(filepath, 'JPEG', quality=85, optimize=True)
+
+            # Devuelve la ruta relativa para guardar en BD
+            return os.path.join(flag, filename).replace('\\', '/')
+
+        except Exception as e:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            raise ValueError(f"Error al procesar la imagen: {e}")

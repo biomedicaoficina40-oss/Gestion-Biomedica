@@ -1,0 +1,1025 @@
+{% extends './base.html' %}
+
+{% block title %}Recursos — {{ equipo.equipo_unidad }} — Hospital Galenia{% endblock %}
+
+{% block customCSS %}
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════
+   TOKENS
+══════════════════════════════════════════════ */
+:root {
+  --p:          #3D90AE;
+  --p-dark:     #2d6e87;
+  --p-light:    #e8f4f8;
+  --p-xlight:   #f0f9fc;
+  --border:     #e4eef2;
+  --text:       #1a2e35;
+  --muted:      #6b8e99;
+  --bg:         #f0f8fa;
+  --white:      #ffffff;
+  --radius:     12px;
+  --radius-sm:  8px;
+  --shadow:     0 2px 12px rgba(61,144,174,.10);
+  --shadow-md:  0 4px 24px rgba(61,144,174,.14);
+
+  /* Categorías */
+  --c-guia:    #0f766e; --c-guia-bg:   #ccfbf1;
+  --c-manual:  #1d4ed8; --c-manual-bg: #dbeafe;
+  --c-ficha:   #7c3aed; --c-ficha-bg:  #ede9fe;
+  --c-cap:     #b45309; --c-cap-bg:    #fef3c7;
+  --c-otro:    #475569; --c-otro-bg:   #f1f5f9;
+
+  /* Tipos */
+  --t-pdf:     #dc2626; --t-pdf-bg:    #fee2e2;
+  --t-img:     #0284c7; --t-img-bg:    #e0f2fe;
+  --t-vid:     #9333ea; --t-vid-bg:    #f3e8ff;
+  --t-xls:     #16a34a; --t-xls-bg:    #dcfce7;
+  --t-word:    #1d4ed8; --t-word-bg:   #dbeafe;
+  --t-link:    #0f766e; --t-link-bg:   #ccfbf1;
+  --t-otro:    #64748b; --t-otro-bg:   #f1f5f9;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); }
+
+/* ══ BREADCRUMB ══ */
+.rc-crumb {
+  display: flex; align-items: center; gap: 7px;
+  font-size: .75rem; color: var(--muted);
+  margin-bottom: 1.25rem; flex-wrap: wrap;
+}
+.rc-crumb a { color: var(--p); text-decoration: none; font-weight: 500; }
+.rc-crumb a:hover { text-decoration: underline; }
+.rc-crumb i { font-size: 9px; }
+
+/* ══ PAGE HEADER ══ */
+.rc-header {
+  display: flex; justify-content: space-between;
+  align-items: flex-start; gap: 1rem;
+  margin-bottom: 1.5rem; flex-wrap: wrap;
+}
+.rc-header-left h1 {
+  font-size: 1.55rem; font-weight: 600;
+  color: var(--p); letter-spacing: -.025em; margin: 0 0 4px;
+}
+.rc-header-left p { font-size: .8rem; color: var(--muted); }
+.rc-header-left code {
+  font-family: 'DM Mono', monospace; font-size: .75rem; color: var(--p);
+  background: var(--p-light); padding: 1px 6px; border-radius: 4px;
+}
+
+/* ══ BADGE ESTADO ══ */
+.badge-estado {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: .72rem; font-weight: 600;
+}
+.badge-op  { background: #dcfce7; color: #166534; }
+.badge-mt  { background: #fef9c3; color: #854d0e; }
+.badge-fs  { background: #fee2e2; color: #991b1b; }
+
+/* ══ BOTONES ══ */
+.rc-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 16px; border-radius: var(--radius-sm);
+  font-size: .82rem; font-weight: 600; cursor: pointer;
+  text-decoration: none; border: none; transition: all .15s;
+  white-space: nowrap;
+}
+.rc-btn:hover { text-decoration: none; transform: translateY(-1px); }
+.rc-btn-primary { background: var(--p); color: #fff; box-shadow: 0 2px 10px rgba(61,144,174,.3); }
+.rc-btn-primary:hover { background: var(--p-dark); color: #fff; }
+.rc-btn-outline { background: #fff; color: var(--p); border: 1.5px solid var(--p); }
+.rc-btn-outline:hover { background: var(--p-light); color: var(--p); }
+.rc-btn-ghost { background: transparent; color: var(--muted); border: 1.5px solid var(--border); }
+.rc-btn-ghost:hover { background: #fff; color: var(--text); }
+.rc-btn-sm { padding: 5px 11px; font-size: .76rem; }
+.rc-btn-danger { background: #fee2e2; color: #dc2626; border: 1.5px solid #fca5a5; }
+.rc-btn-danger:hover { background: #dc2626; color: #fff; }
+
+/* ══ STATS ROW ══ */
+.rc-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px; margin-bottom: 1.25rem;
+}
+.rc-stat {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+  text-align: center;
+  animation: fadeUp .35s ease both;
+}
+.rc-stat .num {
+  font-size: 1.6rem; font-weight: 600;
+  color: var(--p); line-height: 1; font-family: 'DM Mono', monospace;
+}
+.rc-stat .lbl {
+  font-size: .7rem; color: var(--muted);
+  margin-top: 3px; text-transform: uppercase; letter-spacing: .06em;
+}
+
+/* ══ LAYOUT: dos columnas ══ */
+.rc-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 1.25rem; align-items: start;
+}
+
+/* ══ PANEL ══ */
+.rc-panel {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+  box-shadow: var(--shadow);
+  animation: fadeUp .4s ease both;
+}
+.rc-panel-hd {
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+}
+.rc-panel-title {
+  font-size: .78rem; font-weight: 600; color: var(--text);
+  text-transform: uppercase; letter-spacing: .07em;
+  display: flex; align-items: center; gap: 7px;
+}
+.rc-panel-title i { color: var(--p); font-size: .9rem; }
+.rc-panel-bd { padding: 16px; }
+
+/* ══ FILTROS ══ */
+.rc-filters {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.rc-chip {
+  padding: 5px 13px; border-radius: 20px;
+  font-size: .75rem; font-weight: 600; cursor: pointer;
+  border: 1.5px solid transparent;
+  background: #f1f5f9; color: var(--muted);
+  transition: all .15s; white-space: nowrap;
+}
+.rc-chip:hover { background: var(--p-light); color: var(--p); border-color: var(--p); }
+.rc-chip.active { background: var(--p); color: #fff; border-color: var(--p); }
+
+/* ══ LISTA DE RECURSOS ══ */
+.rc-list { display: flex; flex-direction: column; gap: 8px; }
+
+.rc-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 13px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: #fafcfd;
+  transition: border-color .15s, box-shadow .15s;
+  animation: fadeUp .3s ease both;
+}
+.rc-item:hover { border-color: var(--p); box-shadow: var(--shadow); background: #fff; }
+
+.rc-item-icon {
+  width: 40px; height: 40px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; flex-shrink: 0;
+}
+
+.rc-item-body { flex: 1; min-width: 0; }
+.rc-item-name {
+  font-size: .875rem; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+.rc-item-meta {
+  font-size: .71rem; color: var(--muted);
+  display: flex; gap: 10px; flex-wrap: wrap;
+}
+.rc-item-cats { display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
+
+.rc-item-actions {
+  display: flex; gap: 5px; flex-shrink: 0; align-items: center;
+}
+.rc-icon-btn {
+  width: 30px; height: 30px; border-radius: 7px;
+  border: 1px solid var(--border); background: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: .8rem; color: var(--muted);
+  transition: all .15s; text-decoration: none;
+}
+.rc-icon-btn:hover { background: var(--p-light); color: var(--p); border-color: var(--p); }
+.rc-icon-btn.danger:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+
+/* ══ PILLS ══ */
+.cat-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 9px; border-radius: 20px;
+  font-size: .68rem; font-weight: 600; white-space: nowrap;
+}
+.cat-guia_rapida    { background: var(--c-guia-bg);   color: var(--c-guia);   }
+.cat-manual         { background: var(--c-manual-bg);  color: var(--c-manual); }
+.cat-ficha_tecnica  { background: var(--c-ficha-bg);   color: var(--c-ficha);  }
+.cat-capacitacion   { background: var(--c-cap-bg);     color: var(--c-cap);    }
+.cat-otro           { background: var(--c-otro-bg);    color: var(--c-otro);   }
+
+.tipo-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 5px;
+  font-size: .68rem; font-weight: 700; letter-spacing: .04em;
+}
+.tipo-pdf    { background: var(--t-pdf-bg);   color: var(--t-pdf);   }
+.tipo-imagen { background: var(--t-img-bg);   color: var(--t-img);   }
+.tipo-video  { background: var(--t-vid-bg);   color: var(--t-vid);   }
+.tipo-excel  { background: var(--t-xls-bg);   color: var(--t-xls);   }
+.tipo-word   { background: var(--t-word-bg);  color: var(--t-word);  }
+.tipo-link   { background: var(--t-link-bg);  color: var(--t-link);  }
+.tipo-otro   { background: var(--t-otro-bg);  color: var(--t-otro);  }
+
+/* ══ EMPTY STATE ══ */
+.rc-empty {
+  text-align: center; padding: 3rem 1rem;
+  color: var(--muted); font-size: .85rem;
+}
+.rc-empty i { font-size: 2.2rem; display: block; margin-bottom: .75rem; opacity: .25; }
+
+/* ══ INFO BOX ══ */
+.rc-info-box {
+  background: var(--p-xlight);
+  border-left: 3px solid var(--p);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 10px 13px; font-size: .78rem;
+  color: var(--p-dark); line-height: 1.6;
+  margin-bottom: 14px;
+}
+
+/* ══ FORM ══ */
+.rc-form { display: flex; flex-direction: column; gap: 14px; }
+
+.rc-form-group { display: flex; flex-direction: column; gap: 5px; }
+.rc-form-label {
+  font-size: .68rem; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .07em;
+}
+.rc-form-control {
+  padding: 9px 12px; border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); font-size: .85rem;
+  background: var(--white); color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  transition: border-color .15s, box-shadow .15s; width: 100%;
+  outline: none;
+}
+.rc-form-control:focus {
+  border-color: var(--p);
+  box-shadow: 0 0 0 3px rgba(61,144,174,.15);
+}
+textarea.rc-form-control { resize: vertical; min-height: 72px; }
+
+/* Tipo selector */
+.tipo-selector { display: flex; gap: 6px; flex-wrap: wrap; }
+.tipo-btn {
+  flex: 1; min-width: 60px; padding: 7px 4px;
+  border-radius: var(--radius-sm); font-size: .72rem; font-weight: 600;
+  border: 1.5px solid var(--border); background: #fff;
+  color: var(--muted); cursor: pointer; text-align: center;
+  transition: all .15s;
+}
+.tipo-btn:hover { border-color: var(--p); color: var(--p); background: var(--p-light); }
+.tipo-btn.active { background: var(--p-light); border-color: var(--p); color: var(--p); }
+
+/* Drop zone */
+.rc-dropzone {
+  border: 2px dashed var(--border); border-radius: var(--radius-sm);
+  padding: 20px 16px; text-align: center; background: #f8fafc;
+  cursor: pointer; transition: all .2s; position: relative;
+}
+.rc-dropzone:hover, .rc-dropzone.drag { border-color: var(--p); background: var(--p-xlight); }
+.rc-dropzone input[type="file"] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.rc-dropzone-icon { font-size: 1.6rem; margin-bottom: 6px; display: block; }
+.rc-dropzone-text { font-size: .78rem; color: var(--muted); }
+.rc-dropzone-text strong { color: var(--p); }
+.rc-dropzone-hint { font-size: .7rem; color: #94a3b8; margin-top: 3px; }
+.rc-dropzone-name {
+  font-size: .8rem; font-weight: 600; color: var(--p);
+  display: none; margin-top: 4px;
+}
+
+/* Categorías checkboxes */
+.rc-cat-grid { display: flex; flex-direction: column; gap: 5px; }
+.rc-cat-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 11px; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border); cursor: pointer;
+  background: #fff; transition: all .15s; user-select: none;
+}
+.rc-cat-item:hover { background: var(--p-xlight); border-color: var(--p); }
+.rc-cat-item input[type="checkbox"] { display: none; }
+.rc-cat-check {
+  width: 17px; height: 17px; border-radius: 4px;
+  border: 1.5px solid var(--border); background: #fff;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all .15s; font-size: .7rem; color: transparent;
+}
+.rc-cat-item.checked .rc-cat-check {
+  background: var(--p); border-color: var(--p); color: #fff;
+}
+.rc-cat-item.checked { border-color: rgba(61,144,174,.4); background: var(--p-xlight); }
+.rc-cat-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.rc-cat-label { font-size: .8rem; font-weight: 500; color: var(--text); }
+
+/* ══ SEPARADOR ══ */
+.rc-divider {
+  border: none; border-top: 1px solid var(--border); margin: 2px 0;
+}
+
+/* ══ VINCULACIÓN INFO ══ */
+.rc-vinc-card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+  display: flex; align-items: flex-start; gap: 12px;
+  box-shadow: var(--shadow);
+}
+.rc-vinc-icon {
+  width: 38px; height: 38px; border-radius: 9px;
+  background: var(--p-light); color: var(--p);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; flex-shrink: 0;
+}
+.rc-vinc-text h4 { font-size: .85rem; font-weight: 600; color: var(--text); margin: 0 0 3px; }
+.rc-vinc-text p  { font-size: .75rem; color: var(--muted); margin: 0; line-height: 1.5; }
+.rc-vinc-num { color: var(--p); font-weight: 700; }
+
+/* ══ ANIMACIONES ══ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.rc-stat:nth-child(1){ animation-delay: .05s }
+.rc-stat:nth-child(2){ animation-delay: .10s }
+.rc-stat:nth-child(3){ animation-delay: .15s }
+.rc-stat:nth-child(4){ animation-delay: .20s }
+
+/* ══ MODAL CONFIRMAR ELIMINAR ══ */
+.rc-modal-backdrop {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.45); z-index: 9000;
+  align-items: center; justify-content: center;
+}
+.rc-modal-backdrop.open { display: flex; }
+.rc-modal {
+  background: #fff; border-radius: var(--radius);
+  padding: 28px; max-width: 380px; width: 90%;
+  box-shadow: 0 16px 48px rgba(0,0,0,.2);
+  animation: fadeUp .2s ease;
+}
+.rc-modal h3 { font-size: 1rem; font-weight: 600; color: var(--text); margin: 0 0 8px; }
+.rc-modal p  { font-size: .82rem; color: var(--muted); margin: 0 0 20px; line-height: 1.5; }
+.rc-modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ══ TOAST ══ */
+.rc-toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: #1a2e35; color: #fff;
+  padding: 11px 22px; border-radius: 30px;
+  font-size: .82rem; font-weight: 500;
+  box-shadow: 0 4px 20px rgba(0,0,0,.25); z-index: 9500;
+  display: flex; align-items: center; gap: 8px;
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  pointer-events: none;
+}
+.rc-toast.show { transform: translateX(-50%) translateY(0); }
+.rc-toast.success { border-left: 4px solid #16a34a; }
+.rc-toast.error   { border-left: 4px solid #dc2626; }
+
+/* ══════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════ */
+
+/* Tablet */
+@media (max-width: 1050px) {
+  .rc-layout { grid-template-columns: 1fr 320px; }
+}
+
+/* Móvil / tablet chica */
+@media (max-width: 820px) {
+  .rc-layout { grid-template-columns: 1fr; }
+
+  /* El formulario va abajo */
+  .rc-form-side { order: 2; }
+  .rc-list-side  { order: 1; }
+
+  /* Stats en 2x2 */
+  .rc-stats { grid-template-columns: repeat(2, 1fr); }
+
+  .rc-header { flex-direction: column; gap: .75rem; }
+  .rc-header-actions { width: 100%; display: flex; gap: 6px; }
+  .rc-header-actions .rc-btn { flex: 1; justify-content: center; }
+}
+
+/* Móvil pequeño */
+@media (max-width: 500px) {
+  .rc-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .rc-stat .num { font-size: 1.35rem; }
+
+  .rc-item { padding: 11px 12px; gap: 10px; }
+  .rc-item-icon { width: 34px; height: 34px; font-size: .95rem; }
+  .rc-item-name { font-size: .82rem; }
+
+  .rc-icon-btn { width: 28px; height: 28px; font-size: .75rem; }
+
+  .rc-filters { gap: 5px; }
+  .rc-chip { padding: 4px 10px; font-size: .72rem; }
+
+  .tipo-selector { gap: 5px; }
+  .tipo-btn { font-size: .68rem; padding: 6px 3px; min-width: 45px; }
+
+  .rc-panel-hd { padding: 11px 14px; }
+  .rc-panel-bd { padding: 12px; }
+
+  .rc-header-left h1 { font-size: 1.2rem; }
+
+  /* Acción: solo íconos sin texto */
+  .rc-btn-text { display: none; }
+  .rc-header-actions .rc-btn { padding: 8px 12px; }
+}
+</style>
+{% endblock %}
+
+
+{% block body %}
+
+{# ─── Macros ──────────────────────────────────────────── #}
+
+{% macro tipo_icon(tipo) %}
+  {% if tipo == 'pdf' %}<i class="fas fa-file-pdf" style="color:var(--t-pdf)"></i>
+  {% elif tipo == 'imagen' %}<i class="fas fa-file-image" style="color:var(--t-img)"></i>
+  {% elif tipo == 'video' %}<i class="fas fa-file-video" style="color:var(--t-vid)"></i>
+  {% elif tipo == 'excel' %}<i class="fas fa-file-excel" style="color:var(--t-xls)"></i>
+  {% elif tipo == 'word' %}<i class="fas fa-file-word" style="color:var(--t-word)"></i>
+  {% elif tipo == 'link' %}<i class="fas fa-link" style="color:var(--t-link)"></i>
+  {% else %}<i class="fas fa-file" style="color:var(--t-otro)"></i>
+  {% endif %}
+{% endmacro %}
+
+{% macro tipo_icon_bg(tipo) %}
+  {% if tipo == 'pdf' %}var(--t-pdf-bg)
+  {% elif tipo == 'imagen' %}var(--t-img-bg)
+  {% elif tipo == 'video' %}var(--t-vid-bg)
+  {% elif tipo == 'excel' %}var(--t-xls-bg)
+  {% elif tipo == 'word' %}var(--t-word-bg)
+  {% elif tipo == 'link' %}var(--t-link-bg)
+  {% else %}var(--t-otro-bg)
+  {% endif %}
+{% endmacro %}
+
+{% macro cat_label(cat) %}
+  {% if cat == 'guia_rapida' %}Guía Rápida
+  {% elif cat == 'manual_servicio' %}Manual Servicio
+  {% elif cat == 'manual_usuario' %}Manual Usuario
+  {% elif cat == 'ficha_tecnica' %}Ficha Técnica
+  {% elif cat == 'capacitacion' %}Capacitación
+  {% else %}Otro
+  {% endif %}
+{% endmacro %}
+
+{% macro cat_icon(cat) %}
+  {% if cat == 'guia_rapida' %}fa-bolt
+  {% elif cat == 'manual_servicio' %}fa-wrench
+  {% elif cat == 'manual_usuario' %}fa-book-open
+  {% elif cat == 'ficha_tecnica' %}fa-cogs
+  {% elif cat == 'capacitacion' %}fa-graduation-cap
+  {% else %}fa-tag
+  {% endif %}
+{% endmacro %}
+
+{# ────────────────────────────────────────────────────── #}
+
+<div class="container-fluid px-0">
+
+  {# BREADCRUMB #}
+  <div class="rc-crumb">
+    <a href="{{ url_for('admin.ver_inventario') }}"><i class="fas fa-boxes"></i> Inventario</a>
+    <i class="fas fa-chevron-right"></i>
+    <a href="{{ url_for('admin.ver_equipo', id=equipo.id) }}">{{ equipo.equipo_unidad }}</a>
+    <i class="fas fa-chevron-right"></i>
+    <span>Recursos</span>
+  </div>
+
+  {# PAGE HEADER #}
+  <div class="rc-header">
+    <div class="rc-header-left">
+      <h1><i class="fas fa-folder-open me-2" style="font-size:1.1rem"></i>Recursos y Documentación</h1>
+      <p>
+        {{ equipo.equipo_unidad }} ·
+        <code>{{ equipo.numero_inventario or '—' }}</code> ·
+        {{ equipo.marca or '' }} {{ equipo.modelo or '' }}
+        &nbsp;
+        <span class="badge-estado
+          {% if equipo.estado == 'Operativo' %}badge-op
+          {% elif equipo.estado == 'Mantenimiento' %}badge-mt
+          {% else %}badge-fs{% endif %}">
+          <i class="fas fa-circle" style="font-size:.45rem"></i>
+          {{ equipo.estado or 'Sin estado' }}
+        </span>
+      </p>
+    </div>
+    <div class="rc-header-actions d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('admin.ver_equipo', id=equipo.id) }}" class="rc-btn rc-btn-ghost">
+        <i class="fas fa-arrow-left"></i> <span class="rc-btn-text">Volver</span>
+      </a>
+      <button class="rc-btn rc-btn-primary" id="btnToggleForm">
+        <i class="fas fa-plus" id="formBtnIcon"></i>
+        <span class="rc-btn-text" id="formBtnText">Subir recurso</span>
+      </button>
+    </div>
+  </div>
+
+  {# STATS #}
+  <div class="rc-stats">
+    <div class="rc-stat">
+      <div class="num">{{ recursos | length }}</div>
+      <div class="lbl">Total</div>
+    </div>
+    <div class="rc-stat">
+      <div class="num" style="color:var(--t-pdf)">{{ recursos | selectattr('tipo','eq','pdf') | list | length }}</div>
+      <div class="lbl">PDF</div>
+    </div>
+    <div class="rc-stat">
+      <div class="num" style="color:var(--t-link)">{{ recursos | selectattr('tipo','eq','link') | list | length }}</div>
+      <div class="lbl">Links</div>
+    </div>
+    <div class="rc-stat">
+      <div class="num" style="color:var(--muted)">{{ coinciden }}</div>
+      <div class="lbl">Equipos vinculados</div>
+    </div>
+  </div>
+
+  {# MAIN LAYOUT #}
+  <div class="rc-layout">
+
+    {# ──── LISTA DE RECURSOS ──── #}
+    <div class="rc-list-side" style="display:flex;flex-direction:column;gap:1.1rem">
+
+      <div class="rc-panel">
+        <div class="rc-panel-hd">
+          <span class="rc-panel-title">
+            <i class="fas fa-layer-group"></i> Recursos del equipo
+          </span>
+          <span style="font-size:.72rem;color:var(--muted)">
+            {{ recursos | length }} archivo{{ 's' if recursos | length != 1 else '' }}
+          </span>
+        </div>
+        <div class="rc-panel-bd">
+
+          {# Filtros #}
+          <div class="rc-filters" id="filterBar">
+            <button class="rc-chip active" data-cat="todos" onclick="filterRecursos(this,'todos')">
+              Todos ({{ recursos | length }})
+            </button>
+            {% for cat in categorias %}
+              {% set cnt = recursos | selectattr('categoria','eq',cat) | list | length %}
+              {% if cnt > 0 %}
+              <button class="rc-chip" data-cat="{{ cat }}" onclick="filterRecursos(this,'{{ cat }}')">
+                <i class="fas {{ cat_icon(cat) }} me-1"></i>
+                {{ cat_label(cat) }} ({{ cnt }})
+              </button>
+              {% endif %}
+            {% endfor %}
+          </div>
+
+          {# Lista #}
+          <div class="rc-list" id="rcList">
+            {% if recursos %}
+              {% for r in recursos %}
+              <div class="rc-item" data-cat="{{ r.categoria }}" data-id="{{ r.id }}">
+
+                <div class="rc-item-icon" style="background:{{ tipo_icon_bg(r.tipo) }}">
+                  {{ tipo_icon(r.tipo) }}
+                </div>
+
+                <div class="rc-item-body">
+                  <div class="rc-item-name" title="{{ r.nombre }}">{{ r.nombre }}</div>
+                  <div class="rc-item-meta">
+                    <span class="tipo-pill tipo-{{ r.tipo }}">{{ r.tipo | upper }}</span>
+                    <span><i class="fas fa-calendar-alt me-1"></i>
+                      {% if r.fecha_subida %}
+                        {{ r.fecha_subida.strftime('%d/%m/%Y') if r.fecha_subida is not string else r.fecha_subida }}
+                      {% else %}—{% endif %}
+                    </span>
+                    {% if r.subido_por %}<span><i class="fas fa-user me-1"></i>{{ r.subido_por }}</span>{% endif %}
+                  </div>
+                  <div class="rc-item-cats">
+                    <span class="cat-pill cat-{{ r.categoria }}">
+                      <i class="fas {{ cat_icon(r.categoria) }}"></i>
+                      {{ cat_label(r.categoria) }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="rc-item-actions">
+                  {# Ver / abrir #}
+                  {% if r.tipo == 'link' %}
+                    <a href="{{ r.archivo }}" target="_blank" class="rc-icon-btn" title="Abrir enlace">
+                      <i class="fas fa-external-link-alt"></i>
+                    </a>
+                  {% elif r.archivo %}
+                    <a href="{{ url_for('static', filename=r.archivo) }}" target="_blank"
+                       class="rc-icon-btn" title="Ver archivo">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="{{ url_for('static', filename=r.archivo) }}" download
+                       class="rc-icon-btn" title="Descargar">
+                      <i class="fas fa-download"></i>
+                    </a>
+                  {% endif %}
+
+                  {# Eliminar #}
+                  <button class="rc-icon-btn danger" title="Eliminar"
+                          onclick="confirmarEliminar({{ r.id }}, '{{ r.nombre | replace("'","\\'")|e }}')">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="rc-empty">
+                <i class="fas fa-folder-open"></i>
+                No hay recursos para este equipo todavía.
+              </div>
+            {% endif %}
+          </div>
+
+        </div>
+      </div>
+
+      {# Tarjeta de vinculación #}
+      <div class="rc-vinc-card">
+        <div class="rc-vinc-icon"><i class="fas fa-link"></i></div>
+        <div class="rc-vinc-text">
+          <h4>Vinculación automática por modelo</h4>
+          <p>
+            Los recursos se comparten con <span class="rc-vinc-num">{{ coinciden }}</span>
+            equipo{{ 's' if coinciden != 1 else '' }}
+            <strong>{{ equipo.marca }} {{ equipo.modelo }}</strong>
+            en el inventario.
+          </p>
+        </div>
+      </div>
+
+    </div>{# /lista side #}
+
+    {# ──── FORMULARIO SUBIR ──── #}
+    <div class="rc-form-side" id="formSide" style="display:none; position:sticky; top:16px;">
+      <div class="rc-panel">
+        <div class="rc-panel-hd" style="background:linear-gradient(135deg,var(--p) 0%,var(--p-dark) 100%)">
+          <span class="rc-panel-title" style="color:#fff; text-transform:none; font-size:.85rem; font-weight:600;">
+            <i class="fas fa-cloud-upload-alt" style="color:rgba(255,255,255,.8)"></i>
+            Subir nuevo recurso
+          </span>
+          <button class="rc-icon-btn" onclick="toggleForm(false)"
+                  style="color:#fff;background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3)"
+                  title="Cerrar">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="rc-panel-bd">
+
+          <div class="rc-info-box">
+            <i class="fas fa-info-circle me-1"></i>
+            Se vinculará a <strong>{{ coinciden }} equipo{{ 's' if coinciden != 1 else '' }}
+            {{ equipo.marca }} {{ equipo.modelo }}</strong> automáticamente.
+          </div>
+
+          <form method="POST"
+                action="{{ url_for('admin.subir_recurso', id=equipo.id) }}"
+                enctype="multipart/form-data"
+                id="rcUploadForm"
+                class="rc-form"
+                onsubmit="return validarForm()">
+
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            {# Nombre #}
+            <div class="rc-form-group">
+              <label class="rc-form-label" for="rNombre">Nombre del recurso *</label>
+              <input class="rc-form-control" type="text" name="nombre" id="rNombre"
+                     placeholder="Ej. Guía rápida de alarmas" required maxlength="200">
+            </div>
+
+            {# Tipo #}
+            <div class="rc-form-group">
+              <label class="rc-form-label">Tipo *</label>
+              <div class="tipo-selector" id="tipoSelector">
+                {% for t in tipos %}
+                <button type="button" class="tipo-btn {% if loop.first %}active{% endif %}"
+                        data-tipo="{{ t }}"
+                        onclick="selectTipo(this, '{{ t }}')">
+                  <i class="fas
+                    {% if t == 'pdf' %}fa-file-pdf
+                    {% elif t == 'imagen' %}fa-file-image
+                    {% elif t == 'video' %}fa-file-video
+                    {% elif t == 'excel' %}fa-file-excel
+                    {% elif t == 'word' %}fa-file-word
+                    {% elif t == 'link' %}fa-link
+                    {% else %}fa-file{% endif %}
+                    d-block mb-1" style="font-size:1rem"></i>
+                  {{ t | capitalize }}
+                </button>
+                {% endfor %}
+              </div>
+              <input type="hidden" name="tipo" id="rTipo" value="{{ tipos[0] if tipos else 'pdf' }}">
+            </div>
+
+            {# Área archivo / URL #}
+            <div class="rc-form-group" id="fileGroup">
+              <label class="rc-form-label">Archivo</label>
+              <div class="rc-dropzone" id="dropzone"
+                   ondragover="event.preventDefault();this.classList.add('drag')"
+                   ondragleave="this.classList.remove('drag')"
+                   ondrop="handleDrop(event)">
+                <input type="file" name="archivo" id="rArchivo"
+                       onchange="handleFileChange(this)">
+                <i class="fas fa-paperclip rc-dropzone-icon"></i>
+                <div class="rc-dropzone-text">
+                  Arrastra aquí o <strong>selecciona archivo</strong>
+                </div>
+                <div class="rc-dropzone-hint">Máx. 20 MB</div>
+                <div class="rc-dropzone-name" id="dropzoneName"></div>
+              </div>
+            </div>
+
+            <div class="rc-form-group" id="linkGroup" style="display:none">
+              <label class="rc-form-label" for="rUrl">URL / Link *</label>
+              <input class="rc-form-control" type="url" name="url_link" id="rUrl"
+                     placeholder="https://..." maxlength="500">
+            </div>
+
+            <hr class="rc-divider">
+
+            {# Categoría #}
+            <div class="rc-form-group">
+              <label class="rc-form-label">Categoría *</label>
+              <div class="rc-cat-grid" id="catGrid">
+                {% set cat_colors = {
+                  'guia_rapida':   '#0f766e',
+                  'manual':        '#1d4ed8',
+                  'ficha_tecnica': '#7c3aed',
+                  'capacitacion':  '#b45309',
+                  'otro':          '#475569'
+                } %}
+                {% for cat in categorias %}
+                <label class="rc-cat-item" onclick="toggleCat(this)" data-cat="{{ cat }}">
+                  <input type="radio" name="categoria" value="{{ cat }}"
+                         {% if loop.first %}checked{% endif %}>
+                  <div class="rc-cat-check">{{ '✓' }}</div>
+                  <div class="rc-cat-dot"
+                       style="background:{{ cat_colors.get(cat, '#475569') }}"></div>
+                  <span class="rc-cat-label">
+                    <i class="fas {{ cat_icon(cat) }} me-1" style="font-size:.75rem"></i>
+                    {{ cat_label(cat) }}
+                  </span>
+                </label>
+                {% endfor %}
+              </div>
+              {# Fallback hidden select por si JS falla #}
+              <select id="rCategoria" style="display:none">
+                {% for cat in categorias %}
+                <option value="{{ cat }}">{{ cat_label(cat) }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            {# Descripción #}
+            <div class="rc-form-group">
+              <label class="rc-form-label" for="rDesc">Descripción (opcional)</label>
+              <textarea class="rc-form-control" name="descripcion" id="rDesc"
+                        placeholder="Notas adicionales sobre este recurso..."
+                        rows="3" maxlength="500"></textarea>
+            </div>
+
+            {# Submit #}
+            <button type="submit" class="rc-btn rc-btn-primary" style="justify-content:center; width:100%; padding:11px">
+              <i class="fas fa-cloud-upload-alt"></i> Subir recurso
+            </button>
+
+          </form>
+        </div>
+      </div>
+    </div>{# /form side #}
+
+  </div>{# /layout #}
+
+</div>{# /container #}
+
+
+{# ══ MODAL CONFIRMAR ELIMINAR ══ #}
+<div class="rc-modal-backdrop" id="deleteModal">
+  <div class="rc-modal">
+    <h3><i class="fas fa-exclamation-triangle me-2" style="color:#dc2626"></i>Eliminar recurso</h3>
+    <p id="deleteModalMsg">¿Seguro que deseas eliminar este recurso? Esta acción no se puede deshacer.</p>
+    <div class="rc-modal-actions">
+      <button class="rc-btn rc-btn-ghost rc-btn-sm" onclick="closeDeleteModal()">Cancelar</button>
+      <a href="#" id="deleteModalLink" class="rc-btn rc-btn-danger rc-btn-sm">
+        <i class="fas fa-trash"></i> Eliminar
+      </a>
+    </div>
+  </div>
+</div>
+
+{# ══ TOAST ══ #}
+<div class="rc-toast" id="rcToast"></div>
+
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+/* ══════════════════════════════════
+   TOGGLE FORMULARIO
+══════════════════════════════════ */
+const formSide    = document.getElementById('formSide');
+const formBtnIcon = document.getElementById('formBtnIcon');
+const formBtnText = document.getElementById('formBtnText');
+
+function toggleForm(show) {
+  const visible = (show !== undefined) ? show : formSide.style.display === 'none';
+  formSide.style.display = visible ? 'block' : 'none';
+  formBtnIcon.className = visible ? 'fas fa-times' : 'fas fa-plus';
+  formBtnText.textContent = visible ? 'Cerrar' : 'Subir recurso';
+}
+
+document.getElementById('btnToggleForm').addEventListener('click', () => toggleForm());
+
+/* ══════════════════════════════════
+   TIPO SELECTOR
+══════════════════════════════════ */
+function selectTipo(btn, tipo) {
+  document.querySelectorAll('.tipo-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('rTipo').value = tipo;
+
+  const isLink = tipo === 'link';
+  document.getElementById('fileGroup').style.display = isLink ? 'none' : 'block';
+  document.getElementById('linkGroup').style.display = isLink ? 'block' : 'none';
+
+  // Actualizar tipos permitidos en el input
+  const extMap = {
+    pdf:    '.pdf',
+    imagen: '.jpg,.jpeg,.png,.webp,.gif',
+    video:  '.mp4,.mov,.avi',
+    excel:  '.xlsx,.xls',
+    word:   '.docx,.doc',
+    otro:   '.zip,.rar,.pptx,.svg'
+  };
+  const fileInput = document.getElementById('rArchivo');
+  if (extMap[tipo]) {
+    fileInput.accept = extMap[tipo];
+  } else {
+    fileInput.removeAttribute('accept');
+  }
+}
+
+/* ══════════════════════════════════
+   DROP ZONE
+══════════════════════════════════ */
+function handleFileChange(input) {
+  const name = input.files[0]?.name;
+  const nameEl = document.getElementById('dropzoneName');
+  if (name) {
+    nameEl.textContent = name;
+    nameEl.style.display = 'block';
+    document.querySelector('.rc-dropzone-text').style.display = 'none';
+    document.querySelector('.rc-dropzone-hint').style.display = 'none';
+  }
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const input = document.getElementById('rArchivo');
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  input.files = dt.files;
+  handleFileChange(input);
+}
+
+/* ══════════════════════════════════
+   CATEGORÍAS (radio como checkbox visual)
+══════════════════════════════════ */
+function toggleCat(label) {
+  document.querySelectorAll('.rc-cat-item').forEach(l => l.classList.remove('checked'));
+  label.classList.add('checked');
+  const radio = label.querySelector('input[type=radio]');
+  if (radio) radio.checked = true;
+  // Sync hidden select
+  document.getElementById('rCategoria').value = label.dataset.cat;
+}
+
+// Marcar el primero como activo al cargar
+document.addEventListener('DOMContentLoaded', () => {
+  const firstCat = document.querySelector('.rc-cat-item');
+  if (firstCat) firstCat.classList.add('checked');
+});
+
+/* ══════════════════════════════════
+   FILTRO DE LISTA
+══════════════════════════════════ */
+function filterRecursos(btn, cat) {
+  document.querySelectorAll('.rc-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+
+  document.querySelectorAll('.rc-item').forEach(item => {
+    const show = cat === 'todos' || item.dataset.cat === cat;
+    item.style.display = show ? 'flex' : 'none';
+  });
+
+  const visible = document.querySelectorAll('.rc-item[style*="flex"]').length;
+  const empty = document.querySelector('.rc-empty');
+  if (!document.querySelector('.rc-item[data-id]')) return;
+  if (cat !== 'todos' && visible === 0) {
+    // Mostrar empty temporal
+    const tmp = document.getElementById('tmpEmpty');
+    if (!tmp) {
+      const el = document.createElement('div');
+      el.id = 'tmpEmpty';
+      el.className = 'rc-empty';
+      el.innerHTML = '<i class="fas fa-filter"></i>Sin recursos en esta categoría.';
+      document.getElementById('rcList').appendChild(el);
+    }
+  } else {
+    const tmp = document.getElementById('tmpEmpty');
+    if (tmp) tmp.remove();
+  }
+}
+
+/* ══════════════════════════════════
+   MODAL ELIMINAR
+══════════════════════════════════ */
+function confirmarEliminar(id, nombre) {
+  document.getElementById('deleteModalMsg').textContent =
+    `¿Seguro que deseas eliminar "${nombre}"? Esta acción no se puede deshacer.`;
+  document.getElementById('deleteModalLink').href =
+    `{{ url_for('admin.eliminar_recurso', id=equipo.id, recurso_id=0) }}`.replace('/0', '/' + id);
+  document.getElementById('deleteModal').classList.add('open');
+}
+
+function closeDeleteModal() {
+  document.getElementById('deleteModal').classList.remove('open');
+}
+
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+  if (e.target === this) closeDeleteModal();
+});
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDeleteModal(); });
+
+/* ══════════════════════════════════
+   VALIDACIÓN FORM
+══════════════════════════════════ */
+function validarForm() {
+  const tipo = document.getElementById('rTipo').value;
+  const nombre = document.getElementById('rNombre').value.trim();
+
+  if (!nombre) { rcToastShow('El nombre del recurso es obligatorio', 'error'); return false; }
+
+  if (tipo === 'link') {
+    const url = document.getElementById('rUrl').value.trim();
+    if (!url) { rcToastShow('Debes ingresar una URL', 'error'); return false; }
+  } else {
+    const file = document.getElementById('rArchivo').files[0];
+    if (!file) { rcToastShow('Debes seleccionar un archivo', 'error'); return false; }
+  }
+
+  return true;
+}
+
+/* ══════════════════════════════════
+   TOAST
+══════════════════════════════════ */
+function rcToastShow(msg, type = 'success') {
+  const t = document.getElementById('rcToast');
+  const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+  t.innerHTML = `<i class="fas ${icon}"></i> ${msg}`;
+  t.className = `rc-toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+{# Flash → toast #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for cat, msg in messages %}
+      document.addEventListener('DOMContentLoaded', () =>
+        rcToastShow("{{ msg | e }}", "{{ 'success' if cat == 'success' else 'error' }}")
+      );
+      {% if cat == 'success' %}
+        {# Si subida exitosa, cerrar form #}
+        document.addEventListener('DOMContentLoaded', () => toggleForm(false));
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+</script>
+{% endblock %}

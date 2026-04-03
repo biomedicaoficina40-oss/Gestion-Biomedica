@@ -11,11 +11,17 @@
 
     body {
         display: flex;
-        align-items: center;
         justify-content: center;
         padding: 2rem;
         background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
         font-family: Arial, sans-serif;
+    }
+
+    /* Solo centra vertical en pantallas grandes */
+    @media (min-width: 768px) {
+        body {
+            align-items: center;
+        }
     }
 
     .form-signin {
@@ -177,17 +183,18 @@
          style="width:clamp(100px,40vw,180px);height:auto;display:block;margin:0 auto;">
         </div>
         
-        {% with messages = get_flashed_messages() %}
-        {% if messages %}
-        <br />
-        {% for message in messages %}
-        <div class="alert alert-primary alert-dismissible" role="alert">
-            <strong>{{ message }}</strong>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        {% endfor %}
-        {% endif %}
-        {% endwith %}
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            <div class="alerts-container">
+                {% for message in messages %}
+                <div class="alert alert-primary alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
 
         <h1 class="h3 mb-3 fw-normal text-center">Please sign in</h1>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
