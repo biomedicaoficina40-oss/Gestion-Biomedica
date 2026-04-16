@@ -1,0 +1,321 @@
+<style>
+  :root {
+    --primary: #0e1d3e;
+    --accent: #1a3a6d;
+    --gray-bg: #f8f9fa;
+    --border-clr: #d1d5db;
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #f0f2f5; padding: 2rem 1rem; font-family: 'Segoe UI', sans-serif; color: var(--text-main); }
+  
+  .doc {
+    background: #fff;
+    border-radius: 12px;
+    max-width: 850px;
+    margin: 0 auto;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    overflow: hidden;
+  }
+
+  /* Header Institucional */
+  .doc-header {
+    background: var(--primary);
+    padding: 24px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #fff;
+  }
+
+  .header-left { display: flex; align-items: center; gap: 20px; }
+  .logo-box { background: #fff; padding: 8px; border-radius: 6px; width: 90px; }
+  .logo-box img { width: 100%; height: auto; }
+  
+  .title-block .doc-title { font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .title-block .doc-sub { font-size: 11px; opacity: 0.8; margin-top: 2px; }
+
+  .header-right { text-align: right; }
+  .folio-lbl { font-size: 10px; text-transform: uppercase; opacity: 0.7; }
+  .folio-val { font-size: 18px; font-weight: 700; font-family: 'Courier New', monospace; }
+
+  .doc-body { padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; }
+
+  /* Meta Información Superior */
+  .meta-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border-clr); border-radius: 8px; overflow: hidden; border: 1px solid var(--border-clr); }
+  .meta-cell { padding: 12px 16px; background: #fff; }
+  .meta-lbl { font-size: 9px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.5px; }
+  
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { padding: 3px 10px; border-radius: 4px; font-size: 10px; border: 1px solid var(--border-clr); color: var(--text-muted); background: #fff; text-transform: uppercase; }
+  .chip.on { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 700; }
+
+  /* Secciones Estilizadas */
+  .section { border: 1px solid var(--border-clr); border-radius: 8px; overflow: hidden; }
+  .sec-hd { padding: 8px 16px; background: var(--gray-bg); border-bottom: 1px solid var(--border-clr); display: flex; align-items: center; gap: 10px; }
+  .sec-hd-bar { width: 4px; height: 16px; background: var(--primary); border-radius: 2px; }
+  .sec-title { font-size: 10px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.8px; }
+
+  .sec-body { padding: 16px; }
+  .fg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .f { display: flex; flex-direction: column; gap: 4px; }
+  .f.full { grid-column: 1/-1; }
+  
+  .f-lbl { font-size: 9px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
+  .f-box { border: 1px solid var(--border-clr); border-radius: 5px; padding: 7px 10px; background: #fafafa; min-height: 32px; display: flex; align-items: center; }
+  .f-box.hl { border-color: var(--primary); border-width: 1.5px; background: #fff; }
+  .f-val { font-size: 12px; font-weight: 500; color: #111; }
+  .f-mono { font-family: 'Consolas', monospace; font-weight: 700; color: var(--accent); }
+
+  /* Imagen de Equipo */
+  .img-ph { border: 1px dashed var(--border-clr); border-radius: 6px; height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fdfdfd; color: var(--text-muted); }
+  .img-ph span:first-child { font-size: 20px; margin-bottom: 4px; }
+  .img-ph span:last-child { font-size: 10px; font-weight: 500; }
+
+  /* Tabla de Accesorios */
+  .acc-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .acc-tbl th { background: var(--gray-bg); color: var(--text-muted); font-size: 9px; text-transform: uppercase; padding: 8px 10px; text-align: left; border-bottom: 2px solid var(--border-clr); font-weight: 800; }
+  .acc-tbl td { padding: 10px; border-bottom: 1px solid #eee; }
+  
+  .add-row { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; color: var(--accent); cursor: pointer; font-size: 11px; font-weight: 700; }
+  .add-btn { width: 18px; height: 18px; border-radius: 4px; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+
+  /* Observaciones y Firmas */
+  .obs-box { border: 1px solid var(--border-clr); border-radius: 6px; padding: 12px; font-size: 12px; line-height: 1.6; color: #444; font-style: italic; background: #fffdf5; border-left: 4px solid var(--primary); }
+
+  .firmas-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .firma-blk { border: 1px solid var(--border-clr); border-radius: 6px; overflow: hidden; }
+  .firma-hd { padding: 8px 12px; background: var(--gray-bg); border-bottom: 1px solid var(--border-clr); }
+  .firma-role { font-size: 9px; color: var(--text-muted); font-weight: 800; text-transform: uppercase; }
+  .firma-name { font-size: 11px; margin-top: 2px; font-weight: 600; }
+  
+  .firma-canvas { height: 80px; background: #fff; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid #eee; }
+  .firma-canvas span { font-size: 10px; color: #ccc; }
+  
+  .firma-opts { display: flex; }
+  .firma-opt { flex: 1; padding: 6px; text-align: center; font-size: 10px; cursor: pointer; color: var(--text-muted); border-right: 1px solid #eee; }
+  .firma-opt.on { background: #f0f4f8; color: var(--primary); font-weight: 700; }
+
+  /* Footer y Acciones */
+  .doc-footer { padding: 20px 32px; background: var(--gray-bg); display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-clr); }
+  .footer-txt { font-size: 10px; color: var(--text-muted); font-weight: 600; }
+  .btn { padding: 8px 16px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; border: 1px solid var(--border-clr); background: #fff; }
+  .btn-p { background: var(--primary); color: #fff; border-color: var(--primary); margin-left: 6px; }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    .doc { box-shadow: none; border-radius: 0; max-width: 100%; }
+    .btn, .doc-footer { display: none; }
+    .doc-header { -webkit-print-color-adjust: exact; }
+  }
+</style>
+
+<div class="doc">
+  <div class="doc-header">
+    <div class="header-left">
+      <div class="logo-box">
+        <span style="font-size:12px; font-weight:900; color:var(--primary);">GALENIA</span>
+      </div>
+      <div class="title-block">
+        <div class="doc-title">Reporte de Alta de Equipo Biomédico</div>
+        <div class="doc-sub">Hospital Galenia — Departamento de Ingeniería Biomédica</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="folio-lbl">Folio de Control</div>
+      <div class="folio-val">RPT-ALTA-00042</div>
+    </div>
+  </div>
+
+  <div class="doc-body">
+    <div class="meta-row">
+      <div class="meta-cell">
+        <div class="meta-lbl">Fecha de Registro</div>
+        <div class="meta-val" style="font-weight:700;">06 / abr / 2026</div>
+      </div>
+      <div class="meta-cell">
+        <div class="meta-lbl">Tipo de Movimiento</div>
+        <div class="chips">
+          <div class="chip on">Alta</div>
+          <div class="chip">Baja</div>
+          <div class="chip">Cambio</div>
+        </div>
+      </div>
+      <div class="meta-cell">
+        <div class="meta-lbl">Empresa Responsable</div>
+        <div class="chips">
+          <div class="chip">AMA</div>
+          <div class="chip on">ANT</div>
+          <div class="chip">AMG</div>
+          <div class="chip">HCH</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-hd">
+        <div class="sec-hd-bar"></div>
+        <span class="sec-title">Identificación Detallada del Activo</span>
+      </div>
+      <div class="sec-body">
+        <div class="fg">
+          <div class="f">
+            <span class="f-lbl">No. Inventario</span>
+            <div class="f-box hl"><span class="f-val f-mono">EQ-ME-00042</span></div>
+          </div>
+          <div class="f">
+            <span class="f-lbl">Equipo / Unidad</span>
+            <div class="f-box"><span class="f-val">Monitor de Signos Vitales</span></div>
+          </div>
+          <div class="f">
+            <span class="f-lbl">No. de Serie</span>
+            <div class="f-box"><span class="f-val f-mono">SN-2024-001234</span></div>
+          </div>
+          <div class="f">
+            <span class="f-lbl">Marca</span>
+            <div class="f-box"><span class="f-val">Mindray</span></div>
+          </div>
+          <div class="f">
+            <span class="f-lbl">Modelo</span>
+            <div class="f-box"><span class="f-val">BeneVision N15</span></div>
+          </div>
+          <div class="f">
+            <span class="f-lbl">Estado de Operación</span>
+            <div class="f-box"><span class="f-val">Operativo</span></div>
+          </div>
+          <div class="f">
+            <span class="f-lbl">Departamento</span>
+            <div class="f-box"><span class="f-val">UCI</span></div>
+          </div>
+          <div class="f">
+            <span class="f-lbl">Ubicación / Área</span>
+            <div class="f-box"><span class="f-val">Piso 2 Ala Norte</span></div>
+          </div>
+          <div class="f">
+            <span class="f-lbl">Tipo de Propiedad</span>
+            <div class="f-box"><span class="f-val">Hospital</span></div>
+          </div>
+          <div class="f">
+            <span class="f-lbl">Fecha Adquisición</span>
+            <div class="f-box"><span class="f-val">15 / ene / 2024</span></div>
+          </div>
+          <div class="f">
+            <span class="f-lbl">Año de Fabricación</span>
+            <div class="f-box"><span class="f-val">2023</span></div>
+          </div>
+          <div class="f">
+            <span class="f-lbl">Vencimiento Garantía</span>
+            <div class="f-box"><span class="f-val">15 / ene / 2027</span></div>
+          </div>
+          <div class="f full">
+            <span class="f-lbl">Fotografía del Activo</span>
+            <div class="img-ph">
+              <span>▣</span>
+              <span>Imagen del equipo referencial</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-hd">
+        <div class="sec-hd-bar"></div>
+        <span class="sec-title">Motivo Legal de Ingreso</span>
+      </div>
+      <div class="sec-body">
+        <div class="chips">
+          <div class="chip on">Compra</div>
+          <div class="chip">Donación</div>
+          <div class="chip">Comodato</div>
+          <div class="chip">Transferencia</div>
+          <div class="chip">Otro</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-hd">
+        <div class="sec-hd-bar"></div>
+        <span class="sec-title">Accesorios y Componentes Entregados</span>
+      </div>
+      <div class="sec-body">
+        <table class="acc-tbl">
+          <thead>
+            <tr>
+              <th style="width:36px">#</th>
+              <th>Descripción del Accesorio</th>
+              <th style="width:76px">Cant.</th>
+              <th style="width:110px">Condición</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Cable ECG 5 derivaciones</td><td>1</td><td>Nuevo</td></tr>
+            <tr><td>2</td><td>Brazalete NIBP adulto</td><td>2</td><td>Nuevo</td></tr>
+            <tr><td>3</td><td>Sensor SpO₂ clip dedo</td><td>1</td><td>Nuevo</td></tr>
+            <tr><td>4</td><td>Cable de poder hospitalario</td><td>1</td><td>Nuevo</td></tr>
+          </tbody>
+        </table>
+        <div class="add-row">
+          <div class="add-btn">+</div>
+          <span>Añadir nuevo componente</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-hd">
+        <div class="sec-hd-bar"></div>
+        <span class="sec-title">Observaciones de Ingeniería</span>
+      </div>
+      <div class="sec-body">
+        <div class="obs-box">
+          Equipo nuevo de paquete, ingresa con todos sus accesorios originales de fábrica. Se verifica funcionamiento correcto previo a la entrega al área mediante simulador de paciente.
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-hd">
+        <div class="sec-hd-bar"></div>
+        <span class="sec-title">Protocolo de Firmas de Recepción</span>
+      </div>
+      <div class="sec-body">
+        <div class="firmas-row">
+          <div class="firma-blk">
+            <div class="firma-hd">
+              <div class="firma-role">Entrega / Responsable</div>
+              <div class="firma-name">Jefatura de Ingeniería Biomédica</div>
+            </div>
+            <div class="firma-canvas"><span>Panel de Firma Digital</span></div>
+            <div class="firma-opts">
+              <div class="firma-opt on">Digital</div>
+              <div class="firma-opt">Física</div>
+            </div>
+          </div>
+          <div class="firma-blk">
+            <div class="firma-hd">
+              <div class="firma-role">Recibe / Responsable Área</div>
+              <div class="firma-name" style="color:#999;">Dr. / Ing. ___________________</div>
+            </div>
+            <div class="firma-canvas"><span>Panel de Firma Digital</span></div>
+            <div class="firma-opts">
+              <div class="firma-opt on">Digital</div>
+              <div class="firma-opt">Física</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <span class="footer-txt">Generado por el Sistema de Activos — Galenia Biomedical Engineering © 2026</span>
+    <div class="footer-btns">
+      <button class="btn">Previsualizar</button>
+      <button class="btn btn-p">Guardar e Imprimir PDF</button>
+    </div>
+  </div>
+</div>

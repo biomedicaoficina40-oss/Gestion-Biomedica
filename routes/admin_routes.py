@@ -1,11 +1,14 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash,current_app
 from flask_login import login_required, current_user
 from database.db import get_connection
 from datetime import date
 import os
+import json
+from weasyprint import HTML as WeasyHTML
+from io import BytesIO
 from models.ModelInventario import ModelInventario
-# Agregar esta línea junto a los imports existentes
 from models.model_recursos import ModelRecursos
+from models.ModelReportes import ModelReportes
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -24,7 +27,6 @@ def ver_inventario():
     dir       = request.args.get('dir', 'asc')
     page      = request.args.get('page', 1, type=int)
     per_page  = 15
-
     db = get_connection()
     equipos, total = ModelInventario.get_inventario(db, q, depto, estado, marca, propiedad, sort, dir, page, per_page)
     stats          = ModelInventario.get_stats(db)
@@ -50,19 +52,253 @@ def ver_inventario():
 @admin_bp.route('/inventario/agregar', methods=['GET', 'POST'])
 @login_required
 def agregar_equipo():
-    # TODO: Implementar formulario de alta de equipo
-    # GET  → mostrar formulario vacío (template: admin/agregar_equipo.html)
-    #        pasar: departamentos, marcas, propiedades para los selects
-    # POST → recoger campos del form (equipo_unidad, marca, modelo,
-    #        numero_serie, numero_inventario, area, departamento, estado,
-    #        propiedad, fecha_adquisicion, fecha_fabricacion,
-    #        fecha_fin_garantia, observaciones)
-    #        → llamar ModelEquipos.crear(db, datos)
-    #        → flash('Equipo agregado correctamente', 'success')
-    #        → redirect a ver_equipo con el id recién creado
-    flash('Página en construcción', 'info')
-    return redirect(url_for('admin.ver_inventario'))
+    db = None
+    try:
+        db = get_connection()
 
+        if request.method == 'GET':
+            # ── Datos para selects ──────────────────────────────
+            departamentos = ModelInventario.get_departamentos(db)
+            propiedades   = ModelInventario.get_propiedades(db)
+
+            # ── Datos para autocomplete client-side ─────────────
+            # Una sola consulta, sin peticiones extra desde el browser
+            cursor = db.cursor()
+            cursor.execute("""
+                SELECT DISTINCT equipo_unidad, marca, modelo
+                FROM HospitalGalenia.dbo.InventarioEquipos
+                WHERE equipo_unidad IS NOT NULL
+                  AND marca         IS NOT NULL
+                  AND modelo        IS NOT NULL
+                ORDER BY equipo_unidad
+            """)
+            rows = cursor.fetchall()
+            cursor.close()
+
+            equipos_ac = sorted(set(
+                r[0].strip() for r in rows if r[0] and r[0].strip()
+            ))
+            marcas_ac  = sorted(set(
+                r[1].strip() for r in rows if r[1] and r[1].strip()
+            ))
+            # modelos agrupados por marca para filtrado en JS
+            modelos_ac = {}
+            for r in rows:
+                marca  = (r[1] or '').strip()
+                modelo = (r[2] or '').strip()
+                if marca and modelo:
+                    modelos_ac.setdefault(marca, set()).add(modelo)
+            # convertir sets a listas ordenadas (JSON no acepta sets)
+            modelos_ac = {m: sorted(v) for m, v in modelos_ac.items()}
+
+            # ── Números sugeridos por prefijo ───────────────────
+            num_eqme = ModelInventario.generar_numero_inventario(db, 'EQ-ME')
+            num_amco = ModelInventario.generar_numero_inventario(db, 'AM-CO')
+
+            return render_template('admin/agregar_equipo.html',
+                departamentos = departamentos,
+                propiedades   = propiedades,
+                equipos_ac    = equipos_ac,
+                marcas_ac     = marcas_ac,
+                modelos_ac    = modelos_ac,
+                num_eqme      = num_eqme,
+                num_amco      = num_amco,
+                prefijos       = ['EQ-ME', 'AM-CO'],
+            )
+
+        # ── POST ────────────────────────────────────────────────
+        # Validar CSRF ya lo maneja Flask-WTF automáticamente
+
+        # 1 — Recoger y sanear campos
+        prefijo          = request.form.get('prefijo', '').strip()
+        equipo_unidad    = request.form.get('equipo_unidad', '').strip()
+        marca            = request.form.get('marca', '').strip()
+        modelo           = request.form.get('modelo', '').strip()
+        numero_serie     = request.form.get('numero_serie', '').strip()
+        area             = request.form.get('area', '').strip()
+        estado           = request.form.get('estado', '').strip()
+        observaciones    = request.form.get('observaciones', '').strip()
+        # ── Campos solo para el reporte (no van a la BD principal) ──
+        motivo_ingreso       = request.form.get('motivo_ingreso', '').strip()
+        empresa_responsable  = request.form.get('empresa_responsable', '').strip()
+        obs_reporte          = request.form.get('obs_reporte', '').strip()
+
+        # Accesorios — vienen como listas paralelas del formulario
+        acc_desc      = request.form.getlist('acc_descripcion')
+        acc_cant      = request.form.getlist('acc_cantidad')
+        acc_condicion = request.form.getlist('acc_condicion')
+        accesorios = [
+            {'descripcion': d.strip(), 'cantidad': c.strip(), 'condicion': co.strip()}
+            for d, c, co in zip(acc_desc, acc_cant, acc_condicion)
+            if d.strip()
+        ]
+
+        # Departamento: si eligió "otro" usar el campo libre
+        departamento = request.form.get('departamento', '').strip()
+        if departamento == '__otro__':
+            departamento = request.form.get('departamento_nuevo', '').strip()
+
+        # Propiedad: igual
+        propiedad = request.form.get('propiedad', '').strip()
+        if propiedad == '__otro__':
+            propiedad = request.form.get('propiedad_nueva', '').strip()
+
+        # Fechas — pueden venir vacías
+        fecha_adquisicion  = request.form.get('fecha_adquisicion')  or None
+        fecha_fabricacion  = request.form.get('fecha_fabricacion')  or None
+        fecha_fin_garantia = request.form.get('fecha_fin_garantia') or None
+
+        # 2 — Validaciones del lado servidor
+        errores = []
+        if prefijo not in ('EQ-ME', 'AM-CO'):
+            errores.append('Prefijo de inventario inválido.')
+        if not equipo_unidad:
+            errores.append('El nombre del equipo es obligatorio.')
+        if not departamento:
+            errores.append('El departamento es obligatorio.')
+        if estado not in ('Operativo', 'Mantenimiento', 'Fuera de Servicio'):
+            errores.append('Estado inválido.')
+
+        if errores:
+            for e in errores:
+                flash(e, 'error')
+            return redirect(url_for('admin.agregar_equipo'))
+
+        # 3 — Generar número de inventario
+        numero_inventario = ModelInventario.generar_numero_inventario(db, prefijo)
+        if not numero_inventario:
+            flash('Error al generar el número de inventario.', 'error')
+            return redirect(url_for('admin.agregar_equipo'))
+
+        # 4 — Manejar imagen (opcional)
+        imagen_path = None
+        imagen_file = request.files.get('imagen')
+        if imagen_file and imagen_file.filename:
+            try:
+                imagen_path = ModelInventario.guardar_imagen(imagen_file)
+            except ValueError as e:
+                flash(str(e), 'error')
+                return redirect(url_for('admin.agregar_equipo'))
+
+        # 5 — Armar datos y crear equipo
+        datos = {
+            'equipo_unidad':    equipo_unidad,
+            'marca':            marca            or None,
+            'modelo':           modelo           or None,
+            'numero_serie':     numero_serie     or None,
+            'numero_inventario': numero_inventario,
+            'area':             area             or None,
+            'departamento':     departamento,
+            'estado':           estado,
+            'propiedad':        propiedad        or None,
+            'observaciones':    observaciones    or None,
+            'fecha_adquisicion':  fecha_adquisicion,
+            'fecha_fabricacion':  fecha_fabricacion,
+            'fecha_fin_garantia': fecha_fin_garantia,
+            'imagen':           imagen_path,
+        }
+
+        equipo_id = ModelInventario.crear(db, datos)
+        if not equipo_id:
+            # Si falló y ya subimos imagen, limpiarla
+            if imagen_path:
+                ModelInventario.eliminar_archivo_fisico(imagen_path)
+            flash('Error al registrar el equipo. Intenta de nuevo.', 'error')
+            return redirect(url_for('admin.agregar_equipo'))
+
+        # 6 — Crear reporte de alta
+        equipo_nuevo = ModelInventario.get_by_id(db, equipo_id)
+
+        datos_reporte = {
+            'motivo_ingreso':      motivo_ingreso or None,
+            'empresa_responsable': empresa_responsable or None,
+            'accesorios':          accesorios,
+            'observaciones_reporte': obs_reporte or None,
+        }
+
+        ok, reporte_id, folio = ModelReportes.crear_reporte(
+            db           = db,
+            tipo         = 'alta',
+            equipo_id    = equipo_id,
+            usuario_id   = current_user.IDusuario,
+            datos_equipo = {**equipo_nuevo, **datos_reporte},
+            archivo_pdf  = None
+        )
+
+        if not ok:
+            current_app.logger.warning(
+                f"Equipo {equipo_id} creado pero falló el reporte de alta."
+            )
+
+        flash(
+            f'Equipo {numero_inventario} registrado correctamente. '
+            f'{"Folio de alta: " + folio if folio else ""}',
+            'success'
+        )
+        return redirect(url_for('admin.ver_equipo', id=equipo_id))
+
+    except Exception as ex:
+        current_app.logger.error(f"Error en agregar_equipo: {str(ex)}")
+        flash('Error interno del servidor. Intenta de nuevo.', 'error')
+        return redirect(url_for('admin.agregar_equipo'))
+
+    finally:
+        if db:
+            db.close()
+
+@admin_bp.route('/inventario/<int:id>/reporte-alta')
+@login_required
+def descargar_reporte_alta(id):
+    db = None
+    try:
+        db = get_connection()
+
+        # Buscar el reporte de alta más reciente del equipo
+        reportes = ModelReportes.get_por_equipo(db, id, tipo='alta')
+        if not reportes:
+            flash('No existe reporte de alta para este equipo.', 'error')
+            return redirect(url_for('admin.ver_equipo', id=id))
+
+        reporte  = reportes[0]  # el más reciente
+        equipo   = ModelInventario.get_by_id(db, id)
+
+        # Deserializar JSON
+        import json
+        datos = json.loads(reporte['datos_json']) if reporte.get('datos_json') else {}
+
+        # Renderizar template HTML del reporte
+        html_str = render_template(
+            'admin/Reportes_PDF/reporte_alta.html',
+            equipo   = equipo,
+            reporte  = reporte,
+            datos    = datos,
+            folio    = reporte['folio'],
+            fecha    = reporte['fecha'],
+            static_path = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), '..', 'static')
+            ).replace('\\', '/'),
+        )
+
+        # Generar PDF con WeasyPrint
+        pdf_bytes = WeasyHTML(string=html_str).write_pdf()
+        buffer    = BytesIO(pdf_bytes)
+
+        from flask import send_file
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=f"{reporte['folio']}.pdf",
+            mimetype='application/pdf'
+        )
+
+    except Exception as ex:
+        current_app.logger.error(f"Error generando reporte alta [{id}]: {str(ex)}")
+        flash('Error al generar el PDF. Intenta de nuevo.', 'error')
+        return redirect(url_for('admin.ver_equipo', id=id))
+
+    finally:
+        if db:
+            db.close()
 
 @admin_bp.route('/inventario/<int:id>')
 @login_required

@@ -173,7 +173,9 @@
     }
 }
 </style>
+
 {% endblock %}
+
 
 {% block body %}
 <main class="form-signin">
@@ -183,18 +185,16 @@
          style="width:clamp(100px,40vw,180px);height:auto;display:block;margin:0 auto;">
         </div>
         
-            {% with messages = get_flashed_messages() %}
+       {% with messages = get_flashed_messages() %}
             {% if messages %}
-            <div class="alerts-container">
                 {% for message in messages %}
-                <div class="alert alert-primary alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
+                    <div class="alert alert-primary alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
                 {% endfor %}
-            </div>
             {% endif %}
-            {% endwith %}
+        {% endwith %}
 
         <h1 class="h3 mb-3 fw-normal text-center">Please sign in</h1>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: letter;
+    margin: 18mm 16mm 18mm 16mm;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Arial', sans-serif;
+    font-size: 11px;
+    color: #1f2937;
+    background: #fff;
+  }
+
+  /* ══ HEADER ══ */
+  .doc-header {
+    background: #0e1d3e;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    border-radius: 6px;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo-box {
+    background: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 900;
+    color: #0e1d3e;
+    letter-spacing: 1px;
+  }
+  .doc-title {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .doc-sub {
+    color: rgba(255,255,255,0.7);
+    font-size: 9px;
+    margin-top: 3px;
+  }
+  .header-right { text-align: right; }
+  .folio-lbl { font-size: 8px; color: rgba(255,255,255,0.6); text-transform: uppercase; }
+  .folio-val {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
+  }
+
+  /* ══ META ROW ══ */
+  .meta-row {
+    display: flex;
+    gap: 0;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .meta-cell {
+    flex: 1;
+    padding: 10px 14px;
+    border-right: 1px solid #d1d5db;
+  }
+  .meta-cell:last-child { border-right: none; }
+  .meta-lbl {
+    font-size: 8px;
+    color: #6b7280;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+  }
+  .meta-val { font-size: 11px; font-weight: 600; }
+
+  .chips { display: flex; gap: 5px; flex-wrap: wrap; }
+  .chip {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 9px;
+    border: 1px solid #d1d5db;
+    color: #6b7280;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .chip-on {
+    background: #0e1d3e;
+    color: #fff;
+    border-color: #0e1d3e;
+  }
+
+  /* ══ SECCIÓN ══ */
+  .section {
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .sec-hd {
+    padding: 7px 14px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #d1d5db;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sec-bar {
+    width: 3px;
+    height: 14px;
+    background: #0e1d3e;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .sec-title {
+    font-size: 9px;
+    font-weight: 800;
+    color: #0e1d3e;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+  }
+  .sec-body { padding: 14px; }
+
+ /* ══ FIELD GRID ══ */
+.fg {
+  width: 100%;
+  display: block; /* Importante: Cambiamos grid por block */
+  clear: both;
+}
+
+/* Las filas ahora sirven para agrupar y limpiar los elementos flotantes */
+.fg-row {
+  display: block;
+  width: 100%;
+  clear: both;
+  margin-bottom: 8px; /* Espacio entre filas */
+}
+
+/* Los campos individuales se comportarán como columnas */
+.f {
+  float: left; /* Técnica infalible para alineación en PDF */
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 32%; /* Un tercio de la página (con margen de error) */
+  margin-right: 1.33%;
+}
+
+/* Modificadores de ancho */
+.f.half { 
+  width: 65.33%; /* Ocupa dos columnas */
+}
+
+.f.full { 
+  width: 100%; 
+  float: none;
+  margin-right: 0;
+}
+
+/* Eliminar el margen derecho del último elemento de cada fila */
+.fg-row .f:last-child {
+  margin-right: 0;
+}
+
+/* Limpieza de floats al final de cada fila */
+.fg-row::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+.f-lbl {
+  font-size: 8px;
+  color: #6b7280;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 2px;
+}
+  .f-box {
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 5px 8px;
+    background: #fafafa;
+    min-height: 26px;
+    display: flex;
+    align-items: center;
+  }
+  .f-box-hl {
+    border-color: #0e1d3e;
+    border-width: 1.5px;
+    background: #fff;
+  }
+  .f-val { font-size: 11px; font-weight: 500; color: #111; }
+  .f-mono {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    color: #1a3a6d;
+    font-size: 11px;
+  }
+  .f-empty { color: #9ca3af; font-style: italic; font-size: 10px; }
+
+  /* ══ IMAGEN PLACEHOLDER ══ */
+  .img-ph {
+    border: 1px dashed #d1d5db;
+    border-radius: 4px;
+    height: 90px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #fdfdfd;
+    color: #9ca3af;
+    font-size: 9px;
+    font-weight: 600;
+    gap: 4px;
+  }
+  .img-equipo {
+    width: 100%;
+    height: 90px;
+    object-fit: contain;
+    border-radius: 4px;
+    border: 1px solid #e5e7eb;
+  }
+
+  /* ══ TABLA ACCESORIOS ══ */
+  .acc-tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+  .acc-tbl th {
+    background: #f8f9fa;
+    color: #6b7280;
+    font-size: 8px;
+    text-transform: uppercase;
+    padding: 7px 10px;
+    text-align: left;
+    border-bottom: 2px solid #d1d5db;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+  }
+  .acc-tbl td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #1f2937;
+  }
+  .acc-tbl tr:last-child td { border-bottom: none; }
+  .acc-tbl tr:nth-child(even) td { background: #fafafa; }
+  .acc-num {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background: #0e1d3e;
+    color: #fff;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 18px;
+    font-size: 9px;
+    font-weight: 700;
+  }
+  .acc-empty {
+    text-align: center;
+    color: #9ca3af;
+    font-style: italic;
+    padding: 14px;
+    font-size: 10px;
+  }
+
+  /* ══ OBSERVACIONES ══ */
+  .obs-box {
+    border: 1px solid #d1d5db;
+    border-left: 4px solid #0e1d3e;
+    border-radius: 0 4px 4px 0;
+    padding: 10px 14px;
+    font-size: 11px;
+    line-height: 1.6;
+    color: #374151;
+    background: #fffdf5;
+    min-height: 48px;
+  }
+  .obs-empty { color: #9ca3af; font-style: italic; }
+
+  /* ══ FIRMAS ══ */
+  .firmas-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .firma-blk {
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .firma-hd {
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #d1d5db;
+  }
+  .firma-role {
+    font-size: 8px;
+    color: #6b7280;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .firma-name { font-size: 10px; margin-top: 2px; font-weight: 600; color: #1f2937; }
+  .firma-espacio {
+    height: 64px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 12px 6px;
+  }
+  .firma-linea {
+    width: 100%;
+    border-bottom: 1px solid #9ca3af;
+    padding-bottom: 2px;
+    font-size: 8px;
+    color: #9ca3af;
+    text-align: center;
+  }
+
+  /* ══ FOOTER ══ */
+  .doc-footer {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer-txt { font-size: 8px; color: #9ca3af; }
+  .footer-page { font-size: 8px; color: #9ca3af; }
+
+  /* ══ SALTO DE PÁGINA ══ */
+  .page-break { page-break-before: always; margin-top: 0; }
+</style>
+</head>
+<body>
+
+{# ── PÁGINA 1 ── #}
+
+<div class="doc-header">
+  <div class="header-left">
+    <div class="logo-box">GALENIA</div>
+    <div>
+      <div class="doc-title">Reporte de Alta de Equipo Biomédico</div>
+      <div class="doc-sub">Hospital Galenia — Departamento de Ingeniería Biomédica</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="folio-lbl">Folio de Control</div>
+    <div class="folio-val">{{ folio }}</div>
+  </div>
+</div>
+
+{# Meta #}
+<div class="meta-row">
+  <div class="meta-cell">
+    <div class="meta-lbl">Fecha de Registro</div>
+    <div class="meta-val">
+      {% if fecha %}
+        {{ fecha.strftime('%d / %b / %Y') if fecha is not string else fecha }}
+      {% else %}—{% endif %}
+    </div>
+  </div>
+  <div class="meta-cell">
+    <div class="meta-lbl">Tipo de Movimiento</div>
+    <div class="chips">
+      <span class="chip chip-on">Alta</span>
+      <span class="chip">Baja</span>
+      <span class="chip">Cambio</span>
+    </div>
+  </div>
+  <div class="meta-cell">
+    <div class="meta-lbl">Motivo Legal de Ingreso</div>
+    <div class="chips">
+      {% for m in ['Compra','Donación','Comodato','Transferencia','Otro'] %}
+        <span class="chip {{ 'chip-on' if datos.get('motivo_ingreso') == m else '' }}">{{ m }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="meta-cell">
+    <div class="meta-lbl">Empresa Responsable</div>
+    <div class="chips">
+      {% for e in ['AMA','ANT','AMG','HCH'] %}
+        <span class="chip {{ 'chip-on' if datos.get('empresa_responsable') == e else '' }}">{{ e }}</span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{# Identificación #}
+<div class="section">
+  <div class="sec-hd">
+    <div class="sec-bar"></div>
+    <span class="sec-title">Identificación Detallada del Activo</span>
+  </div>
+  <div class="sec-body">
+    <div class="fg">
+
+      <div class="fg-row">
+        <div class="f">
+          <span class="f-lbl">No. Inventario</span>
+          <div class="f-box f-box-hl">
+            <span class="f-val f-mono">{{ equipo.numero_inventario or '—' }}</span>
+          </div>
+        </div>
+        <div class="f half">
+          <span class="f-lbl">Equipo / Unidad</span>
+          <div class="f-box">
+            <span class="f-val">{{ equipo.equipo_unidad or '—' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="fg-row">
+        <div class="f">
+          <span class="f-lbl">Marca</span>
+          <div class="f-box"><span class="f-val">{{ equipo.marca or '—' }}</span></div>
+        </div>
+        <div class="f">
+          <span class="f-lbl">Modelo</span>
+          <div class="f-box"><span class="f-val">{{ equipo.modelo or '—' }}</span></div>
+        </div>
+        <div class="f">
+          <span class="f-lbl">No. de Serie</span>
+          <div class="f-box"><span class="f-val f-mono">{{ equipo.numero_serie or '—' }}</span></div>
+        </div>
+      </div>
+
+      <div class="fg-row">
+        <div class="f">
+          <span class="f-lbl">Estado de Operación</span>
+          <div class="f-box"><span class="f-val">{{ equipo.estado or '—' }}</span></div>
+        </div>
+        <div class="f">
+          <span class="f-lbl">Departamento</span>
+          <div class="f-box"><span class="f-val">{{ equipo.departamento or '—' }}</span></div>
+        </div>
+        <div class="f">
+          <span class="f-lbl">Ubicación / Área</span>
+          <div class="f-box"><span class="f-val">{{ equipo.area or '—' }}</span></div>
+        </div>
+      </div>
+
+      <div class="fg-row">
+        <div class="f">
+          <span class="f-lbl">Tipo de Propiedad</span>
+          <div class="f-box"><span class="f-val">{{ equipo.propiedad or '—' }}</span></div>
+        </div>
+        <div class="f">
+          <span class="f-lbl">Fecha Adquisición</span>
+          <div class="f-box">
+            <span class="f-val">
+              {% if equipo.fecha_adquisicion %}
+                {{ equipo.fecha_adquisicion.strftime('%d/%m/%Y') if equipo.fecha_adquisicion is not string else equipo.fecha_adquisicion }}
+              {% else %}—{% endif %}
+            </span>
+          </div>
+        </div>
+        <div class="f">
+          <span class="f-lbl">Fecha de Fabricación</span>
+          <div class="f-box">
+            <span class="f-val">
+              {% if equipo.fecha_fabricacion %}
+                {{ equipo.fecha_fabricacion.strftime('%d/%m/%Y') if equipo.fecha_fabricacion is not string else equipo.fecha_fabricacion }}
+              {% else %}—{% endif %}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="fg-row">
+        <div class="f">
+          <span class="f-lbl">Vencimiento Garantía</span>
+          <div class="f-box">
+            <span class="f-val">
+              {% if equipo.fecha_fin_garantia %}
+                {{ equipo.fecha_fin_garantia.strftime('%d/%m/%Y') if equipo.fecha_fin_garantia is not string else equipo.fecha_fin_garantia }}
+              {% else %}—{% endif %}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="fg-row">
+        <div class="f full">
+          <span class="f-lbl">Fotografía del Activo</span>
+          {% if equipo.imagen %}
+            <img class="img-equipo"
+                 src="file://{{ static_path }}/uploads/{{ equipo.imagen }}"
+                 alt="{{ equipo.equipo_unidad }}">
+          {% else %}
+            <div class="img-ph">
+              <span>▣</span>
+              <span>Sin imagen registrada</span>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{# Observaciones del equipo #}
+{% if equipo.observaciones %}
+<div class="section">
+  <div class="sec-hd">
+    <div class="sec-bar"></div>
+    <span class="sec-title">Observaciones Generales del Equipo</span>
+  </div>
+  <div class="sec-body">
+    <div class="obs-box">{{ equipo.observaciones }}</div>
+  </div>
+</div>
+{% endif %}
+
+{# ── PÁGINA 2 ── #}
+<div class="page-break"></div>
+
+{# Repetir header en página 2 #}
+<div class="doc-header">
+  <div class="header-left">
+    <div class="logo-box">GALENIA</div>
+    <div>
+      <div class="doc-title">Reporte de Alta de Equipo Biomédico</div>
+      <div class="doc-sub">Continuación — {{ folio }}</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="folio-lbl">Folio de Control</div>
+    <div class="folio-val">{{ folio }}</div>
+  </div>
+</div>
+
+{# Accesorios #}
+<div class="section">
+  <div class="sec-hd">
+    <div class="sec-bar"></div>
+    <span class="sec-title">Accesorios y Componentes Entregados</span>
+  </div>
+  <div class="sec-body">
+    {% set accesorios = datos.get('accesorios', []) | selectattr('descripcion') | list %}
+    {% if accesorios %}
+    <table class="acc-tbl">
+      <thead>
+        <tr>
+          <th style="width:32px">#</th>
+          <th>Descripción del Accesorio</th>
+          <th style="width:60px;text-align:center;">Cant.</th>
+          <th style="width:100px;">Condición</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for acc in accesorios %}
+        <tr>
+          <td><span class="acc-num">{{ loop.index }}</span></td>
+          <td>{{ acc.descripcion }}</td>
+          <td style="text-align:center;">{{ acc.cantidad }}</td>
+          <td>{{ acc.condicion }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="acc-empty">No se registraron accesorios para este equipo.</div>
+    {% endif %}
+  </div>
+</div>
+
+{# Observaciones del reporte #}
+<div class="section">
+  <div class="sec-hd">
+    <div class="sec-bar"></div>
+    <span class="sec-title">Observaciones de Ingeniería Biomédica</span>
+  </div>
+  <div class="sec-body">
+    {% set obs = datos.get('observaciones_reporte') %}
+    <div class="obs-box {{ '' if obs else 'obs-empty' }}">
+      {{ obs if obs else 'Sin observaciones registradas.' }}
+    </div>
+  </div>
+</div>
+
+{# Firmas #}
+<div class="section">
+  <div class="sec-hd">
+    <div class="sec-bar"></div>
+    <span class="sec-title">Protocolo de Firmas de Recepción</span>
+  </div>
+  <div class="sec-body">
+    <div class="firmas-row">
+      <div class="firma-blk">
+        <div class="firma-hd">
+          <div class="firma-role">Entrega / Responsable</div>
+          <div class="firma-name">Jefatura de Ingeniería Biomédica</div>
+        </div>
+        <div class="firma-espacio">
+          <div class="firma-linea">Firma y sello</div>
+        </div>
+      </div>
+      <div class="firma-blk">
+        <div class="firma-hd">
+          <div class="firma-role">Recibe / Responsable de Área</div>
+          <div class="firma-name" style="color:#9ca3af;">
+            Nombre: ___________________________
+          </div>
+        </div>
+        <div class="firma-espacio">
+          <div class="firma-linea">Firma y sello</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Footer #}
+<div class="doc-footer">
+  <span class="footer-txt">
+    Generado por el Sistema de Activos — Galenia Biomedical Engineering ©
+    {{ fecha.year if fecha and fecha is not string else '' }}
+  </span>
+  <span class="footer-page">Folio: {{ folio }}</span>
+</div>
+
+</body>
+</html>

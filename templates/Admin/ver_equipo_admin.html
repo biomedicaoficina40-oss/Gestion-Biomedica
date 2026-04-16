@@ -721,7 +721,16 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
             <span>Historial e intervenciones</span>
           </div>
         </a>
-
+        <a href="{{ url_for('admin.descargar_reporte_alta', id=equipo.id) }}"
+          class="adm-qa-btn" style="background:#e8f0fe;color:#1d4ed8;">
+          <div class="adm-qa-icon" style="background:rgba(29,78,216,0.12);">
+            <i class="fas fa-file-pdf"></i>
+          </div>
+          <div class="adm-qa-label">
+            <strong>Reporte de alta</strong>
+            <span>Descargar PDF del ingreso</span>
+          </div>
+        </a>
         <a href="{{ url_for('equipos.DetalleEquipo', numero_inventario=equipo.numero_inventario) }}"
           target="_blank" class="adm-qa-btn adm-qa-edit">
           <div class="adm-qa-icon"><i class="fas fa-eye"></i></div>

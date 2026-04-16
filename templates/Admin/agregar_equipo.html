@@ -1,8 +1,1072 @@
-{% extends "base.html" %}
+{% extends './base.html' %}
+
 {% block title %}Agregar Equipo — Hospital Galenia{% endblock %}
+
+{% block customCSS %}
+<style>
+:root {
+  --adm-accent:        #3D90AE;
+  --adm-accent-dark:   #2d6e87;
+  --adm-accent-light:  #e8f4f8;
+  --adm-border:        #d6edf5;
+  --adm-text:          #1a2a30;
+  --adm-muted:         #6b8e99;
+  --adm-green:         #16a34a;
+  --adm-green-bg:      #dcfce7;
+  --adm-yellow:        #d97706;
+  --adm-yellow-bg:     #fef9c3;
+  --adm-red:           #dc2626;
+  --adm-red-bg:        #fee2e2;
+  --adm-radius:        14px;
+  --adm-radius-sm:     8px;
+  --adm-shadow-sm:     0 2px 8px rgba(61,144,174,0.08);
+  --adm-shadow-md:     0 4px 20px rgba(61,144,174,0.13);
+  --azul-galenia:      #0e1d3e;
+  --dorado:            #d4af37;
+}
+
+/* ══ BREADCRUMB ══ */
+.adm-breadcrumb {
+  display:flex; align-items:center; gap:8px;
+  font-size:0.8rem; color:var(--adm-muted);
+  margin-bottom:1.25rem; flex-wrap:wrap;
+}
+.adm-breadcrumb a { color:var(--adm-accent); text-decoration:none; font-weight:500; }
+.adm-breadcrumb a:hover { text-decoration:underline; }
+.adm-breadcrumb i { font-size:10px; }
+
+/* ══ PAGE HEADER ══ */
+.adm-page-header {
+  display:flex; justify-content:space-between;
+  align-items:flex-start; gap:1rem;
+  margin-bottom:1.5rem; flex-wrap:wrap;
+}
+.adm-page-title {
+  font-size:1.6rem; font-weight:700;
+  color:var(--adm-accent); margin:0; letter-spacing:-0.02em;
+}
+.adm-page-subtitle { font-size:0.82rem; color:var(--adm-muted); margin:4px 0 0; }
+
+/* ══ BUTTONS ══ */
+.adm-btn {
+  display:inline-flex; align-items:center; gap:7px;
+  padding:9px 18px; border-radius:var(--adm-radius-sm);
+  font-size:0.875rem; font-weight:600; cursor:pointer;
+  text-decoration:none; border:none; transition:all 0.15s; white-space:nowrap;
+}
+.adm-btn:hover { text-decoration:none; transform:translateY(-1px); }
+.adm-btn:active { transform:translateY(0); }
+.adm-btn-primary { background:var(--adm-accent); color:#fff; box-shadow:0 2px 10px rgba(61,144,174,0.3); }
+.adm-btn-primary:hover { background:var(--adm-accent-dark); color:#fff; }
+.adm-btn-outline { background:#fff; color:var(--adm-accent); border:2px solid var(--adm-accent); }
+.adm-btn-outline:hover { background:var(--adm-accent-light); color:var(--adm-accent); }
+.adm-btn-sm { padding:6px 12px; font-size:0.8rem; }
+
+/* ══ LAYOUT ══ */
+.adm-layout {
+  display:grid;
+  grid-template-columns:1fr 280px;
+  gap:1.25rem; align-items:start;
+}
+
+/* ══ PANEL ══ */
+.adm-panel {
+  background:#fff; border-radius:var(--adm-radius);
+  box-shadow:var(--adm-shadow-md); overflow:hidden;
+}
+.adm-panel-header {
+  padding:11px 16px;
+  background:linear-gradient(135deg, var(--adm-accent) 0%, var(--adm-accent-dark) 100%);
+  display:flex; align-items:center; gap:8px;
+}
+.adm-panel-title {
+  font-size:0.82rem; font-weight:700; color:#fff;
+  text-transform:uppercase; letter-spacing:0.06em; margin:0;
+}
+.adm-panel-body { padding:18px; }
+
+/* ══ SECTION LABEL ══ */
+.adm-section-label {
+  font-size:0.68rem; font-weight:700; color:var(--adm-muted);
+  text-transform:uppercase; letter-spacing:0.08em;
+  margin-bottom:10px; padding-bottom:6px;
+  border-bottom:1px solid var(--adm-border);
+  display:flex; align-items:center; gap:6px;
+}
+.adm-section-label i { color:var(--adm-accent); font-size:0.75rem; }
+
+/* ══ FORM ══ */
+.adm-form-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(200px,1fr));
+  gap:1rem; margin-bottom:1.25rem;
+}
+.adm-form-group { display:flex; flex-direction:column; gap:5px; }
+.adm-form-label {
+  font-size:0.68rem; font-weight:700; color:var(--adm-muted);
+  text-transform:uppercase; letter-spacing:0.08em;
+}
+.adm-form-label .req { color:var(--adm-accent); }
+.adm-form-control {
+  padding:8px 12px; border:1.5px solid var(--adm-border);
+  border-radius:var(--adm-radius-sm); font-size:0.875rem;
+  outline:none; transition:border-color 0.2s, box-shadow 0.2s;
+  width:100%; background:#fff; color:var(--adm-text);
+  font-family:'Roboto', sans-serif;
+}
+.adm-form-control:focus {
+  border-color:var(--adm-accent);
+  box-shadow:0 0 0 3px rgba(61,144,174,0.15);
+}
+.adm-form-control.required { border-color:var(--adm-accent); }
+textarea.adm-form-control { resize:vertical; min-height:80px; }
+.adm-form-full { grid-column:1/-1; }
+
+/* ══ PREFIJO SELECTOR ══ */
+.prefijo-selector { display:flex; gap:10px; margin-bottom:1.25rem; }
+.prefijo-btn {
+  flex:1; padding:12px; border-radius:var(--adm-radius-sm);
+  border:2px solid var(--adm-border); background:#fff;
+  cursor:pointer; text-align:center; transition:all 0.15s;
+}
+.prefijo-btn:hover { border-color:var(--adm-accent); background:var(--adm-accent-light); }
+.prefijo-btn.active { border-color:var(--adm-accent); background:var(--adm-accent-light); }
+.prefijo-btn .pref-code {
+  font-size:1rem; font-weight:700; color:var(--adm-accent);
+  font-family:'Courier New', monospace; display:block;
+}
+.prefijo-btn .pref-label {
+  font-size:0.7rem; color:var(--adm-muted); margin-top:3px; display:block;
+}
+.prefijo-btn .pref-num {
+  font-size:0.75rem; color:var(--adm-accent); font-weight:600;
+  margin-top:4px; display:block; font-family:'Courier New', monospace;
+}
+
+/* Número generado */
+.num-inventario-display {
+  background:var(--adm-accent-light);
+  border:1.5px solid var(--adm-accent);
+  border-radius:var(--adm-radius-sm);
+  padding:10px 14px;
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:1.25rem;
+}
+.num-inventario-display .num-label {
+  font-size:0.7rem; color:var(--adm-muted); font-weight:700;
+  text-transform:uppercase; letter-spacing:0.07em;
+}
+.num-inventario-display .num-value {
+  font-size:1.1rem; font-weight:700; color:var(--adm-accent);
+  font-family:'Courier New', monospace; letter-spacing:1px;
+}
+
+/* ══ ESTADO RADIO ══ */
+.estado-selector { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1.25rem; }
+.estado-btn {
+  flex:1; min-width:120px; padding:10px 14px;
+  border-radius:var(--adm-radius-sm); border:2px solid var(--adm-border);
+  background:#fff; cursor:pointer; display:flex; align-items:center;
+  gap:8px; transition:all 0.15s; font-size:0.85rem; font-weight:600;
+  color:var(--adm-muted);
+}
+.estado-btn .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.estado-btn:hover { border-color:currentColor; }
+.estado-btn.active-op  { border-color:var(--adm-green);  background:var(--adm-green-bg);  color:var(--adm-green);  }
+.estado-btn.active-mt  { border-color:var(--adm-yellow); background:var(--adm-yellow-bg); color:var(--adm-yellow); }
+.estado-btn.active-fs  { border-color:var(--adm-red);    background:var(--adm-red-bg);    color:var(--adm-red);    }
+
+/* ══ AUTOCOMPLETE ══ */
+.ac-wrap { position:relative; }
+.ac-list {
+  position:absolute; top:100%; left:0; right:0; z-index:200;
+  background:#fff; border:1.5px solid var(--adm-accent);
+  border-top:none; border-radius:0 0 var(--adm-radius-sm) var(--adm-radius-sm);
+  max-height:180px; overflow-y:auto; display:none;
+  box-shadow:var(--adm-shadow-md);
+}
+.ac-list.open { display:block; }
+.ac-item {
+  padding:8px 12px; font-size:0.85rem; cursor:pointer;
+  color:var(--adm-text); border-bottom:1px solid var(--adm-border);
+  transition:background 0.1s;
+}
+.ac-item:last-child { border-bottom:none; }
+.ac-item:hover, .ac-item.selected { background:var(--adm-accent-light); color:var(--adm-accent); }
+.ac-item mark { background:transparent; color:var(--adm-accent); font-weight:700; }
+
+/* ══ IMAGEN DROP ══ */
+.adm-dropzone {
+  border:2px dashed var(--adm-border); border-radius:var(--adm-radius-sm);
+  padding:20px 16px; text-align:center; background:#f8fafc;
+  cursor:pointer; transition:all 0.2s; position:relative;
+}
+.adm-dropzone:hover, .adm-dropzone.drag { border-color:var(--adm-accent); background:var(--adm-accent-light); }
+.adm-dropzone input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+.adm-dropzone-icon { font-size:1.8rem; color:var(--adm-muted); margin-bottom:6px; display:block; }
+.adm-dropzone-text { font-size:0.78rem; color:var(--adm-muted); }
+.adm-dropzone-text strong { color:var(--adm-accent); }
+.adm-dropzone-hint { font-size:0.7rem; color:#94a3b8; margin-top:3px; }
+.adm-dropzone-name { font-size:0.8rem; font-weight:600; color:var(--adm-accent); display:none; margin-top:4px; }
+
+/* ══ INFO BOX ══ */
+.adm-info-box {
+  background:var(--adm-accent-light); border-left:3px solid var(--adm-accent);
+  border-radius:0 var(--adm-radius-sm) var(--adm-radius-sm) 0;
+  padding:10px 13px; font-size:0.78rem; color:var(--adm-accent-dark);
+  line-height:1.6; margin-bottom:14px;
+}
+.adm-info-box i { margin-right:5px; }
+
+/* ══ TARJETA GALENIA PREVIEW ══ */
+.galenia-card {
+  width:100%; aspect-ratio:2/3;
+  background-color:var(--azul-galenia);
+  position:relative; overflow:hidden;
+  border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,0.45);
+  display:flex; flex-direction:column; align-items:center;
+}
+.galenia-line {
+  position:absolute;
+  background:linear-gradient(90deg, transparent, var(--dorado), transparent);
+  height:2px; width:150%; transform:rotate(-25deg); z-index:1;
+}
+.galenia-line-1 { top:40px;    right:-50px; }
+.galenia-line-2 { top:60px;    right:-30px; }
+.galenia-line-3 { bottom:100px; left:-50px; }
+.galenia-logo-header { z-index:2; padding:22px 0 12px; text-align:center; }
+.galenia-logo-header img { height:44px; display:block; }
+.galenia-white-box {
+  z-index:2; background:white; width:88%; height:36%;
+  border:2px solid #000; display:flex; overflow:hidden;
+}
+.galenia-codes-vertical {
+  width:28%; border-right:3px solid #000;
+  display:flex; flex-direction:column;
+  justify-content:space-around; align-items:center; padding:8px 0; overflow:hidden;
+}
+.galenia-fms-slot { flex:1; display:flex; align-items:center; justify-content:center; width:100%; overflow:hidden; }
+.galenia-vertical-text {
+  transform:rotate(-90deg); white-space:nowrap; font-weight:bold;
+  font-size:clamp(9px,2vw,12px); color:#000; text-align:center;
+}
+.galenia-area-display { flex:1; display:flex; justify-content:center; align-items:center; }
+.galenia-area-display span { font-size:clamp(48px,14vw,90px); font-weight:bold; letter-spacing:-2px; }
+.galenia-equipment-info { z-index:2; text-align:center; color:white; margin-top:20px; padding:0 8px; }
+.galenia-eq-id   { font-size:clamp(18px,4vw,26px); font-weight:bold; margin-bottom:4px; }
+.galenia-eq-name { font-size:clamp(10px,2.5vw,13px); letter-spacing:1px; font-weight:bold; }
+.galenia-cert-footer {
+  position:absolute; bottom:16px; width:100%;
+  display:flex; justify-content:center; align-items:center; gap:12px; z-index:2;
+}
+.galenia-cert-logo {
+  width:46px; height:46px; background:white; border-radius:50%;
+  display:flex; justify-content:center; align-items:center; overflow:hidden; padding:4px;
+}
+.galenia-cert-logo img { width:100%; height:auto; }
+
+/* ══ FORM ACTIONS ══ */
+.adm-form-actions {
+  display:flex; gap:8px; padding-top:14px;
+  border-top:1px solid var(--adm-border); margin-top:4px; flex-wrap:wrap;
+}
+
+/* ══ RESPONSIVE ══ */
+@media (max-width:1100px) { .adm-layout { grid-template-columns:1fr 260px; } }
+@media (max-width:900px)  { .adm-layout { grid-template-columns:1fr; } }
+@media (max-width:600px) {
+  .adm-page-header { flex-direction:column; gap:0.5rem; }
+  .adm-page-title  { font-size:1.2rem; }
+  .prefijo-selector { flex-direction:column; }
+  .estado-selector  { flex-direction:column; }
+  .adm-form-grid    { grid-template-columns:1fr; }
+  .adm-btn span     { display:none; }
+}
+</style>
+{% endblock %}
+
+
 {% block body %}
-<div class="container-fluid">
-    <h2 style="color: var(--hospital-primary);">Agregar Nuevo Equipo</h2>
-    <p class="text-muted">Módulo en construcción.</p>
+<div class="container-fluid px-0">
+
+  {# BREADCRUMB #}
+  <div class="adm-breadcrumb">
+    <a href="{{ url_for('admin.ver_inventario') }}"><i class="fas fa-boxes"></i> Inventario</a>
+    <i class="fas fa-chevron-right"></i>
+    <span>Agregar equipo</span>
+  </div>
+
+  {# PAGE HEADER #}
+  <div class="adm-page-header">
+    <div>
+      <h1 class="adm-page-title">Agregar nuevo equipo</h1>
+      <p class="adm-page-subtitle">
+        Los campos marcados con <span style="color:var(--adm-accent)">*</span> son obligatorios
+      </p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <a href="{{ url_for('admin.ver_inventario') }}" class="adm-btn adm-btn-outline">
+        <i class="fas fa-arrow-left"></i> <span>Cancelar</span>
+      </a>
+      <button type="submit" form="formAgregarEquipo" class="adm-btn adm-btn-primary">
+        <i class="fas fa-save"></i> <span>Guardar equipo</span>
+      </button>
+    </div>
+  </div>
+
+  <form id="formAgregarEquipo"
+        method="POST"
+        action="{{ url_for('admin.agregar_equipo') }}"
+        enctype="multipart/form-data"
+        novalidate>
+
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="prefijo"    id="inputPrefijo" value="EQ-ME">
+    <input type="hidden" name="estado"     id="inputEstado"  value="Operativo">
+
+    <div class="adm-layout">
+
+      {# ══ COLUMNA PRINCIPAL ══ #}
+      <div style="display:flex;flex-direction:column;gap:1.25rem;">
+
+        {# PANEL — Número de inventario #}
+        <div class="adm-panel">
+          <div class="adm-panel-header">
+            <i class="fas fa-barcode" style="color:rgba(255,255,255,0.8)"></i>
+            <span class="adm-panel-title">Número de inventario</span>
+          </div>
+          <div class="adm-panel-body">
+
+            <div class="adm-info-box">
+              <i class="fas fa-info-circle"></i>
+              El número se genera automáticamente según el prefijo seleccionado.
+              No puede modificarse después.
+            </div>
+
+            {# Selector de prefijo #}
+            <div class="adm-section-label"><i class="fas fa-tag"></i> Tipo de equipo</div>
+            <div class="prefijo-selector">
+              <div class="prefijo-btn active" id="btn-eqme" onclick="seleccionarPrefijo('EQ-ME')">
+                <span class="pref-code">EQ-ME</span>
+                <span class="pref-label">Equipo del hospital</span>
+                <span class="pref-num" id="num-eqme">→ {{ num_eqme or '—' }}</span>
+              </div>
+              <div class="prefijo-btn" id="btn-amco" onclick="seleccionarPrefijo('AM-CO')">
+                <span class="pref-code">AM-CO</span>
+                <span class="pref-label">Equipo en acomodato</span>
+                <span class="pref-num" id="num-amco">→ {{ num_amco or '—' }}</span>
+              </div>
+            </div>
+
+            {# Número que se asignará #}
+            <div class="num-inventario-display">
+              <span class="num-label"><i class="fas fa-hashtag me-1"></i>Número asignado</span>
+              <span class="num-value" id="numDisplay">{{ num_eqme or '—' }}</span>
+            </div>
+
+          </div>
+        </div>
+
+        {# PANEL — Identificación #}
+        <div class="adm-panel">
+          <div class="adm-panel-header">
+            <i class="fas fa-tag" style="color:rgba(255,255,255,0.8)"></i>
+            <span class="adm-panel-title">Identificación</span>
+          </div>
+          <div class="adm-panel-body">
+
+            <div class="adm-form-grid">
+
+              {# Equipo / Unidad con autocomplete #}
+              <div class="adm-form-group adm-form-full">
+                <label class="adm-form-label">
+                  Equipo / Unidad <span class="req">*</span>
+                </label>
+                <div class="ac-wrap">
+                  <input type="text" name="equipo_unidad" id="acEquipo"
+                         class="adm-form-control required"
+                         placeholder="Ej. Monitor de Signos Vitales"
+                         autocomplete="off" required>
+                  <div class="ac-list" id="acEquipoList"></div>
+                </div>
+              </div>
+
+              {# Marca con autocomplete #}
+              <div class="adm-form-group">
+                <label class="adm-form-label">Marca</label>
+                <div class="ac-wrap">
+                  <input type="text" name="marca" id="acMarca"
+                         class="adm-form-control"
+                         placeholder="Ej. Mindray"
+                         autocomplete="off">
+                  <div class="ac-list" id="acMarcaList"></div>
+                </div>
+              </div>
+
+              {# Modelo con autocomplete filtrado por marca #}
+              <div class="adm-form-group">
+                <label class="adm-form-label">Modelo</label>
+                <div class="ac-wrap">
+                  <input type="text" name="modelo" id="acModelo"
+                         class="adm-form-control"
+                         placeholder="Ej. BeneVision N15"
+                         autocomplete="off">
+                  <div class="ac-list" id="acModeloList"></div>
+                </div>
+              </div>
+
+              {# No. Serie #}
+              <div class="adm-form-group">
+                <label class="adm-form-label">Número de serie</label>
+                <input type="text" name="numero_serie"
+                       class="adm-form-control"
+                       placeholder="Ej. SN-2024-001234">
+              </div>
+
+              {# Área #}
+              <div class="adm-form-group">
+                <label class="adm-form-label">Área</label>
+                <input type="text" name="area"
+                       class="adm-form-control"
+                       placeholder="Ej. Piso 2 Ala Norte">
+              </div>
+
+            </div>
+
+            {# Departamento #}
+            <div class="adm-section-label"><i class="fas fa-map-marker-alt"></i> Ubicación</div>
+            <div class="adm-form-grid" style="margin-bottom:0;">
+              <div class="adm-form-group">
+                <label class="adm-form-label">
+                  Departamento <span class="req">*</span>
+                </label>
+                <select name="departamento" id="selectDepto"
+                        class="adm-form-control required"
+                        onchange="toggleOtro('depto')" required>
+                  <option value="">— Seleccionar —</option>
+                  {% for d in departamentos %}
+                  <option value="{{ d }}">{{ d }}</option>
+                  {% endfor %}
+                  <option value="__otro__">+ Otro (escribir nuevo)</option>
+                </select>
+              </div>
+              <div class="adm-form-group" id="deptoOtroWrap" style="display:none;">
+                <label class="adm-form-label">Nuevo departamento <span class="req">*</span></label>
+                <input type="text" name="departamento_nuevo" id="deptoOtroInput"
+                       class="adm-form-control"
+                       placeholder="Escribe el nombre del departamento">
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {# PANEL — Estado #}
+        <div class="adm-panel">
+          <div class="adm-panel-header">
+            <i class="fas fa-circle" style="color:rgba(255,255,255,0.8)"></i>
+            <span class="adm-panel-title">Estado del equipo</span>
+          </div>
+          <div class="adm-panel-body">
+            <div class="estado-selector">
+              <div class="estado-btn active-op" id="btn-op" onclick="seleccionarEstado('Operativo','op')">
+                <div class="dot" style="background:var(--adm-green)"></div>
+                Operativo
+              </div>
+              <div class="estado-btn" id="btn-mt" onclick="seleccionarEstado('Mantenimiento','mt')">
+                <div class="dot" style="background:var(--adm-yellow)"></div>
+                Mantenimiento
+              </div>
+              <div class="estado-btn" id="btn-fs" onclick="seleccionarEstado('Fuera de Servicio','fs')">
+                <div class="dot" style="background:var(--adm-red)"></div>
+                Fuera de Servicio
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# PANEL — Adquisición #}
+        <div class="adm-panel">
+          <div class="adm-panel-header">
+            <i class="fas fa-receipt" style="color:rgba(255,255,255,0.8)"></i>
+            <span class="adm-panel-title">Adquisición y propiedad</span>
+          </div>
+          <div class="adm-panel-body">
+            <div class="adm-form-grid">
+
+              {# Propiedad #}
+              <div class="adm-form-group">
+                <label class="adm-form-label">Propiedad</label>
+                <select name="propiedad" id="selectPropiedad"
+                        class="adm-form-control"
+                        onchange="toggleOtro('propiedad')">
+                  <option value="">— Seleccionar —</option>
+                  {% for p in propiedades %}
+                  <option value="{{ p }}">{{ p }}</option>
+                  {% endfor %}
+                  <option value="__otro__">+ Otro (escribir nuevo)</option>
+                </select>
+              </div>
+              <div class="adm-form-group" id="propiedadOtroWrap" style="display:none;">
+                <label class="adm-form-label">Nueva propiedad</label>
+                <input type="text" name="propiedad_nueva" id="propiedadOtroInput"
+                       class="adm-form-control"
+                       placeholder="Escribe la propiedad">
+              </div>
+
+              {# Fechas #}
+              <div class="adm-form-group">
+                <label class="adm-form-label">Fecha de adquisición</label>
+                <input type="date" name="fecha_adquisicion" class="adm-form-control">
+              </div>
+              <div class="adm-form-group">
+                <label class="adm-form-label">Fecha de fabricación</label>
+                <input type="date" name="fecha_fabricacion" class="adm-form-control">
+              </div>
+              <div class="adm-form-group">
+                <label class="adm-form-label">Fin de garantía</label>
+                <input type="date" name="fecha_fin_garantia" class="adm-form-control">
+              </div>
+
+            </div>
+
+            {# Observaciones #}
+            <div class="adm-section-label"><i class="fas fa-comment-alt"></i> Observaciones</div>
+            <textarea name="observaciones" class="adm-form-control"
+                      placeholder="Notas adicionales sobre el equipo…"
+                      rows="3"></textarea>
+
+          </div>
+        </div>
+        {# PANEL — Motivo Legal y Empresa #}
+        <div class="adm-panel">
+          <div class="adm-panel-header">
+            <i class="fas fa-file-contract" style="color:rgba(255,255,255,0.8)"></i>
+            <span class="adm-panel-title">Motivo de ingreso y empresa</span>
+          </div>
+          <div class="adm-panel-body">
+
+            <div class="adm-section-label"><i class="fas fa-gavel"></i> Motivo legal de ingreso</div>
+            <div class="prefijo-selector" style="flex-wrap:wrap; margin-bottom:1.25rem;">
+              {% for motivo in ['Compra','Donación','Comodato','Transferencia','Otro'] %}
+              <div class="prefijo-btn" id="btn-motivo-{{ loop.index }}"
+                  onclick="seleccionarMotivo('{{ motivo }}', {{ loop.index }})">
+                <span class="pref-code" style="font-size:0.78rem;">{{ motivo }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            <input type="hidden" name="motivo_ingreso" id="inputMotivo" value="">
+
+            <div class="adm-section-label"><i class="fas fa-building"></i> Empresa responsable</div>
+            <div class="prefijo-selector" style="flex-wrap:wrap; margin-bottom:0;">
+              {% for emp in ['AMA','ANT','AMG','HCH'] %}
+              <div class="prefijo-btn" id="btn-emp-{{ loop.index }}"
+                  onclick="seleccionarEmpresa('{{ emp }}', {{ loop.index }})">
+                <span class="pref-code" style="font-size:0.85rem;">{{ emp }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            <input type="hidden" name="empresa_responsable" id="inputEmpresa" value="">
+
+          </div>
+        </div>
+
+              {# PANEL — Accesorios #}
+      <div class="adm-panel">
+        <div class="adm-panel-header">
+          <i class="fas fa-boxes" style="color:rgba(255,255,255,0.8)"></i>
+          <span class="adm-panel-title">Accesorios y componentes entregados</span>
+        </div>
+        <div class="adm-panel-body">
+
+          <table style="width:100%;border-collapse:collapse;font-size:0.82rem;" id="tablaAccesorios">
+            <thead>
+              <tr style="background:var(--adm-accent-light);">
+                <th style="padding:8px 10px;text-align:left;font-size:0.68rem;color:var(--adm-muted);
+                          text-transform:uppercase;letter-spacing:0.07em;border-bottom:2px solid var(--adm-border);">
+                  Descripción
+                </th>
+                <th style="padding:8px 10px;width:80px;text-align:center;font-size:0.68rem;color:var(--adm-muted);
+                          text-transform:uppercase;letter-spacing:0.07em;border-bottom:2px solid var(--adm-border);">
+                  Cant.
+                </th>
+                <th style="padding:8px 10px;width:130px;text-align:left;font-size:0.68rem;color:var(--adm-muted);
+                          text-transform:uppercase;letter-spacing:0.07em;border-bottom:2px solid var(--adm-border);">
+                  Condición
+                </th>
+                <th style="padding:8px 10px;width:36px;border-bottom:2px solid var(--adm-border);"></th>
+              </tr>
+            </thead>
+            <tbody id="accesoriosBody">
+              {# fila inicial vacía #}
+              <tr class="acc-row">
+                <td style="padding:6px 4px;">
+                  <input type="text" name="acc_descripcion"
+                        class="adm-form-control" placeholder="Ej. Cable ECG 5 derivaciones">
+                </td>
+                <td style="padding:6px 4px;">
+                  <input type="number" name="acc_cantidad" min="1" value="1"
+                        class="adm-form-control" style="text-align:center;">
+                </td>
+                <td style="padding:6px 4px;">
+                  <select name="acc_condicion" class="adm-form-control">
+                    <option value="Nuevo">Nuevo</option>
+                    <option value="Bueno">Bueno</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Deteriorado">Deteriorado</option>
+                  </select>
+                </td>
+                <td style="padding:6px 4px;text-align:center;">
+                  <button type="button" onclick="eliminarFila(this)"
+                          style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;
+                                border-radius:6px;width:28px;height:28px;cursor:pointer;
+                                display:flex;align-items:center;justify-content:center;">
+                    <i class="fas fa-times" style="font-size:11px;"></i>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <button type="button" onclick="agregarFila()"
+                  style="margin-top:12px;display:inline-flex;align-items:center;gap:6px;
+                        background:var(--adm-accent-light);color:var(--adm-accent);
+                        border:1.5px solid var(--adm-accent);border-radius:var(--adm-radius-sm);
+                        padding:6px 14px;font-size:0.8rem;font-weight:700;cursor:pointer;">
+            <i class="fas fa-plus"></i> Añadir accesorio
+          </button>
+
+        </div>
+      </div>
+
+      {# PANEL — Observaciones del reporte #}
+      <div class="adm-panel">
+        <div class="adm-panel-header">
+          <i class="fas fa-comment-alt" style="color:rgba(255,255,255,0.8)"></i>
+          <span class="adm-panel-title">Observaciones del reporte de alta</span>
+        </div>
+        <div class="adm-panel-body">
+          <textarea name="obs_reporte" class="adm-form-control"
+                    placeholder="Notas específicas para el reporte de alta (verificaciones, estado del embalaje, etc.)…"
+                    rows="3"></textarea>
+          <p style="font-size:0.7rem;color:var(--adm-muted);margin-top:6px;">
+            <i class="fas fa-info-circle me-1"></i>
+            Este campo solo aparece en el reporte PDF, no en la ficha del equipo.
+          </p>
+        </div>
+      </div>
+        {# FORM ACTIONS — pie del form #}
+        <div class="adm-form-actions">
+          <button type="submit" class="adm-btn adm-btn-primary">
+            <i class="fas fa-save"></i> Guardar equipo
+          </button>
+          <a href="{{ url_for('admin.ver_inventario') }}" class="adm-btn adm-btn-outline">
+            <i class="fas fa-times"></i> Cancelar
+          </a>
+        </div>
+
+      </div>{# /col principal #}
+
+      {# ══ COLUMNA LATERAL ══ #}
+      <div style="display:flex;flex-direction:column;gap:1.25rem;position:sticky;top:16px;">
+
+        {# PANEL — Imagen #}
+        <div class="adm-panel">
+          <div class="adm-panel-header">
+            <i class="fas fa-image" style="color:rgba(255,255,255,0.8)"></i>
+            <span class="adm-panel-title">Imagen</span>
+          </div>
+          <div class="adm-panel-body">
+            <div class="adm-dropzone" id="dropzone"
+                 ondragover="event.preventDefault();this.classList.add('drag')"
+                 ondragleave="this.classList.remove('drag')"
+                 ondrop="handleImgDrop(event)">
+              <input type="file" name="imagen" id="imgInput"
+                     accept=".jpg,.jpeg,.png,.webp"
+                     onchange="handleImgChange(this)">
+              <i class="fas fa-cloud-upload-alt adm-dropzone-icon"></i>
+              <div class="adm-dropzone-text">
+                Arrastra o <strong>selecciona</strong> imagen
+              </div>
+              <div class="adm-dropzone-hint">JPG, PNG, WEBP — máx 2MB</div>
+              <div class="adm-dropzone-name" id="imgName"></div>
+            </div>
+
+            {# Preview imagen #}
+            <div id="imgPreviewWrap" style="display:none;margin-top:10px;">
+              <img id="imgPreview"
+                   style="width:100%;border-radius:var(--adm-radius-sm);
+                          object-fit:contain;max-height:180px;">
+              <button type="button" onclick="limpiarImagen()"
+                      class="adm-btn adm-btn-sm"
+                      style="width:100%;margin-top:8px;justify-content:center;
+                             background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;">
+                <i class="fas fa-trash"></i> Quitar imagen
+              </button>
+            </div>
+
+            <p style="font-size:0.7rem;color:var(--adm-muted);margin-top:8px;text-align:center;">
+              Opcional — se puede subir después desde el detalle del equipo
+            </p>
+          </div>
+        </div>
+
+        {# PANEL — Preview tarjeta Galenia #}
+        <div class="adm-panel">
+          <div class="adm-panel-header">
+            <i class="fas fa-id-card" style="color:rgba(255,255,255,0.8)"></i>
+            <span class="adm-panel-title">Vista previa tarjeta</span>
+          </div>
+          <div class="adm-panel-body">
+            <div class="adm-info-box" style="margin-bottom:12px;">
+              <i class="fas fa-sync-alt"></i>
+              Se actualiza en tiempo real mientras escribes.
+            </div>
+            <div class="galenia-card">
+              <div class="galenia-line galenia-line-1"></div>
+              <div class="galenia-line galenia-line-2"></div>
+              <div class="galenia-line galenia-line-3"></div>
+              <div class="galenia-logo-header">
+                <img src="{{ url_for('static', filename='img/Logo-Galenia.png') }}" alt="GALENIA">
+              </div>
+              <div class="galenia-white-box">
+                <div class="galenia-codes-vertical">
+                  <div class="galenia-fms-slot">
+                    <span class="galenia-vertical-text">FMS.7 (JCI)</span>
+                  </div>
+                  <div class="galenia-fms-slot">
+                    <span class="galenia-vertical-text">FMS.6 (MUEC)</span>
+                  </div>
+                </div>
+                <div class="galenia-area-display" id="previewAreaBox">
+                  <span id="previewAreaSigla"
+                        style="font-weight:bold;color:#000;">--</span>
+                </div>
+              </div>
+              <div class="galenia-equipment-info">
+                <div class="galenia-eq-id"   id="previewNumInv">EQ-XXXXX</div>
+                <div class="galenia-eq-name" id="previewNombre">NOMBRE DEL EQUIPO</div>
+              </div>
+              <div class="galenia-cert-footer">
+                <div class="galenia-cert-logo">
+                  <img src="{{ url_for('static', filename='img/consejo.png') }}" alt="CS">
+                </div>
+                <div class="galenia-cert-logo">
+                  <img src="{{ url_for('static', filename='img/join.png') }}" alt="JCI">
+                </div>
+                <div class="galenia-cert-logo">
+                  <img src="{{ url_for('static', filename='img/canada.png') }}" alt="AC">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>{# /col lateral #}
+
+    </div>{# /layout #}
+  </form>
+
 </div>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+const AC_DATA = {
+  equipos: {{ equipos_ac | tojson }},
+  marcas:  {{ marcas_ac  | tojson }},
+  modelos: {{ modelos_ac | tojson }}
+};
+
+const NUMS = {
+  'EQ-ME': "{{ num_eqme or '' }}",
+  'AM-CO': "{{ num_amco or '' }}"
+};
+
+const DEPTO_MAP = {
+  'AMBULANCIA':          { sigla:'AM', color:'#FF9999', text:'#000' },
+  'CEYE':                { sigla:'CY', color:'#808080', text:'#FFF' },
+  'CIRUGIA ELECTIVA':    { sigla:'CE', color:'#92D050', text:'#000' },
+  'CUNEROS':             { sigla:'CU', color:'#00BFFF', text:'#000' },
+  'GINECOLOGIA':         { sigla:'GI', color:'#FF33CC', text:'#FFF' },
+  'GINECOLOGÍA':         { sigla:'GI', color:'#FF33CC', text:'#FFF' },
+  'HEMODINAMIA':         { sigla:'HE', color:'#FFFF00', text:'#000' },
+  'H2':                  { sigla:'H2', color:'#0080FF', text:'#FFF' },
+  'H3':                  { sigla:'H3', color:'#C8A8FF', text:'#000' },
+  'HOSPITAL':            { sigla:'HO', color:'#9933FF', text:'#FFF' },
+  'IMAGENOLOGIA':        { sigla:'IM', color:'#FF6600', text:'#FFF' },
+  'IMAGENOLOGÍA':        { sigla:'IM', color:'#FF6600', text:'#FFF' },
+  'LAB CLINICO':         { sigla:'LA', color:'#FF33CC', text:'#FFF' },
+  'LABORATORIO CLINICO': { sigla:'LA', color:'#FF33CC', text:'#FFF' },
+  'MED NUCLEAR':         { sigla:'MN', color:'#FF8C00', text:'#000' },
+  'MEDICINA NUCLEAR':    { sigla:'MN', color:'#FF8C00', text:'#000' },
+  'QUIROFANO':           { sigla:'QX', color:'#FFF',    text:'#000' },
+  'QUIRÓFANO':           { sigla:'QX', color:'#FFF',    text:'#000' },
+  'TOCOLOGIA':           { sigla:'TC', color:'#FFC0CB', text:'#000' },
+  'TOCOLOGÍA':           { sigla:'TC', color:'#FFC0CB', text:'#000' },
+  'TRANSDUCTORES':       { sigla:'TR', color:'#00CCCC', text:'#000' },
+  'UCI':                 { sigla:'UC', color:'#000',    text:'#FFF' },
+  'TERAPIA INTENSIVA':   { sigla:'UC', color:'#000',    text:'#FFF' },
+  'UCIP':                { sigla:'UP', color:'#333',    text:'#FFF' },
+  'URGENCIAS':           { sigla:'UR', color:'#FF0000', text:'#FFF' },
+  'NUTRIOLOGIA':         { sigla:'NT', color:'#00FF00', text:'#000' },
+  'NUTRIOLOGÍA':         { sigla:'NT', color:'#00FF00', text:'#000' },
+};
+
+/* ══ PREFIJO ══ */
+function seleccionarPrefijo(pref) {
+  document.getElementById('inputPrefijo').value = pref;
+  document.getElementById('btn-eqme').classList.toggle('active', pref === 'EQ-ME');
+  document.getElementById('btn-amco').classList.toggle('active', pref === 'AM-CO');
+  const num = NUMS[pref] || '—';
+  document.getElementById('numDisplay').textContent = num;
+  document.getElementById('previewNumInv').textContent = num || 'EQ-XXXXX';
+}
+
+/* ══ ESTADO ══ */
+function seleccionarEstado(valor, clave) {
+  document.getElementById('inputEstado').value = valor;
+  ['op','mt','fs'].forEach(k => {
+    const btn = document.getElementById('btn-' + k);
+    btn.className = 'estado-btn' + (k === clave ? ' active-' + k : '');
+  });
+}
+
+/* ══ OTRO (depto / propiedad) ══ */
+function toggleOtro(campo) {
+  if (campo === 'depto') {
+    const sel  = document.getElementById('selectDepto');
+    const wrap = document.getElementById('deptoOtroWrap');
+    const inp  = document.getElementById('deptoOtroInput');
+    const show = sel.value === '__otro__';
+    wrap.style.display = show ? 'block' : 'none';
+    inp.required = show;
+    if (show) inp.focus();
+    actualizarPreviewDepto(show ? '' : sel.value);
+  } else {
+    const sel  = document.getElementById('selectPropiedad');
+    const wrap = document.getElementById('propiedadOtroWrap');
+    const inp  = document.getElementById('propiedadOtroInput');
+    const show = sel.value === '__otro__';
+    wrap.style.display = show ? 'block' : 'none';
+    if (show) inp.focus();
+  }
+}
+
+/* ══ PREVIEW TARJETA — departamento ══ */
+function actualizarPreviewDepto(depto) {
+  const key   = (depto || '').trim().toUpperCase();
+  const match = DEPTO_MAP[key];
+  const siglaEl = document.getElementById('previewAreaSigla');
+  const boxEl   = document.getElementById('previewAreaBox');
+  if (match) {
+    siglaEl.textContent           = match.sigla;
+    siglaEl.style.color           = match.text;
+    boxEl.style.backgroundColor   = match.color;
+  } else {
+    siglaEl.textContent           = '--';
+    siglaEl.style.color           = '#000';
+    boxEl.style.backgroundColor   = '#ccc';
+  }
+}
+
+/* ══ PREVIEW TARJETA — nombre equipo ══ */
+document.getElementById('acEquipo').addEventListener('input', function() {
+  const val = this.value.trim().toUpperCase() || 'NOMBRE DEL EQUIPO';
+  document.getElementById('previewNombre').textContent = val;
+});
+
+/* ══ PREVIEW TARJETA — departamento select ══ */
+document.getElementById('selectDepto').addEventListener('change', function() {
+  if (this.value !== '__otro__') actualizarPreviewDepto(this.value);
+});
+document.getElementById('deptoOtroInput').addEventListener('input', function() {
+  actualizarPreviewDepto(this.value);
+});
+
+/* ══ AUTOCOMPLETE — helper genérico ══ */
+function setupAC(inputId, listId, getItems) {
+  const input = document.getElementById(inputId);
+  const list  = document.getElementById(listId);
+  let selIdx  = -1;
+
+  input.addEventListener('input', function() {
+    const q     = this.value.trim().toLowerCase();
+    const items = getItems(q).slice(0, 8);
+    selIdx = -1;
+    renderAC(list, items, q, input);
+  });
+
+  input.addEventListener('keydown', function(e) {
+    const items = list.querySelectorAll('.ac-item');
+    if (!items.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selIdx = Math.min(selIdx + 1, items.length - 1);
+      highlightAC(items, selIdx);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selIdx = Math.max(selIdx - 1, 0);
+      highlightAC(items, selIdx);
+    } else if (e.key === 'Enter' && selIdx >= 0) {
+      e.preventDefault();
+      items[selIdx].click();
+    } else if (e.key === 'Escape') {
+      cerrarAC(list);
+    }
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!input.contains(e.target) && !list.contains(e.target)) cerrarAC(list);
+  });
+}
+
+function renderAC(list, items, q, input) {
+  if (!items.length || !q) { cerrarAC(list); return; }
+  list.innerHTML = items.map(item => {
+    const esc  = item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re   = new RegExp('(' + esc.split('').join('.*?') + ')', 'i');
+    const html = item.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
+                              m => `<mark>${m}</mark>`);
+    return `<div class="ac-item" onclick="elegirAC(this,'${escAtr(item)}','${input.id}')">${html}</div>`;
+  }).join('');
+  list.classList.add('open');
+}
+
+function highlightAC(items, idx) {
+  items.forEach((el, i) => el.classList.toggle('selected', i === idx));
+}
+
+function cerrarAC(list) { list.classList.remove('open'); list.innerHTML = ''; }
+
+function elegirAC(el, val, inputId) {
+  const input = document.getElementById(inputId);
+  input.value = val;
+  cerrarAC(el.parentElement);
+  // Si eligieron marca, limpiar modelo para re-filtrar
+  if (inputId === 'acMarca') {
+    document.getElementById('acModelo').value = '';
+  }
+  // Actualizar preview si es el campo equipo
+  if (inputId === 'acEquipo') {
+    document.getElementById('previewNombre').textContent = val.toUpperCase();
+  }
+  input.dispatchEvent(new Event('input'));
+}
+
+function escAtr(str) { return str.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+/* ══ SETUP AUTOCOMPLETES ══ */
+setupAC('acEquipo', 'acEquipoList', q =>
+  AC_DATA.equipos.filter(e => e.toLowerCase().includes(q))
+);
+
+setupAC('acMarca', 'acMarcaList', q =>
+  AC_DATA.marcas.filter(m => m.toLowerCase().includes(q))
+);
+
+setupAC('acModelo', 'acModeloList', q => {
+  const marcaVal = document.getElementById('acMarca').value.trim();
+  const pool = marcaVal && AC_DATA.modelos[marcaVal]
+    ? AC_DATA.modelos[marcaVal]
+    : Object.values(AC_DATA.modelos).flat();
+  // deduplicar
+  return [...new Set(pool)].filter(m => m.toLowerCase().includes(q));
+});
+
+/* ══ IMAGEN ══ */
+function handleImgChange(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  if (file.size > 2 * 1024 * 1024) {
+    alert('La imagen supera 2MB. Selecciona una más pequeña.');
+    input.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('imgPreview').src = e.target.result;
+    document.getElementById('imgPreviewWrap').style.display = 'block';
+    document.getElementById('imgName').textContent = file.name;
+    document.getElementById('imgName').style.display = 'block';
+    document.querySelector('.adm-dropzone-text').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleImgDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  const input = document.getElementById('imgInput');
+  input.files = dt.files;
+  handleImgChange(input);
+}
+
+function limpiarImagen() {
+  document.getElementById('imgInput').value = '';
+  document.getElementById('imgPreviewWrap').style.display = 'none';
+  document.getElementById('imgName').style.display = 'none';
+  document.querySelector('.adm-dropzone-text').style.display = 'block';
+}
+
+/* ══ VALIDACIÓN ANTES DE ENVIAR ══ */
+document.getElementById('formAgregarEquipo').addEventListener('submit', function(e) {
+  const equipo = document.getElementById('acEquipo').value.trim();
+  const depto  = document.getElementById('selectDepto').value;
+  const deptoN = document.getElementById('deptoOtroInput').value.trim();
+  const errores = [];
+
+  if (!equipo)  errores.push('El nombre del equipo es obligatorio.');
+  if (!depto)   errores.push('El departamento es obligatorio.');
+  if (depto === '__otro__' && !deptoN)
+                errores.push('Escribe el nombre del nuevo departamento.');
+
+  if (errores.length) {
+    e.preventDefault();
+    errores.forEach(msg => {
+      const div = document.createElement('div');
+      div.className = 'alert alert-danger alert-dismissible fade show';
+      div.innerHTML = msg + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+      document.querySelector('.main-content').prepend(div);
+    });
+    window.scrollTo({ top:0, behavior:'smooth' });
+  }
+});
+/* ══ MOTIVO LEGAL ══ */
+function seleccionarMotivo(valor, idx) {
+  document.getElementById('inputMotivo').value = valor;
+  document.querySelectorAll('[id^="btn-motivo-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-motivo-' + idx).classList.add('active');
+}
+
+/* ══ EMPRESA RESPONSABLE ══ */
+function seleccionarEmpresa(valor, idx) {
+  document.getElementById('inputEmpresa').value = valor;
+  document.querySelectorAll('[id^="btn-emp-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-emp-' + idx).classList.add('active');
+}
+
+/* ══ TABLA ACCESORIOS ══ */
+function agregarFila() {
+  const tbody = document.getElementById('accesoriosBody');
+  const primera = tbody.querySelector('.acc-row');
+  const nueva = primera.cloneNode(true);
+  // limpiar valores de la copia
+  nueva.querySelector('input[name="acc_descripcion"]').value = '';
+  nueva.querySelector('input[name="acc_cantidad"]').value    = '1';
+  nueva.querySelector('select[name="acc_condicion"]').value  = 'Nuevo';
+  tbody.appendChild(nueva);
+}
+
+function eliminarFila(btn) {
+  const filas = document.querySelectorAll('.acc-row');
+  if (filas.length === 1) return; // mantener al menos una fila
+  btn.closest('.acc-row').remove();
+}
+</script>
 {% endblock %}

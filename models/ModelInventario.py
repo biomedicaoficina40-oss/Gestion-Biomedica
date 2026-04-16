@@ -170,13 +170,97 @@ class ModelInventario:
     # ─────────────────────────────────────────────────────────
 
     @classmethod
+    def generar_numero_inventario(cls, db, prefijo):
+        """
+        Genera el siguiente número de inventario para el prefijo dado.
+        Primero agota 3 dígitos (001-999), luego pasa a 4 (0001-9999).
+        Lógica MAX+1 sin rellenar huecos.
+        """
+        try:
+            cursor = db.cursor()
+            cursor.execute(
+                f"SELECT numero_inventario FROM {cls.TABLE} "
+                f"WHERE numero_inventario LIKE ?",
+                (f"{prefijo}%",)
+            )
+            rows = cursor.fetchall()
+            cursor.close()
+
+            tres_digitos  = []
+            cuatro_digitos = []
+
+            for row in rows:
+                sufijo = row[0][len(prefijo):]
+                if not sufijo.isdigit():
+                    continue
+                n      = int(sufijo)
+                digits = len(sufijo)
+                if digits == 3:
+                    tres_digitos.append(n)
+                elif digits == 4:
+                    cuatro_digitos.append(n)
+
+            # Si aún no se agotaron los de 3 dígitos
+            if not tres_digitos or max(tres_digitos) < 999:
+                siguiente = (max(tres_digitos) + 1) if tres_digitos else 1
+                return f"{prefijo}{str(siguiente).zfill(3)}"
+            else:
+                # Ya llegamos a 999, pasamos a 4 dígitos
+                siguiente = (max(cuatro_digitos) + 1) if cuatro_digitos else 1
+                return f"{prefijo}{str(siguiente).zfill(4)}"
+
+        except Exception as e:
+            print(f"Error generar_numero_inventario [{prefijo}]: {e}")
+            return None
+
+    @classmethod
     def crear(cls, db, datos):
         """
-        TODO: INSERT de equipo nuevo.
+        INSERT de equipo nuevo.
         datos = dict con todos los campos del formulario agregar_equipo.
-        Devuelve el id del registro creado.
+        Devuelve el equipo_id recién creado, o None si falla.
         """
-        raise NotImplementedError
+        fechas = ('fecha_adquisicion', 'fecha_fabricacion', 'fecha_fin_garantia')
+        for f in fechas:
+            if datos.get(f) == '':
+                datos[f] = None
+
+        try:
+            cursor = db.cursor()
+            cursor.execute(f"""
+                INSERT INTO {cls.TABLE} (
+                    equipo_unidad, marca, modelo, numero_serie,
+                    numero_inventario, area, departamento, estado,
+                    propiedad, observaciones, fecha_adquisicion,
+                    fecha_fabricacion, fecha_fin_garantia, imagen
+                )
+                OUTPUT INSERTED.id
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                datos.get('equipo_unidad'),
+                datos.get('marca'),
+                datos.get('modelo'),
+                datos.get('numero_serie'),
+                datos.get('numero_inventario'),
+                datos.get('area'),
+                datos.get('departamento'),
+                datos.get('estado'),
+                datos.get('propiedad'),
+                datos.get('observaciones'),
+                datos.get('fecha_adquisicion'),
+                datos.get('fecha_fabricacion'),
+                datos.get('fecha_fin_garantia'),
+                datos.get('imagen')
+            ))
+            equipo_id = cursor.fetchone()[0]
+            db.commit()
+            cursor.close()
+            return equipo_id
+
+        except Exception as e:
+            print(f"Error crear equipo: {e}")
+            db.rollback()
+            return None
 
     @classmethod
     def actualizar(cls, db, id, datos):
@@ -321,3 +405,21 @@ class ModelInventario:
             if os.path.exists(filepath):
                 os.remove(filepath)
             raise ValueError(f"Error al procesar la imagen: {e}")
+
+@classmethod
+def eliminar_archivo_fisico(cls, ruta_relativa):
+    """
+    Borra una imagen física del disco.
+    ruta_relativa viene de la columna 'imagen' en la BD.
+    Ej: 'equipos/20250401_abc123.jpg'
+    """
+    if not ruta_relativa:
+        return
+    try:
+        path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), '..', 'static', 'uploads', ruta_relativa)
+        )
+        if os.path.exists(path):
+            os.remove(path)
+    except Exception as e:
+        print(f"Error eliminar_archivo_fisico [{ruta_relativa}]: {e}")
