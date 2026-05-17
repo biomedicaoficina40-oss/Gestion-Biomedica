@@ -165,7 +165,20 @@ def Capacitacion(numero_inventario):
         videos=videos,
         pdfs=pdfs
     )
+@equipos_bp.route('/Catalogo/<string:numero_inventario>/toggle-nfc', methods=['POST'])
+def ToggleNfc(numero_inventario):
+    """Activa/desactiva chip NFC — solo usuarios autenticados"""
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'No autorizado'}), 401
 
+    db = get_connection()
+    nuevo_valor = ModelEquipos.toggle_nfc(db, numero_inventario)
+    db.close()
+
+    if nuevo_valor is None:
+        return jsonify({'error': 'Error al actualizar'}), 500
+
+    return jsonify({'tiene_nfc': nuevo_valor})
 
 
 

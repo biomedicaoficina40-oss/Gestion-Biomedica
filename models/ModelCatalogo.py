@@ -15,12 +15,12 @@ class ModelEquipos:
         """
         query = """
             SELECT
-                id, area, equipo_unidad, marca, modelo,
-                numero_serie, numero_inventario, fecha_fabricacion,
-                propiedad, estado, fecha_adquisicion, fecha_fin_garantia,
-                departamento, imagen, observaciones
-            FROM HospitalGalenia.dbo.InventarioEquipos
-            WHERE numero_inventario = ?
+            id, equipo_unidad, marca, modelo,
+            numero_serie, numero_inventario, fecha_fabricacion,
+            propiedad, estado, fecha_adquisicion, fecha_fin_garantia,
+            departamento, imagen, observaciones, tiene_nfc
+        FROM HospitalGalenia.dbo.InventarioEquipos
+        WHERE numero_inventario = ?
         """
         try:
             cursor = db.cursor()
@@ -105,3 +105,30 @@ class ModelEquipos:
         for k, v in reemplazos.items():
             texto = texto.replace(k, v)
         return ' '.join(texto.split())
+    @classmethod
+    def toggle_nfc(cls, db, numero_inventario):
+        """
+        Invierte el estado NFC del equipo (0→1, 1→0).
+        Retorna el nuevo valor (True/False) o None si falla.
+        """
+        query = """
+            UPDATE HospitalGalenia.dbo.InventarioEquipos
+            SET tiene_nfc = CASE WHEN tiene_nfc = 1 THEN 0 ELSE 1 END
+            WHERE numero_inventario = ?;
+
+            SELECT tiene_nfc
+            FROM HospitalGalenia.dbo.InventarioEquipos
+            WHERE numero_inventario = ?;
+        """
+        try:
+            cursor = db.cursor()
+            cursor.execute(query, (numero_inventario, numero_inventario))
+            cursor.nextset()           # salta al SELECT
+            row = cursor.fetchone()
+            db.commit()
+            cursor.close()
+            return bool(row[0]) if row else None
+        except Exception as e:
+            print(f"Error toggle_nfc [{numero_inventario}]: {e}")
+            db.rollback()
+            return None

@@ -1,8 +1,454 @@
-{% extends "base.html" %}
+{% extends './base.html' %}
+
 {% block title %}Usuarios — Hospital Galenia{% endblock %}
+
+{% block customCSS %}
+<style>
+:root {
+  --usr-accent:       #3D90AE;
+  --usr-accent-dark:  #2d6e87;
+  --usr-accent-light: #e8f4f8;
+  --usr-border:       #d6edf5;
+  --usr-text:         #1a2a30;
+  --usr-muted:        #6b8e99;
+  --usr-green:        #16a34a;
+  --usr-green-bg:     #dcfce7;
+  --usr-red:          #dc2626;
+  --usr-red-bg:       #fee2e2;
+  --usr-radius:       14px;
+  --usr-radius-sm:    8px;
+  --usr-shadow-sm:    0 2px 8px rgba(61,144,174,0.08);
+  --usr-shadow-md:    0 4px 20px rgba(61,144,174,0.13);
+}
+
+/* ── Header ── */
+.usr-header {
+  display:flex; justify-content:space-between;
+  align-items:center; flex-wrap:wrap;
+  gap:1rem; margin-bottom:1.5rem;
+}
+.usr-title    { font-size:1.75rem; font-weight:700; color:var(--usr-accent); margin:0; letter-spacing:-0.02em; }
+.usr-subtitle { font-size:0.85rem; color:var(--usr-muted); margin:.2rem 0 0; }
+
+/* ── Botones ── */
+.usr-btn {
+  display:inline-flex; align-items:center; gap:7px;
+  padding:9px 18px; border-radius:var(--usr-radius-sm);
+  font-size:0.875rem; font-weight:600; cursor:pointer;
+  text-decoration:none; border:none; transition:all .15s; white-space:nowrap;
+}
+.usr-btn:hover { transform:translateY(-1px); text-decoration:none; }
+.usr-btn:active { transform:translateY(0); }
+.usr-btn-primary  { background:var(--usr-accent); color:#fff; box-shadow:0 2px 10px rgba(61,144,174,0.3); }
+.usr-btn-primary:hover  { background:var(--usr-accent-dark); color:#fff; }
+.usr-btn-outline  { background:#fff; color:var(--usr-accent); border:2px solid var(--usr-accent); }
+.usr-btn-outline:hover  { background:var(--usr-accent-light); color:var(--usr-accent); }
+.usr-btn-danger   { background:var(--usr-red-bg); color:var(--usr-red); border:2px solid var(--usr-red); }
+.usr-btn-danger:hover   { background:var(--usr-red); color:#fff; }
+.usr-btn-sm { padding:6px 12px; font-size:0.8rem; }
+
+/* ── Tabla ── */
+.usr-table-card   { background:#fff; border-radius:var(--usr-radius); box-shadow:var(--usr-shadow-md); overflow:hidden; }
+.usr-table-scroll { overflow-x:auto; }
+.usr-table        { width:100%; border-collapse:collapse; }
+.usr-table thead tr { background:var(--usr-accent); }
+.usr-table thead th {
+  padding:12px 16px; text-align:left;
+  font-size:0.78rem; font-weight:600; color:#fff;
+  letter-spacing:.03em; white-space:nowrap; border:none;
+}
+.usr-table tbody tr { border-bottom:1px solid #edf5f8; transition:background .12s; }
+.usr-table tbody tr:last-child { border-bottom:none; }
+.usr-table tbody tr:nth-child(even) { background:#f7fbfd; }
+.usr-table tbody tr:hover { background:var(--usr-accent-light); }
+.usr-table td { padding:12px 16px; font-size:0.875rem; color:#2c4a54; border:none; vertical-align:middle; }
+
+/* ── Avatar ── */
+.usr-avatar {
+  width:36px; height:36px; border-radius:50%;
+  background:var(--usr-accent-light); color:var(--usr-accent);
+  display:inline-flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:.8rem; flex-shrink:0;
+}
+.usr-user-cell  { display:flex; align-items:center; gap:.65rem; }
+.usr-name       { font-weight:600; font-size:.875rem; color:var(--usr-text); }
+.usr-email      { font-size:.75rem; color:var(--usr-muted); }
+
+/* ── Badges ── */
+.usr-badge { display:inline-block; padding:3px 11px; border-radius:20px; font-size:.72rem; font-weight:700; }
+.badge-admin    { background:#e8f4fd; color:#0c6fa8; }
+.badge-usuario  { background:#f0f4f8; color:#495057; }
+.badge-active   { background:var(--usr-green-bg); color:var(--usr-green); }
+.badge-inactive { background:var(--usr-red-bg);   color:var(--usr-red);   }
+
+/* ── Acciones de fila ── */
+.usr-actions { display:flex; gap:4px; }
+.usr-act-btn {
+  width:30px; height:30px;
+  display:inline-flex; align-items:center; justify-content:center;
+  border:none; border-radius:var(--usr-radius-sm);
+  background:transparent; cursor:pointer;
+  font-size:13px; transition:background .12s, transform .1s;
+}
+.usr-act-btn:hover { transform:scale(1.1); }
+.usr-act-edit   { color:var(--usr-accent); }
+.usr-act-edit:hover   { background:var(--usr-accent-light); }
+.usr-act-toggle { color:var(--usr-green); }
+.usr-act-toggle:hover { background:var(--usr-green-bg); }
+.usr-act-toggle.inactive { color:var(--usr-red); }
+.usr-act-toggle.inactive:hover { background:var(--usr-red-bg); }
+
+/* ── Empty ── */
+.usr-empty { text-align:center; padding:3rem 1rem; color:var(--usr-muted); }
+.usr-empty i { font-size:2.5rem; opacity:.2; display:block; margin-bottom:.75rem; color:var(--usr-accent); }
+
+/* ── Modal overlay ── */
+.usr-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,.45); z-index:1500;
+  align-items:center; justify-content:center; padding:1rem;
+}
+.usr-overlay.open { display:flex; }
+
+/* ── Modal card ── */
+.usr-modal {
+  background:#fff; border-radius:var(--usr-radius);
+  width:100%; max-width:520px;
+  box-shadow:0 8px 40px rgba(0,0,0,.18);
+  animation:usrSlideIn .2s ease;
+}
+@keyframes usrSlideIn {
+  from { opacity:0; transform:translateY(-16px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.usr-modal-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:1rem 1.25rem;
+  background:linear-gradient(135deg, var(--usr-accent) 0%, var(--usr-accent-dark) 100%);
+  border-radius:var(--usr-radius) var(--usr-radius) 0 0;
+  color:#fff;
+}
+.usr-modal-title { font-size:.9rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; margin:0; }
+.usr-modal-close { background:none; border:none; color:rgba(255,255,255,.8); font-size:1.3rem; cursor:pointer; line-height:1; }
+.usr-modal-close:hover { color:#fff; }
+.usr-modal-body   { padding:1.25rem; max-height:70vh; overflow-y:auto; }
+.usr-modal-footer { display:flex; justify-content:flex-end; gap:.6rem; padding:.9rem 1.25rem; border-top:1px solid var(--usr-border); }
+
+/* ── Formulario ── */
+.usr-form-row  { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin-bottom:.75rem; }
+.usr-form-full { grid-template-columns:1fr; }
+@media(max-width:480px){ .usr-form-row { grid-template-columns:1fr; } }
+.usr-form-group label {
+  display:block; font-size:.68rem; font-weight:700;
+  color:var(--usr-muted); text-transform:uppercase;
+  letter-spacing:.07em; margin-bottom:.3rem;
+}
+.usr-form-control {
+  width:100%; padding:9px 12px;
+  border:2px solid var(--usr-border);
+  border-radius:var(--usr-radius-sm);
+  font-size:.875rem; outline:none; color:var(--usr-text);
+  transition:border-color .2s, box-shadow .2s;
+}
+.usr-form-control:focus { border-color:var(--usr-accent); box-shadow:0 0 0 3px rgba(61,144,174,.15); }
+.usr-hint { font-size:.72rem; color:var(--usr-muted); margin-top:.25rem; }
+
+/* ── Toast ── */
+.usr-toast {
+  position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px);
+  background:#1a2a30; color:#fff;
+  padding:11px 22px; border-radius:30px;
+  font-size:.85rem; font-weight:500;
+  box-shadow:0 4px 20px rgba(0,0,0,.3);
+  z-index:9000; transition:transform .3s cubic-bezier(.4,0,.2,1);
+  display:flex; align-items:center; gap:8px;
+}
+.usr-toast.show { transform:translateX(-50%) translateY(0); }
+.usr-toast.ok  { border-left:4px solid var(--usr-green); }
+.usr-toast.err { border-left:4px solid var(--usr-red); }
+
+/* ── Responsive móvil — cards en lugar de tabla ── */
+.usr-cards-list { display:none; flex-direction:column; gap:10px; }
+.usr-card {
+  background:#fff; border-radius:var(--usr-radius);
+  box-shadow:var(--usr-shadow-sm); padding:14px 16px;
+  border-left:4px solid var(--usr-accent);
+}
+.usr-card-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:.5rem; }
+.usr-card-actions { display:flex; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--usr-border); }
+.usr-card-act {
+  flex:1; display:flex; align-items:center; justify-content:center; gap:5px;
+  padding:9px 6px; border-radius:var(--usr-radius-sm);
+  font-size:.8rem; font-weight:600; border:none; cursor:pointer;
+  text-decoration:none; transition:opacity .15s;
+}
+.usr-card-act:active { opacity:.75; }
+.usr-card-act-edit   { background:var(--usr-accent-light); color:var(--usr-accent); }
+.usr-card-act-toggle { background:var(--usr-green-bg); color:var(--usr-green); }
+.usr-card-act-toggle.inactive { background:var(--usr-red-bg); color:var(--usr-red); }
+
+@media(max-width:767px){
+  .usr-table-scroll { display:none; }
+  .usr-cards-list   { display:flex !important; }
+  .usr-title { font-size:1.3rem; }
+}
+</style>
+{% endblock %}
+
+
 {% block body %}
-<div class="container-fluid">
-    <h2 style="color: var(--hospital-primary);">Administración de Usuarios</h2>
-    <p class="text-muted">Módulo en construcción.</p>
+<div class="container-fluid px-0">
+
+{# ── Header ── #}
+<div class="usr-header">
+  <div>
+    <h1 class="usr-title">Usuarios</h1>
+    <p class="usr-subtitle">{{ usuarios|length }} usuario{{ 's' if usuarios|length != 1 else '' }} registrado{{ 's' if usuarios|length != 1 else '' }}</p>
+  </div>
+  <button class="usr-btn usr-btn-primary" onclick="usrOpenModal()">
+    <i class="fas fa-plus"></i> Nuevo usuario
+  </button>
 </div>
+
+{# ── Tabla ── #}
+<div class="usr-table-card">
+  <div class="usr-table-scroll">
+    <table class="usr-table">
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Rol</th>
+          <th>Estado</th>
+          <th>Creado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if usuarios %}
+          {% for u in usuarios %}
+          <tr>
+            <td>
+              <div class="usr-user-cell">
+                <div class="usr-avatar">{{ u.NombreUsuario[0] | upper }}{{ u.Apellido[0] | upper }}</div>
+                <div>
+                  <div class="usr-name">{{ u.NombreUsuario }} {{ u.Apellido }}</div>
+                  <div class="usr-email">{{ u.Email }}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="usr-badge {{ 'badge-admin' if u.Permiso == 'Administrador' else 'badge-usuario' }}">
+                {{ u.Permiso }}
+              </span>
+            </td>
+            <td>
+              <span class="usr-badge {{ 'badge-active' if u.Estado else 'badge-inactive' }}">
+                {{ 'Activo' if u.Estado else 'Inactivo' }}
+              </span>
+            </td>
+            <td style="white-space:nowrap;">
+              {{ u.FechaCreacion.strftime('%d/%m/%Y') if u.FechaCreacion else '—' }}
+            </td>
+            <td>
+              <div class="usr-actions">
+                <button class="usr-act-btn usr-act-edit"
+                        title="Editar"
+                        onclick="usrOpenModal({{ u | tojson }})">
+                  <i class="fas fa-pen"></i>
+                </button>
+                <form method="POST" action="{{ url_for('admin.toggle_estado_usuario', uid=u.IDusuario) }}"
+                      style="display:inline;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit"
+                          class="usr-act-btn usr-act-toggle {{ '' if u.Estado else 'inactive' }}"
+                          title="{{ 'Desactivar' if u.Estado else 'Activar' }}"
+                          onclick="return confirm('¿{{ 'Desactivar' if u.Estado else 'Activar' }} a {{ u.NombreUsuario }}?')">
+                    <i class="fas fa-{{ 'ban' if u.Estado else 'check-circle' }}"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="5">
+              <div class="usr-empty">
+                <i class="fas fa-users"></i>
+                <p>No hay usuarios registrados.</p>
+              </div>
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  {# ── Cards móvil ── #}
+  <div class="usr-cards-list" style="padding:12px;">
+    {% for u in usuarios %}
+    <div class="usr-card" style="border-left-color:{{ '#16a34a' if u.Estado else '#dc2626' }};">
+      <div class="usr-card-top">
+        <div style="display:flex;align-items:center;gap:.6rem;">
+          <div class="usr-avatar">{{ u.NombreUsuario[0]|upper }}{{ u.Apellido[0]|upper }}</div>
+          <div>
+            <div class="usr-name">{{ u.NombreUsuario }} {{ u.Apellido }}</div>
+            <div class="usr-email">{{ u.Email }}</div>
+          </div>
+        </div>
+        <span class="usr-badge {{ 'badge-admin' if u.Permiso == 'Administrador' else 'badge-usuario' }}">
+          {{ u.Permiso }}
+        </span>
+      </div>
+      <div class="usr-card-actions">
+        <button class="usr-card-act usr-card-act-edit"
+                onclick="usrOpenModal({{ u | tojson }})">
+          <i class="fas fa-pen"></i> Editar
+        </button>
+        <form method="POST" action="{{ url_for('admin.toggle_estado_usuario', uid=u.IDusuario) }}"
+              style="flex:1;display:contents;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit"
+                  class="usr-card-act usr-card-act-toggle {{ '' if u.Estado else 'inactive' }}"
+                  onclick="return confirm('¿{{ 'Desactivar' if u.Estado else 'Activar' }} a {{ u.NombreUsuario }}?')">
+            <i class="fas fa-{{ 'ban' if u.Estado else 'check-circle' }}"></i>
+            {{ 'Desactivar' if u.Estado else 'Activar' }}
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>{# /table-card #}
+
+</div>{# /container #}
+
+{# ══ MODAL CREAR / EDITAR ══ #}
+<div class="usr-overlay" id="usrOverlay" onclick="if(event.target===this)usrCloseModal()">
+  <div class="usr-modal">
+
+    <div class="usr-modal-header">
+      <span class="usr-modal-title" id="usrModalTitle">Nuevo usuario</span>
+      <button class="usr-modal-close" onclick="usrCloseModal()">✕</button>
+    </div>
+
+    <form method="POST" id="usrForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="uid" id="usrUid" value="">
+
+      <div class="usr-modal-body">
+
+        <div class="usr-form-row">
+          <div class="usr-form-group">
+            <label>Nombre *</label>
+            <input type="text" name="NombreUsuario" id="usrNombre"
+                   class="usr-form-control" placeholder="Nombre" required>
+          </div>
+          <div class="usr-form-group">
+            <label>Apellido *</label>
+            <input type="text" name="Apellido" id="usrApellido"
+                   class="usr-form-control" placeholder="Apellido" required>
+          </div>
+        </div>
+
+        <div class="usr-form-row usr-form-full">
+          <div class="usr-form-group">
+            <label>Email *</label>
+            <input type="email" name="Email" id="usrEmail"
+                   class="usr-form-control" placeholder="correo@hospital.com" required>
+          </div>
+        </div>
+
+        <div class="usr-form-row">
+          <div class="usr-form-group">
+            <label>Contraseña <span id="usrPassLabel" style="text-transform:none;font-weight:400;"></span></label>
+            <input type="password" name="Password" id="usrPassword"
+                   class="usr-form-control" placeholder="••••••••" autocomplete="new-password">
+            <p class="usr-hint" id="usrPassHint"></p>
+          </div>
+          <div class="usr-form-group">
+            <label>Rol *</label>
+            <select name="Permiso" id="usrPermiso" class="usr-form-control" required>
+              <option value="Usuario">Usuario</option>
+              <option value="Administrador">Administrador</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="usr-form-row" id="usrEstadoRow" style="display:none;">
+          <div class="usr-form-group">
+            <label>Estado</label>
+            <select name="Estado" id="usrEstado" class="usr-form-control">
+              <option value="1">Activo</option>
+              <option value="0">Inactivo</option>
+            </select>
+          </div>
+        </div>
+
+      </div>{# /body #}
+
+      <div class="usr-modal-footer">
+        <button type="button" class="usr-btn usr-btn-outline usr-btn-sm" onclick="usrCloseModal()">
+          Cancelar
+        </button>
+        <button type="submit" class="usr-btn usr-btn-primary usr-btn-sm">
+          <i class="fas fa-save"></i> Guardar
+        </button>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+{# ── Toast ── #}
+<div class="usr-toast" id="usrToast"></div>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+function usrOpenModal(u = null) {
+  const editing = u !== null;
+  document.getElementById('usrModalTitle').textContent = editing ? 'Editar usuario' : 'Nuevo usuario';
+  document.getElementById('usrUid').value      = editing ? u.IDusuario : '';
+  document.getElementById('usrNombre').value   = editing ? u.NombreUsuario : '';
+  document.getElementById('usrApellido').value = editing ? u.Apellido : '';
+  document.getElementById('usrEmail').value    = editing ? u.Email : '';
+  document.getElementById('usrPermiso').value  = editing ? u.Permiso : 'Usuario';
+  document.getElementById('usrPassword').value = '';
+  document.getElementById('usrEstadoRow').style.display = editing ? 'grid' : 'none';
+  if (editing) document.getElementById('usrEstado').value = u.Estado ? '1' : '0';
+  document.getElementById('usrPassHint').textContent  = editing ? 'Dejar vacío para no cambiarla' : '';
+  document.getElementById('usrPassLabel').textContent = editing ? '*' : '*';
+
+  document.getElementById('usrForm').action = editing
+    ? '{{ url_for("admin.editar_usuario", uid=0) }}'.replace('/0', '/' + u.IDusuario)
+    : '{{ url_for("admin.crear_usuario") }}';
+
+  document.getElementById('usrOverlay').classList.add('open');
+}
+
+function usrCloseModal() {
+  document.getElementById('usrOverlay').classList.remove('open');
+}
+
+// Flash messages → toast
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for cat, msg in messages %}
+    (function(){
+      const t = document.getElementById('usrToast');
+      t.className = 'usr-toast ' + ('{{ cat }}' === 'success' ? 'ok' : 'err');
+      t.innerHTML = '<i class="fas fa-' + ('{{ cat }}' === 'success' ? 'check' : 'exclamation') + '-circle"></i> {{ msg }}';
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3200);
+    })();
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+// Escape cierra modal
+document.addEventListener('keydown', e => { if (e.key === 'Escape') usrCloseModal(); });
+</script>
 {% endblock %}

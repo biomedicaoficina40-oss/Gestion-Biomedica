@@ -1,0 +1,1452 @@
+{% extends "base.html" %}
+{% block title %}Admin BLE — Hospital Galenia{% endblock %}
+
+{% block customCSS %}
+<style>
+    /* ── Variables locales ── */
+    :root {
+        --adm-accent:   #3D90AE;
+        --adm-success:  #10b981;
+        --adm-danger:   #ef4444;
+        --adm-warning:  #f59e0b;
+        --adm-muted:    #6b7280;
+        --adm-surface:  #ffffff;
+        --adm-border:   #e5e7eb;
+        --adm-radius:   0.75rem;
+    }
+
+    /* ── Header de página ── */
+    .adm-page-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.75rem;
+    }
+    .adm-page-header h2 {
+        font-size: 1.45rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin: 0;
+    }
+    .adm-page-header p {
+        font-size: 0.85rem;
+        color: var(--adm-muted);
+        margin: 0.2rem 0 0;
+    }
+
+    /* ── Tabs ── */
+    .adm-tabs {
+        display: flex;
+        gap: 0.25rem;
+        border-bottom: 2px solid var(--adm-border);
+        margin-bottom: 1.5rem;
+    }
+    .adm-tab-btn {
+        padding: 0.6rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--adm-muted);
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        cursor: pointer;
+        transition: color 0.2s, border-color 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        border-radius: 0.35rem 0.35rem 0 0;
+    }
+    .adm-tab-btn:hover  { color: var(--adm-accent); }
+    .adm-tab-btn.active {
+        color: var(--adm-accent);
+        border-bottom-color: var(--adm-accent);
+        background: rgba(61,144,174,0.05);
+    }
+    .adm-tab-badge {
+        background: var(--adm-accent);
+        color: white;
+        font-size: 0.7rem;
+        font-weight: 700;
+        padding: 0.1rem 0.45rem;
+        border-radius: 999px;
+        line-height: 1.4;
+        min-width: 20px;
+        text-align: center;
+    }
+    .adm-tab-panel { display: none; }
+    .adm-tab-panel.active { display: block; }
+
+    /* ── Card contenedor ── */
+    .adm-card {
+        background: var(--adm-surface);
+        border-radius: var(--adm-radius);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+        overflow: hidden;
+    }
+    .adm-card-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--adm-border);
+    }
+    .adm-search {
+        position: relative;
+        flex: 1;
+        max-width: 280px;
+    }
+    .adm-search i {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--adm-muted);
+        font-size: 0.8rem;
+        pointer-events: none;
+    }
+    .adm-search input {
+        width: 100%;
+        padding: 0.5rem 0.75rem 0.5rem 2rem;
+        border: 1px solid var(--adm-border);
+        border-radius: 0.5rem;
+        font-size: 0.85rem;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+    .adm-search input:focus { border-color: var(--adm-accent); }
+
+    /* ── Tabla ── */
+    .adm-table-wrap { overflow-x: auto; }
+    .adm-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+    }
+    .adm-table thead th {
+        padding: 0.7rem 1rem;
+        text-align: left;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--adm-muted);
+        background: #f9fafb;
+        border-bottom: 1px solid var(--adm-border);
+        white-space: nowrap;
+    }
+    .adm-table tbody td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--adm-border);
+        vertical-align: middle;
+        color: #374151;
+    }
+    .adm-table tbody tr:last-child td { border-bottom: none; }
+    .adm-table tbody tr:hover { background: #f9fafb; }
+
+    /* Columnas específicas */
+    .col-nombre  { min-width: 160px; }
+    .col-piso    { width: 80px; text-align: center; }
+    .col-esp32   { min-width: 180px; }
+    .col-equipos { width: 100px; text-align: center; }
+    .col-estado  { width: 110px; text-align: center; }
+    .col-acciones{ width: 130px; text-align: center; }
+
+    /* ── Badges ── */
+    .badge-activa {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        padding: 0.25rem 0.65rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600;
+        background: #d1fae5; color: #065f46;
+    }
+    .badge-inactiva {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        padding: 0.25rem 0.65rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600;
+        background: #f3f4f6; color: #6b7280;
+    }
+    .badge-dot {
+        width: 6px; height: 6px; border-radius: 50%;
+    }
+    .badge-activa   .badge-dot { background: #10b981; }
+    .badge-inactiva .badge-dot { background: #9ca3af; }
+
+    /* Piso pill */
+    .piso-pill {
+        display: inline-block;
+        background: rgba(61,144,174,0.1);
+        color: var(--adm-accent);
+        font-weight: 700;
+        font-size: 0.8rem;
+        padding: 0.2rem 0.6rem;
+        border-radius: 999px;
+    }
+
+    /* ESP32 ID code */
+    .esp32-code {
+        font-family: 'Courier New', monospace;
+        font-size: 0.8rem;
+        background: #f3f4f6;
+        color: #374151;
+        padding: 0.2rem 0.5rem;
+        border-radius: 0.3rem;
+    }
+
+    /* Equipos ahora */
+    .equipos-count {
+        font-weight: 700;
+        color: var(--adm-accent);
+    }
+    .equipos-count.zero { color: #9ca3af; font-weight: 400; }
+
+    /* ── Botones de acción en fila ── */
+    .adm-btn-icon {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 32px; height: 32px; border-radius: 0.4rem;
+        border: 1px solid; cursor: pointer; font-size: 0.8rem;
+        transition: all 0.15s; background: transparent;
+    }
+    .adm-btn-edit {
+        border-color: #d1d5db; color: #374151;
+    }
+    .adm-btn-edit:hover { border-color: var(--adm-accent); color: var(--adm-accent); background: rgba(61,144,174,0.07); }
+    .adm-btn-toggle-off {
+        border-color: #fca5a5; color: var(--adm-danger);
+    }
+    .adm-btn-toggle-off:hover { background: #fee2e2; }
+    .adm-btn-toggle-on {
+        border-color: #6ee7b7; color: var(--adm-success);
+    }
+    .adm-btn-toggle-on:hover { background: #d1fae5; }
+
+    /* ── Botón primario ── */
+    .adm-btn-primary {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        padding: 0.5rem 1rem;
+        background: var(--adm-accent); color: white;
+        border: none; border-radius: 0.5rem;
+        font-size: 0.85rem; font-weight: 500;
+        cursor: pointer; text-decoration: none;
+        transition: background 0.2s, transform 0.1s;
+    }
+    .adm-btn-primary:hover { background: #2d7a96; color: white; }
+    .adm-btn-primary:active { transform: scale(0.97); }
+
+    /* ── Empty state ── */
+    .adm-empty {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--adm-muted);
+    }
+    .adm-empty i { font-size: 2.5rem; opacity: 0.3; margin-bottom: 0.75rem; display: block; }
+    .adm-empty p { margin: 0; font-size: 0.9rem; }
+
+    /* ── Skeleton loader ── */
+    .skeleton-row td { padding: 0.75rem 1rem; }
+    .skeleton-cell {
+        height: 16px; border-radius: 4px;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.2s infinite;
+    }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    .sk-w60 { width: 60%; }
+    .sk-w40 { width: 40%; }
+    .sk-w30 { width: 30%; }
+    .sk-w20 { width: 20%; }
+
+    /* ── Toast notificación ── */
+    .adm-toast {
+        position: fixed; bottom: 1.5rem; right: 1.5rem;
+        padding: 0.75rem 1.1rem;
+        border-radius: 0.6rem;
+        font-size: 0.875rem; font-weight: 500;
+        color: white; box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+        display: flex; align-items: center; gap: 0.5rem;
+        z-index: 9999;
+        transform: translateY(80px); opacity: 0;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+        pointer-events: none;
+    }
+    .adm-toast.show { transform: translateY(0); opacity: 1; }
+    .adm-toast.ok  { background: var(--adm-success); }
+    .adm-toast.err { background: var(--adm-danger); }
+
+    /* ── Placeholder beacons ── */
+    .adm-placeholder {
+        text-align: center;
+        padding: 4rem 1rem;
+    }
+    .adm-placeholder-icon {
+        width: 72px; height: 72px; border-radius: 50%;
+        background: rgba(61,144,174,0.1);
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 1rem;
+    }
+    .adm-placeholder-icon i { font-size: 1.8rem; color: var(--adm-accent); }
+    .adm-placeholder h5 { font-weight: 600; color: #374151; margin-bottom: 0.35rem; }
+    .adm-placeholder p  { font-size: 0.85rem; color: var(--adm-muted); margin: 0; }
+
+    /* ══ BEACONS ════════════════════════════════════════════ */
+
+/* MAC monospace */
+.mac-code {
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    background: #f3f4f6;
+    color: #374151;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.3rem;
+    letter-spacing: 0.04em;
+}
+
+/* Batería */
+.bat-wrap {
+    display: flex; align-items: center; gap: 0.4rem;
+    font-size: 0.8rem;
+}
+.bat-bar {
+    width: 36px; height: 8px;
+    background: #e5e7eb; border-radius: 99px; overflow: hidden;
+}
+.bat-fill {
+    height: 100%; border-radius: 99px;
+    transition: width 0.3s;
+}
+.bat-ok   { background: #10b981; }
+.bat-med  { background: #f59e0b; }
+.bat-low  { background: #ef4444; }
+.bat-null { color: #9ca3af; font-size: 0.78rem; }
+
+/* Equipo asignado */
+.equipo-asignado {
+    display: flex; flex-direction: column; gap: 0.1rem;
+}
+.equipo-asignado strong { font-size: 0.82rem; color: #1f2937; }
+.equipo-asignado code   { font-size: 0.73rem; color: #6b7280; }
+.sin-equipo { color: #9ca3af; font-size: 0.8rem; font-style: italic; }
+
+/* Nombre editable inline */
+.nombre-cell {
+    display: flex; align-items: center; gap: 0.4rem;
+}
+.nombre-display { font-size: 0.875rem; color: #374151; }
+.nombre-sin     { color: #9ca3af; font-style: italic; font-size: 0.8rem; }
+.btn-edit-nombre {
+    background: none; border: none; cursor: pointer;
+    color: #9ca3af; font-size: 0.75rem; padding: 2px 4px;
+    border-radius: 3px; transition: color 0.15s;
+    flex-shrink: 0;
+}
+.btn-edit-nombre:hover { color: var(--adm-accent); }
+
+/* Input inline edición de nombre */
+.nombre-input-wrap {
+    display: none; align-items: center; gap: 0.35rem;
+}
+.nombre-input-wrap.show { display: flex; }
+.nombre-inline-input {
+    border: 1.5px solid var(--adm-accent);
+    border-radius: 0.4rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.82rem; outline: none;
+    width: 160px;
+}
+.btn-inline-ok, .btn-inline-cancel {
+    background: none; border: none; cursor: pointer;
+    font-size: 0.8rem; padding: 3px 5px; border-radius: 3px;
+}
+.btn-inline-ok     { color: #10b981; } .btn-inline-ok:hover     { background: #d1fae5; }
+.btn-inline-cancel { color: #ef4444; } .btn-inline-cancel:hover { background: #fee2e2; }
+
+/* ── Modal ── */
+.adm-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 1050;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1rem;
+    opacity: 0; visibility: hidden;
+    transition: opacity 0.25s, visibility 0.25s;
+}
+.adm-modal-overlay.show { opacity: 1; visibility: visible; }
+.adm-modal {
+    background: #fff; border-radius: 0.85rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    width: 100%; max-width: 440px;
+    transform: translateY(20px) scale(0.97);
+    transition: transform 0.25s;
+}
+.adm-modal-overlay.show .adm-modal { transform: translateY(0) scale(1); }
+
+.adm-modal-header {
+    padding: 1.1rem 1.3rem;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex; align-items: center; justify-content: space-between;
+}
+.adm-modal-header h5 {
+    font-size: 0.95rem; font-weight: 600;
+    color: #1f2937; margin: 0;
+    display: flex; align-items: center; gap: 0.5rem;
+}
+.adm-modal-close {
+    background: none; border: none; cursor: pointer;
+    color: #9ca3af; font-size: 1rem; line-height: 1;
+    padding: 4px; border-radius: 4px; transition: color 0.15s;
+}
+.adm-modal-close:hover { color: #374151; }
+.adm-modal-body   { padding: 1.3rem; }
+.adm-modal-footer {
+    padding: 0.9rem 1.3rem;
+    border-top: 1px solid #e5e7eb;
+    display: flex; gap: 0.6rem; justify-content: flex-end;
+}
+
+/* Campos del modal */
+.modal-field { margin-bottom: 1.1rem; }
+.modal-field:last-child { margin-bottom: 0; }
+.modal-label {
+    display: block; font-size: 0.8rem; font-weight: 600;
+    color: #374151; margin-bottom: 0.35rem;
+}
+.modal-label span { color: #ef4444; }
+.modal-input {
+    width: 100%; padding: 0.5rem 0.8rem;
+    border: 1.5px solid #e5e7eb; border-radius: 0.5rem;
+    font-size: 0.875rem; outline: none;
+    transition: border-color 0.2s;
+    font-family: inherit;
+}
+.modal-input:focus { border-color: var(--adm-accent); }
+.modal-input.error { border-color: #ef4444; }
+.modal-input.mac-font { font-family: 'Courier New', monospace; letter-spacing: 0.05em; }
+.modal-hint  { font-size: 0.74rem; color: #6b7280; margin-top: 0.25rem; display: block; }
+.modal-error { font-size: 0.74rem; color: #ef4444; margin-top: 0.25rem; display: none; }
+.modal-error.show { display: block; }
+
+/* ══ MODAL ASIGNACIÓN ══════════════════════════════════════ */
+
+/* Beacon info en header del modal */
+.asig-beacon-info {
+    background: rgba(61,144,174,0.07);
+    border: 1px solid rgba(61,144,174,0.2);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.1rem;
+    display: flex; align-items: center; gap: 0.75rem;
+}
+.asig-beacon-icon {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--adm-accent); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem; flex-shrink: 0;
+}
+.asig-beacon-info code { font-size: 0.82rem; color: var(--adm-accent); display: block; }
+.asig-beacon-info span { font-size: 0.76rem; color: #6b7280; }
+
+/* Asignación actual */
+.asig-actual {
+    background: #f0fdf4;
+    border: 1px solid #a7f3d0;
+    border-radius: 0.5rem;
+    padding: 0.7rem 1rem;
+    margin-bottom: 1rem;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 0.75rem;
+}
+.asig-actual-info strong { font-size: 0.82rem; color: #065f46; display: block; }
+.asig-actual-info code   { font-size: 0.73rem; color: #047857; }
+.btn-desasignar {
+    background: none; border: 1.5px solid #fca5a5;
+    color: #ef4444; border-radius: 0.4rem;
+    padding: 0.3rem 0.7rem; font-size: 0.78rem; font-weight: 500;
+    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    transition: all 0.15s;
+}
+.btn-desasignar:hover { background: #fee2e2; }
+
+/* Buscador de equipos */
+.asig-search-wrap { position: relative; margin-bottom: 0.6rem; }
+.asig-search-wrap i {
+    position: absolute; left: 0.75rem; top: 50%;
+    transform: translateY(-50%); color: #9ca3af; font-size: 0.8rem;
+    pointer-events: none;
+}
+.asig-search-input {
+    width: 100%; padding: 0.5rem 0.75rem 0.5rem 2.2rem;
+    border: 1.5px solid #e5e7eb; border-radius: 0.5rem;
+    font-size: 0.875rem; outline: none; font-family: inherit;
+    transition: border-color 0.2s;
+}
+.asig-search-input:focus { border-color: var(--adm-accent); }
+
+/* Resultados */
+.asig-resultados {
+    max-height: 220px; overflow-y: auto;
+    border: 1px solid #e5e7eb; border-radius: 0.5rem;
+    background: white;
+}
+.asig-resultado-item {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+}
+.asig-resultado-item:last-child { border-bottom: none; }
+.asig-resultado-item:hover { background: #f0f9ff; }
+.asig-resultado-item.selected {
+    background: rgba(61,144,174,0.1);
+    border-left: 3px solid var(--adm-accent);
+}
+.asig-resultado-nombre  { font-size: 0.83rem; font-weight: 600; color: #1f2937; }
+.asig-resultado-inv     { font-size: 0.73rem; color: #6b7280; }
+.asig-resultado-warning {
+    font-size: 0.7rem; color: #d97706; font-weight: 500;
+    background: #fef3c7; padding: 0.15rem 0.4rem;
+    border-radius: 999px; white-space: nowrap; flex-shrink: 0;
+}
+
+/* Estados de búsqueda */
+.asig-hint {
+    text-align: center; padding: 1.25rem;
+    font-size: 0.8rem; color: #9ca3af;
+}
+.asig-hint i { display: block; font-size: 1.3rem; margin-bottom: 0.35rem; opacity: 0.4; }
+
+/* Equipo seleccionado - confirmación */
+.asig-seleccionado {
+    background: rgba(61,144,174,0.07);
+    border: 1.5px solid var(--adm-accent);
+    border-radius: 0.5rem;
+    padding: 0.65rem 1rem;
+    margin-top: 0.75rem;
+    display: none;
+    align-items: center; gap: 0.6rem;
+}
+.asig-seleccionado.show { display: flex; }
+.asig-seleccionado i  { color: var(--adm-accent); }
+.asig-seleccionado strong { font-size: 0.83rem; color: #1f2937; }
+.asig-seleccionado code   { font-size: 0.73rem; color: #6b7280; }
+
+/* Botón asignar en tabla */
+.adm-btn-asignar {
+    border-color: rgba(61,144,174,0.4); color: var(--adm-accent);
+}
+.adm-btn-asignar:hover { background: rgba(61,144,174,0.08); border-color: var(--adm-accent); }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="adm-page-header">
+    <div>
+        <h2><i class="fas fa-cogs me-2" style="color:var(--adm-accent)"></i>Administración BLE</h2>
+        <p>Gestión de áreas, ESP32 y beacons del sistema de localización</p>
+    </div>
+</div>
+
+<div class="adm-tabs">
+    <button class="adm-tab-btn active" onclick="switchTab('areas', this)">
+        <i class="fas fa-map-marker-alt"></i>
+        Áreas / ESP32
+        <span class="adm-tab-badge" id="badgeAreas">—</span>
+    </button>
+    <button class="adm-tab-btn" onclick="switchTab('beacons', this)">
+        <i class="fas fa-bluetooth-b"></i>
+        Beacons
+        <span class="adm-tab-badge" id="badgeBeacons">—</span>
+    </button>
+</div>
+
+<!-- TAB: ÁREAS -->
+<div class="adm-tab-panel active" id="panel-areas">
+    <div class="adm-card">
+        <div class="adm-card-toolbar">
+            <div class="adm-search">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchAreas"
+                       placeholder="Buscar área o ESP32..."
+                       oninput="filtrarAreas()">
+            </div>
+            <a href="{{ url_for('ble.admin_area_nueva') }}" class="adm-btn-primary">
+                <i class="fas fa-plus"></i> Nueva Área
+            </a>
+        </div>
+        <div class="adm-table-wrap">
+            <table class="adm-table">
+                <thead>
+                    <tr>
+                        <th class="col-nombre">Nombre del Área</th>
+                        <th class="col-piso">Piso</th>
+                        <th class="col-esp32">ID del ESP32</th>
+                        <th class="col-equipos">Equipos ahora</th>
+                        <th class="col-estado">Estado</th>
+                        <th class="col-acciones">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyAreas">
+                    {% for _ in range(4) %}
+                    <tr class="skeleton-row">
+                        <td><div class="skeleton-cell sk-w60"></div></td>
+                        <td><div class="skeleton-cell sk-w40"></div></td>
+                        <td><div class="skeleton-cell sk-w60"></div></td>
+                        <td><div class="skeleton-cell sk-w20"></div></td>
+                        <td><div class="skeleton-cell sk-w30"></div></td>
+                        <td><div class="skeleton-cell sk-w40"></div></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- TAB: BEACONS -->
+<div class="adm-tab-panel" id="panel-beacons">
+    <div class="adm-card">
+        <div class="adm-card-toolbar">
+            <div class="adm-search">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchBeacons"
+                       placeholder="Buscar MAC, nombre o equipo..."
+                       oninput="filtrarBeacons()">
+            </div>
+            <button class="adm-btn-primary" onclick="abrirModalBeacon()">
+                <i class="fas fa-plus"></i> Nuevo Beacon
+            </button>
+        </div>
+        <div class="adm-table-wrap">
+            <table class="adm-table">
+                <thead>
+                    <tr>
+                        <th style="min-width:160px">MAC</th>
+                        <th style="min-width:160px">Nombre / Etiqueta</th>
+                        <th style="min-width:180px">Equipo asignado</th>
+                        <th style="width:100px;text-align:center">Batería</th>
+                        <th style="width:110px;text-align:center">Estado</th>
+                        <th style="width:110px;text-align:center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyBeacons">
+                    {% for _ in range(4) %}
+                    <tr class="skeleton-row">
+                        <td><div class="skeleton-cell sk-w60"></div></td>
+                        <td><div class="skeleton-cell sk-w40"></div></td>
+                        <td><div class="skeleton-cell sk-w60"></div></td>
+                        <td><div class="skeleton-cell sk-w30"></div></td>
+                        <td><div class="skeleton-cell sk-w30"></div></td>
+                        <td><div class="skeleton-cell sk-w40"></div></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: NUEVO BEACON -->
+<div class="adm-modal-overlay" id="modalBeacon" onclick="cerrarModalSiOverlay(event)">
+    <div class="adm-modal">
+        <div class="adm-modal-header">
+            <h5><i class="fas fa-bluetooth-b" style="color:var(--adm-accent)"></i> Registrar Beacon</h5>
+            <button class="adm-modal-close" onclick="cerrarModalBeacon()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="adm-modal-body">
+            <div class="modal-field">
+                <label class="modal-label" for="modal_mac">
+                    Dirección MAC <span>*</span>
+                </label>
+                <input id="modal_mac" class="modal-input mac-font"
+                       type="text" maxlength="17"
+                       placeholder="AA:BB:CC:DD:EE:FF"
+                       oninput="formatearMac(this)">
+                <span class="modal-hint">Formato: 6 pares hexadecimales separados por ':'</span>
+                <span class="modal-error" id="modal_mac_err">MAC inválida o vacía.</span>
+                <span class="modal-error" id="modal_mac_dup">Esta MAC ya está registrada.</span>
+            </div>
+            <div class="modal-field">
+                <label class="modal-label" for="modal_nombre">
+                    Nombre / Etiqueta
+                    <span style="color:#9ca3af;font-weight:400">(opcional)</span>
+                </label>
+                <input id="modal_nombre" class="modal-input"
+                       type="text" maxlength="50"
+                       placeholder="ej. BEACON-042">
+                <span class="modal-hint">Etiqueta visible en el panel para identificar el beacon.</span>
+            </div>
+        </div>
+        <div class="adm-modal-footer">
+            <button class="adm-btn-primary" id="btnCrearBeacon" onclick="crearBeacon()">
+                <i class="fas fa-save btn-icon"></i>
+                <span class="spinner"></span>
+                Registrar
+            </button>
+            <button class="frm-btn frm-btn-ghost" onclick="cerrarModalBeacon()"
+                    style="padding:0.5rem 1rem;font-size:0.85rem">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: ASIGNAR BEACON ↔ EQUIPO -->
+<div class="adm-modal-overlay" id="modalAsignar" onclick="cerrarModalAsignarSiOverlay(event)">
+    <div class="adm-modal" style="max-width:500px">
+        <div class="adm-modal-header">
+            <h5>
+                <i class="fas fa-link" style="color:var(--adm-accent)"></i>
+                Asignar Beacon a Equipo
+            </h5>
+            <button class="adm-modal-close" onclick="cerrarModalAsignar()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="adm-modal-body">
+            <div class="asig-beacon-info">
+                <div class="asig-beacon-icon"><i class="fas fa-bluetooth-b"></i></div>
+                <div>
+                    <code id="asig_mac">—</code>
+                    <span id="asig_nombre_beacon">Sin etiqueta</span>
+                </div>
+            </div>
+            <div id="asig_actual_wrap" style="display:none">
+                <p style="font-size:0.78rem;font-weight:600;color:#374151;margin-bottom:0.4rem">
+                    <i class="fas fa-check-circle" style="color:#10b981"></i>
+                    Asignado actualmente a:
+                </p>
+                <div class="asig-actual">
+                    <div class="asig-actual-info">
+                        <strong id="asig_equipo_actual_nombre">—</strong>
+                        <code id="asig_equipo_actual_inv">—</code>
+                    </div>
+                    <button class="btn-desasignar" onclick="desasignar()">
+                        <i class="fas fa-unlink"></i> Desasignar
+                    </button>
+                </div>
+            </div>
+            <p style="font-size:0.78rem;font-weight:600;color:#374151;margin-bottom:0.5rem">
+                <i class="fas fa-search" style="color:var(--adm-accent)"></i>
+                Buscar equipo para asignar:
+            </p>
+            <div class="asig-search-wrap">
+                <i class="fas fa-search"></i>
+                <input id="asig_search" class="asig-search-input"
+                       type="text"
+                       placeholder="Nombre o número de inventario..."
+                       oninput="debounceBuscar(this.value)">
+            </div>
+            <div class="asig-resultados" id="asig_resultados">
+                <div class="asig-hint">
+                    <i class="fas fa-keyboard"></i>
+                    Escribe al menos 2 caracteres para buscar
+                </div>
+            </div>
+            <div class="asig-seleccionado" id="asig_seleccionado">
+                <i class="fas fa-check-circle"></i>
+                <div>
+                    <strong id="asig_sel_nombre">—</strong>
+                    <code id="asig_sel_inv">—</code>
+                </div>
+            </div>
+        </div>
+        <div class="adm-modal-footer">
+            <button id="btnConfirmarAsig" class="adm-btn-primary"
+                    onclick="confirmarAsignacion()" disabled>
+                <i class="fas fa-link btn-icon"></i>
+                <span class="spinner"></span>
+                Confirmar asignación
+            </button>
+            <button class="frm-btn frm-btn-ghost" onclick="cerrarModalAsignar()"
+                    style="padding:0.5rem 1rem;font-size:0.85rem">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div class="adm-toast" id="admToast"></div>
+
+{# ── CSRF: meta tag es más robusto que hidden input ── #}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+// ══════════════════════════════════════════════════════════
+//  CSRF — helper centralizado
+//  Flask-WTF espera el header "X-CSRFToken" en POST/PUT/DELETE.
+//  GET nunca lleva token (son operaciones de solo lectura).
+// ══════════════════════════════════════════════════════════
+function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (!meta) {
+        console.error('[CSRF] Meta tag no encontrado. Verifica el template.');
+        return '';
+    }
+    return meta.getAttribute('content');
+}
+
+/**
+ * Wrapper de fetch que inyecta X-CSRFToken automáticamente
+ * en métodos que modifican estado (POST, PUT, DELETE, PATCH).
+ *
+ * Uso: igual que fetch() normal.
+ *   const res = await apiFetch('/api/ble/admin/areas', { method: 'POST', body: ... });
+ */
+async function apiFetch(url, options = {}) {
+    const method = (options.method || 'GET').toUpperCase();
+    const needsCsrf = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
+
+    const headers = new Headers(options.headers || {});
+
+    if (needsCsrf) {
+        headers.set('X-CSRFToken', getCsrfToken());
+    }
+
+    // Si el body es un objeto plano, serializar y fijar Content-Type
+    if (options.body && typeof options.body === 'object' &&
+        !(options.body instanceof FormData) &&
+        !(options.body instanceof URLSearchParams)) {
+        options.body = JSON.stringify(options.body);
+        headers.set('Content-Type', 'application/json');
+    }
+
+    return fetch(url, { ...options, headers });
+}
+
+// ══════════════════════════════════════════════════════════
+//  ESTADO
+// ══════════════════════════════════════════════════════════
+let _areas   = [];
+let _beacons = [];
+let _beaconsCargados = false;
+
+// ══════════════════════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════════════════════
+function switchTab(nombre, btn) {
+    document.querySelectorAll('.adm-tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.adm-tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('panel-' + nombre).classList.add('active');
+    btn.classList.add('active');
+
+    if (nombre === 'beacons' && !_beaconsCargados) {
+        _beaconsCargados = true;
+        cargarBeacons();
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+//  UTILIDADES
+// ══════════════════════════════════════════════════════════
+function escHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function escAttr(str) {
+    return String(str ?? '').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+}
+
+let _toastTimer = null;
+function toast(msg, tipo = 'ok') {
+    const t = document.getElementById('admToast');
+    const icon = tipo === 'ok' ? 'fa-check-circle' : 'fa-exclamation-circle';
+    t.innerHTML = `<i class="fas ${icon}"></i> ${msg}`;
+    t.className = `adm-toast ${tipo} show`;
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// ══════════════════════════════════════════════════════════
+//  ÁREAS — carga
+// ══════════════════════════════════════════════════════════
+async function cargarAreas() {
+    try {
+        // GET: sin CSRF
+        const res = await apiFetch('/api/ble/admin/areas');
+        if (!res.ok) throw new Error('Error ' + res.status);
+        _areas = await res.json();
+        document.getElementById('badgeAreas').textContent = _areas.length;
+        renderAreas(_areas);
+    } catch (err) {
+        console.error('[BLE/cargarAreas]', err);
+        document.getElementById('tbodyAreas').innerHTML = `
+            <tr><td colspan="6">
+                <div class="adm-empty">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>No se pudieron cargar las áreas. Recarga la página.</p>
+                </div>
+            </td></tr>`;
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+//  ÁREAS — render
+// ══════════════════════════════════════════════════════════
+function renderAreas(lista) {
+    const tbody = document.getElementById('tbodyAreas');
+    if (!lista.length) {
+        tbody.innerHTML = `
+            <tr><td colspan="6">
+                <div class="adm-empty">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <p>No hay áreas registradas. Crea la primera con <strong>Nueva Área</strong>.</p>
+                </div>
+            </td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = lista.map(a => {
+        const activa      = a.activa === true || a.activa === 1;
+        const badge       = activa
+            ? `<span class="badge-activa"><span class="badge-dot"></span>Activa</span>`
+            : `<span class="badge-inactiva"><span class="badge-dot"></span>Inactiva</span>`;
+        const equipos     = a.equipos_ahora || 0;
+        const eqClass     = equipos > 0 ? 'equipos-count' : 'equipos-count zero';
+        const toggleTip   = activa ? 'Desactivar área' : 'Activar área';
+        const toggleClass = activa ? 'adm-btn-toggle-off' : 'adm-btn-toggle-on';
+        const toggleIcon  = activa ? 'fa-toggle-on' : 'fa-toggle-off';
+
+        return `
+        <tr data-id="${a.id}">
+            <td class="col-nombre"><strong>${escHtml(a.nombre)}</strong></td>
+            <td class="col-piso"><span class="piso-pill">N${a.piso}</span></td>
+            <td class="col-esp32"><code class="esp32-code">${escHtml(a.esp32_id)}</code></td>
+            <td class="col-equipos">
+                <span class="${eqClass}">${equipos > 0 ? equipos : '—'}</span>
+            </td>
+            <td class="col-estado">${badge}</td>
+            <td class="col-acciones">
+                <div style="display:flex;gap:0.4rem;justify-content:center">
+                    <a href="/localizacion/admin/areas/${a.id}/editar"
+                       class="adm-btn-icon adm-btn-edit" title="Editar área">
+                        <i class="fas fa-pen"></i>
+                    </a>
+                    <button class="adm-btn-icon ${toggleClass}"
+                            title="${toggleTip}"
+                            onclick="toggleArea(${a.id})">
+                        <i class="fas ${toggleIcon}"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+//  ÁREAS — filtro
+// ══════════════════════════════════════════════════════════
+function filtrarAreas() {
+    const q = document.getElementById('searchAreas').value.toLowerCase().trim();
+    if (!q) { renderAreas(_areas); return; }
+    renderAreas(_areas.filter(a =>
+        a.nombre.toLowerCase().includes(q) ||
+        a.esp32_id.toLowerCase().includes(q)
+    ));
+}
+
+// ══════════════════════════════════════════════════════════
+//  ÁREAS — toggle activa/inactiva
+//  DELETE /api/ble/admin/areas/<id> → requiere CSRF
+// ══════════════════════════════════════════════════════════
+async function toggleArea(id) {
+    const area   = _areas.find(a => a.id === id);
+    const activa = area?.activa === true || area?.activa === 1;
+    const accion = activa ? 'desactivar' : 'activar';
+
+    if (!confirm(`¿Confirmas ${accion} el área "${area?.nombre}"?`)) return;
+
+    try {
+        // DELETE lleva CSRF automáticamente vía apiFetch
+        const res  = await apiFetch(`/api/ble/admin/areas/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error del servidor');
+
+        const idx = _areas.findIndex(a => a.id === id);
+        if (idx !== -1) _areas[idx].activa = data.activa;
+        renderAreas(_areas);
+        toast(activa ? 'Área desactivada' : 'Área activada', 'ok');
+    } catch (err) {
+        console.error('[BLE/toggleArea]', err);
+        toast(err.message || 'Error al actualizar', 'err');
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+//  BEACONS — carga
+// ══════════════════════════════════════════════════════════
+async function cargarBeacons() {
+    try {
+        // GET: sin CSRF
+        const res = await apiFetch('/api/ble/admin/beacons');
+        if (!res.ok) throw new Error('Error ' + res.status);
+        _beacons = await res.json();
+        document.getElementById('badgeBeacons').textContent = _beacons.length;
+        renderBeacons(_beacons);
+    } catch (err) {
+        console.error('[BLE/cargarBeacons]', err);
+        document.getElementById('tbodyBeacons').innerHTML = `
+            <tr><td colspan="6">
+                <div class="adm-empty">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>No se pudieron cargar los beacons. Recarga la página.</p>
+                </div>
+            </td></tr>`;
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+//  BEACONS — render
+// ══════════════════════════════════════════════════════════
+function renderBeacons(lista) {
+    const tbody = document.getElementById('tbodyBeacons');
+
+    if (!lista.length) {
+        tbody.innerHTML = `
+            <tr><td colspan="6">
+                <div class="adm-empty">
+                    <i class="fas fa-bluetooth-b"></i>
+                    <p>No hay beacons registrados. Usa <strong>Nuevo Beacon</strong> para agregar el primero.</p>
+                </div>
+            </td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = lista.map(b => {
+        const activo = b.activo === true || b.activo === 1;
+
+        const nombreDisplay = b.nombre
+            ? `<span class="nombre-display">${escHtml(b.nombre)}</span>`
+            : `<span class="nombre-sin">Sin etiqueta</span>`;
+
+        const nombreCell = `
+            <div class="nombre-cell" id="nc-${b.id}">
+                <div id="nd-${b.id}">${nombreDisplay}</div>
+                <button class="btn-edit-nombre" title="Editar nombre"
+                        onclick="iniciarEditNombre(${b.id}, '${escAttr(b.nombre || '')}')">
+                    <i class="fas fa-pen"></i>
+                </button>
+            </div>
+            <div class="nombre-input-wrap" id="ni-${b.id}">
+                <input class="nombre-inline-input" id="ninput-${b.id}"
+                       maxlength="50" placeholder="Nombre del beacon"
+                       onkeydown="handleNombreKey(event, ${b.id})">
+                <button class="btn-inline-ok"
+                        onclick="guardarNombre(${b.id})" title="Guardar">
+                    <i class="fas fa-check"></i>
+                </button>
+                <button class="btn-inline-cancel"
+                        onclick="cancelarEditNombre(${b.id})" title="Cancelar">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>`;
+
+        const equipo = b.equipo_id
+            ? `<div class="equipo-asignado">
+                   <strong>${escHtml(b.equipo_nombre || '—')}</strong>
+                   <code>${escHtml(b.numero_inventario || '')}</code>
+               </div>`
+            : `<span class="sin-equipo">Sin asignar</span>`;
+
+        let batHtml;
+        if (b.bateria_pct == null) {
+            batHtml = `<span class="bat-null">—</span>`;
+        } else {
+            const pct = Math.max(0, Math.min(100, b.bateria_pct));
+            const cls = pct >= 60 ? 'bat-ok' : pct >= 30 ? 'bat-med' : 'bat-low';
+            batHtml = `
+                <div class="bat-wrap">
+                    <div class="bat-bar">
+                        <div class="bat-fill ${cls}" style="width:${pct}%"></div>
+                    </div>
+                    <span>${pct}%</span>
+                </div>`;
+        }
+
+        const badge       = activo
+            ? `<span class="badge-activa"><span class="badge-dot"></span>Activo</span>`
+            : `<span class="badge-inactiva"><span class="badge-dot"></span>Inactivo</span>`;
+        const toggleClass = activo ? 'adm-btn-toggle-off' : 'adm-btn-toggle-on';
+        const toggleIcon  = activo ? 'fa-toggle-on'      : 'fa-toggle-off';
+        const toggleTip   = activo ? 'Desactivar beacon' : 'Activar beacon';
+
+        return `
+        <tr data-id="${b.id}">
+            <td><code class="mac-code">${escHtml(b.mac)}</code></td>
+            <td>${nombreCell}</td>
+            <td>${equipo}</td>
+            <td style="text-align:center">${batHtml}</td>
+            <td style="text-align:center">${badge}</td>
+            
+            <td style="text-align:center">
+                <div style="display:flex;gap:0.4rem;justify-content:center">
+                    <button class="adm-btn-icon adm-btn-edit"
+                            title="Asignar a equipo"
+                            onclick="abrirModalAsignar(${b.id})">
+                        <i class="fas fa-link"></i>
+                    </button>
+                    <button class="adm-btn-icon ${toggleClass}"
+                            title="${toggleTip}"
+                            onclick="toggleBeacon(${b.id})">
+                        <i class="fas ${toggleIcon}"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+//  BEACONS — filtro
+// ══════════════════════════════════════════════════════════
+function filtrarBeacons() {
+    const q = document.getElementById('searchBeacons').value.toLowerCase().trim();
+    if (!q) { renderBeacons(_beacons); return; }
+    renderBeacons(_beacons.filter(b =>
+        b.mac.toLowerCase().includes(q) ||
+        (b.nombre           || '').toLowerCase().includes(q) ||
+        (b.equipo_nombre    || '').toLowerCase().includes(q) ||
+        (b.numero_inventario|| '').toLowerCase().includes(q)
+    ));
+}
+
+// ══════════════════════════════════════════════════════════
+//  BEACONS — edición inline de nombre
+//  PUT /api/ble/admin/beacons/<id> → requiere CSRF
+// ══════════════════════════════════════════════════════════
+function iniciarEditNombre(id, valorActual) {
+    document.getElementById(`nc-${id}`).style.display = 'none';
+    const input = document.getElementById(`ninput-${id}`);
+    document.getElementById(`ni-${id}`).classList.add('show');
+    input.value = valorActual;
+    input.focus();
+    input.select();
+}
+
+function cancelarEditNombre(id) {
+    document.getElementById(`nc-${id}`).style.display = '';
+    document.getElementById(`ni-${id}`).classList.remove('show');
+}
+
+function handleNombreKey(e, id) {
+    if (e.key === 'Enter')  guardarNombre(id);
+    if (e.key === 'Escape') cancelarEditNombre(id);
+}
+
+async function guardarNombre(id) {
+    const nombre = document.getElementById(`ninput-${id}`).value.trim() || null;
+    try {
+        // PUT lleva CSRF + Content-Type automáticamente vía apiFetch
+        const res = await apiFetch(`/api/ble/admin/beacons/${id}`, {
+            method: 'PUT',
+            body:   { nombre }          // apiFetch serializa el objeto a JSON
+        });
+        if (!res.ok) throw new Error('Error al guardar');
+
+        const idx = _beacons.findIndex(b => b.id === id);
+        if (idx !== -1) _beacons[idx].nombre = nombre;
+        cancelarEditNombre(id);
+        renderBeacons(_beacons);
+        toast('Nombre actualizado', 'ok');
+    } catch (err) {
+        console.error('[BLE/guardarNombre]', err);
+        toast(err.message, 'err');
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+//  BEACONS — toggle activo/inactivo
+//  DELETE /api/ble/admin/beacons/<id> → requiere CSRF
+// ══════════════════════════════════════════════════════════
+async function toggleBeacon(id) {
+    const b      = _beacons.find(b => b.id === id);
+    const activo = b?.activo === true || b?.activo === 1;
+    const accion = activo ? 'desactivar' : 'activar';
+
+    if (!confirm(`¿Confirmas ${accion} el beacon ${b?.mac}?`)) return;
+
+    try {
+        // DELETE lleva CSRF automáticamente vía apiFetch
+        const res  = await apiFetch(`/api/ble/admin/beacons/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error del servidor');
+
+        const idx = _beacons.findIndex(b => b.id === id);
+        if (idx !== -1) _beacons[idx].activo = data.activo;
+        renderBeacons(_beacons);
+        toast(activo ? 'Beacon desactivado' : 'Beacon activado', 'ok');
+    } catch (err) {
+        console.error('[BLE/toggleBeacon]', err);
+        toast(err.message, 'err');
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+//  MODAL NUEVO BEACON
+//  POST /api/ble/admin/beacons → requiere CSRF
+// ══════════════════════════════════════════════════════════
+function abrirModalBeacon() {
+    document.getElementById('modal_mac').value    = '';
+    document.getElementById('modal_nombre').value = '';
+    ['modal_mac_err', 'modal_mac_dup'].forEach(id =>
+        document.getElementById(id).classList.remove('show'));
+    document.getElementById('modal_mac').classList.remove('error');
+    document.getElementById('modalBeacon').classList.add('show');
+    setTimeout(() => document.getElementById('modal_mac').focus(), 250);
+}
+
+function cerrarModalBeacon() {
+    document.getElementById('modalBeacon').classList.remove('show');
+}
+
+function cerrarModalSiOverlay(e) {
+    if (e.target === document.getElementById('modalBeacon')) cerrarModalBeacon();
+}
+
+function formatearMac(input) {
+    let v = input.value.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
+    v = v.match(/.{1,2}/g)?.join(':') || '';
+    if (v.length > 17) v = v.slice(0, 17);
+    input.value = v;
+}
+
+async function crearBeacon() {
+    const macEl  = document.getElementById('modal_mac');
+    const mac    = macEl.value.trim();
+    const nombre = document.getElementById('modal_nombre').value.trim() || null;
+
+    ['modal_mac_err', 'modal_mac_dup'].forEach(id =>
+        document.getElementById(id).classList.remove('show'));
+    macEl.classList.remove('error');
+
+    const macRegex = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;
+    if (!mac || !macRegex.test(mac)) {
+        document.getElementById('modal_mac_err').classList.add('show');
+        macEl.classList.add('error');
+        macEl.focus();
+        return;
+    }
+
+    const btn = document.getElementById('btnCrearBeacon');
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    try {
+        // POST lleva CSRF + Content-Type automáticamente vía apiFetch
+        const res  = await apiFetch('/api/ble/admin/beacons', {
+            method: 'POST',
+            body:   { mac, nombre }     // apiFetch serializa el objeto a JSON
+        });
+        const data = await res.json();
+
+        if (res.status === 409) {
+            document.getElementById('modal_mac_dup').classList.add('show');
+            macEl.classList.add('error');
+            return;
+        }
+        if (!res.ok) throw new Error(data.error || 'Error del servidor');
+
+        cerrarModalBeacon();
+        await cargarBeacons();
+        toast('Beacon registrado correctamente', 'ok');
+    } catch (err) {
+        console.error('[BLE/crearBeacon]', err);
+        toast(err.message || 'Error inesperado', 'err');
+    } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+    }
+}
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') cerrarModalBeacon();
+});
+
+// ══════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+    cargarAreas();
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('toast')) {
+        toast(decodeURIComponent(params.get('toast')), params.get('tipo') || 'ok');
+        history.replaceState(null, '', window.location.pathname);
+    }
+});
+
+// ══════════════════════════════════════════════════════════
+//  MODAL ASIGNAR BEACON ↔ EQUIPO
+// ══════════════════════════════════════════════════════════
+let _beaconAsignandoId = null;   // id del beacon que se está editando
+let _equipoSeleccionadoId = null;
+let _debounceTimer = null;
+
+function abrirModalAsignar(beaconId) {
+    const b = _beacons.find(b => b.id === beaconId);
+    if (!b) return;
+
+    _beaconAsignandoId    = beaconId;
+    _equipoSeleccionadoId = null;
+
+    // Rellenar info del beacon
+    document.getElementById('asig_mac').textContent            = b.mac;
+    document.getElementById('asig_nombre_beacon').textContent  = b.nombre || 'Sin etiqueta';
+
+    // Mostrar/ocultar asignación actual
+    const wrapActual = document.getElementById('asig_actual_wrap');
+    if (b.equipo_id) {
+        document.getElementById('asig_equipo_actual_nombre').textContent = b.equipo_nombre || '—';
+        document.getElementById('asig_equipo_actual_inv').textContent    = b.numero_inventario || '—';
+        wrapActual.style.display = '';
+    } else {
+        wrapActual.style.display = 'none';
+    }
+
+    // Limpiar búsqueda y selección previa
+    document.getElementById('asig_search').value = '';
+    document.getElementById('asig_resultados').innerHTML = `
+        <div class="asig-hint">
+            <i class="fas fa-keyboard"></i>
+            Escribe al menos 2 caracteres para buscar
+        </div>`;
+    document.getElementById('asig_seleccionado').style.display = 'none';
+    document.getElementById('btnConfirmarAsig').disabled = true;
+
+    document.getElementById('modalAsignar').classList.add('show');
+    setTimeout(() => document.getElementById('asig_search').focus(), 250);
+}
+
+function cerrarModalAsignar() {
+    document.getElementById('modalAsignar').classList.remove('show');
+    _beaconAsignandoId    = null;
+    _equipoSeleccionadoId = null;
+}
+
+function cerrarModalAsignarSiOverlay(e) {
+    if (e.target === document.getElementById('modalAsignar')) cerrarModalAsignar();
+}
+
+// Debounce para no spamear el endpoint mientras escribe
+function debounceBuscar(q) {
+    clearTimeout(_debounceTimer);
+    if (q.length < 2) {
+        document.getElementById('asig_resultados').innerHTML = `
+            <div class="asig-hint">
+                <i class="fas fa-keyboard"></i>
+                Escribe al menos 2 caracteres para buscar
+            </div>`;
+        return;
+    }
+    _debounceTimer = setTimeout(() => buscarEquipos(q), 350);
+}
+
+async function buscarEquipos(q) {
+    const contenedor = document.getElementById('asig_resultados');
+    contenedor.innerHTML = `<div class="asig-hint"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>`;
+
+    try {
+        // GET: sin CSRF
+        const res  = await apiFetch(`/api/ble/admin/equipos/buscar?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+
+        if (!data.length) {
+            contenedor.innerHTML = `
+                <div class="asig-hint">
+                    <i class="fas fa-search"></i>
+                    Sin resultados para "${escHtml(q)}"
+                </div>`;
+            return;
+        }
+
+        contenedor.innerHTML = data.map(e => {
+            const yaAsignado = e.beacon_id && e.beacon_id !== _beaconAsignandoId
+                ? `<span style="font-size:0.72rem;color:#ef4444;margin-left:4px">
+                       (ya tiene beacon: ${escHtml(e.beacon_mac || '')})
+                   </span>`
+                : '';
+            return `
+            <div class="asig-resultado-item" onclick="seleccionarEquipo(${e.id}, '${escAttr(e.nombre)}', '${escAttr(e.numero_inventario || '')}')">
+                <strong>${escHtml(e.nombre)}</strong>${yaAsignado}
+                <code>${escHtml(e.numero_inventario || '—')}</code>
+            </div>`;
+        }).join('');
+
+    } catch (err) {
+        contenedor.innerHTML = `<div class="asig-hint"><i class="fas fa-exclamation-triangle"></i> Error al buscar</div>`;
+    }
+}
+
+function seleccionarEquipo(id, nombre, inventario) {
+    _equipoSeleccionadoId = id;
+
+    // Mostrar selección
+    document.getElementById('asig_sel_nombre').textContent = nombre;
+    document.getElementById('asig_sel_inv').textContent    = inventario || '—';
+    document.getElementById('asig_seleccionado').style.display = '';
+
+    // Habilitar botón confirmar
+    document.getElementById('btnConfirmarAsig').disabled = false;
+
+    // Limpiar lista de resultados
+    document.getElementById('asig_resultados').innerHTML = '';
+    document.getElementById('asig_search').value = '';
+}
+
+// Desasignar: envía equipo_id = null
+async function desasignar() {
+    if (!confirm('¿Desasignar este beacon del equipo actual?')) return;
+    await _guardarAsignacion(null);
+}
+
+// Confirmar asignación con el equipo seleccionado
+async function confirmarAsignacion() {
+    if (!_equipoSeleccionadoId) return;
+    await _guardarAsignacion(_equipoSeleccionadoId);
+}
+
+// Función interna común para asignar y desasignar
+async function _guardarAsignacion(equipoId) {
+    const btn = document.getElementById('btnConfirmarAsig');
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    try {
+        // PUT lleva CSRF automáticamente vía apiFetch
+        const res  = await apiFetch(
+            `/api/ble/admin/beacons/${_beaconAsignandoId}/asignar`,
+            { method: 'PUT', body: { equipo_id: equipoId } }
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error del servidor');
+
+        cerrarModalAsignar();
+        await cargarBeacons();   // refresca la tabla
+        toast(equipoId ? 'Beacon asignado correctamente' : 'Beacon desasignado', 'ok');
+
+    } catch (err) {
+        console.error('[BLE/guardarAsignacion]', err);
+        toast(err.message || 'Error inesperado', 'err');
+    } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+    }
+}
+
+// Cerrar modal asignar con Escape (además del de beacon)
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        cerrarModalBeacon();
+        cerrarModalAsignar();
+    }
+});
+</script>
+{% endblock %}

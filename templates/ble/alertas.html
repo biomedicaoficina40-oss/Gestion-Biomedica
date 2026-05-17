@@ -1,0 +1,586 @@
+{% extends "base.html" %}
+
+{% block title %}Alertas BLE — Hospital Galenia{% endblock %}
+
+{% block customCSS %}
+<style>
+    /* ══ HEADER ══ */
+    .alertas-header {
+        background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+        border-radius: 0.75rem;
+        padding: 1.5rem 2rem;
+        color: white;
+        margin-bottom: 1.5rem;
+    }
+    .alertas-header .sub {
+        font-size: 0.82rem; opacity: 0.85; margin: 0.2rem 0 0;
+    }
+
+    /* ══ TARJETAS RESUMEN ══ */
+    .alerta-stat {
+        border: none; border-radius: 0.7rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        transition: transform 0.18s, box-shadow 0.18s;
+    }
+    .alerta-stat:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 18px rgba(0,0,0,0.11);
+    }
+    .alerta-stat-icon {
+        width: 48px; height: 48px; border-radius: 0.55rem;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.3rem; flex-shrink: 0;
+    }
+    .alerta-stat-num   { font-size: 1.9rem; font-weight: 700; line-height: 1.1; }
+    .alerta-stat-label { font-size: 0.78rem; color: #6c757d;
+                         text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* ══ FILTROS ══ */
+    .filter-chip {
+        display: inline-flex; align-items: center; gap: 0.35rem;
+        padding: 0.3rem 0.8rem;
+        border: 1.5px solid #e2e8f0; border-radius: 999px;
+        font-size: 0.78rem; font-weight: 500;
+        background: white; color: #6c757d;
+        cursor: pointer; transition: all 0.18s; white-space: nowrap;
+    }
+    .filter-chip:hover  { border-color: #dc2626; color: #dc2626; }
+    .filter-chip.active { background: #dc2626; border-color: #dc2626; color: white; }
+
+    /* ══ TABLA ══ */
+    .alertas-table thead th {
+        background: #f8f9fa;
+        font-size: 0.73rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.05em;
+        color: #6c757d;
+        border-bottom: 2px solid #e9ecef;
+        padding: 0.75rem 1rem; white-space: nowrap;
+    }
+    .alertas-table tbody td {
+        padding: 0.8rem 1rem;
+        vertical-align: middle;
+        font-size: 0.855rem;
+        border-bottom: 1px solid #f1f3f5;
+    }
+    .alertas-table tbody tr { transition: background 0.15s; }
+    .alertas-table tbody tr:hover { background: #fff8f8; }
+
+    /* ══ TIPO ALERTA BADGE ══ */
+    .badge-sin-senal   { background:#fee2e2; color:#991b1b; }
+    .badge-bateria     { background:#fef9c3; color:#854d0e; }
+
+    /* ══ SEVERIDAD ══ */
+    .sev-dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        display: inline-block; flex-shrink: 0;
+    }
+    .sev-critica  { background: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.2); }
+    .sev-advertencia { background: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.2); }
+
+    /* ══ TIEMPO TRANSCURRIDO ══ */
+    .tiempo-badge {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        font-size: 0.75rem; font-weight: 600;
+        padding: 0.2rem 0.55rem; border-radius: 999px;
+    }
+    .tiempo-critico     { background: #fee2e2; color: #991b1b; }
+    .tiempo-advertencia { background: #fef9c3; color: #854d0e; }
+    .tiempo-normal      { background: #f3f4f6; color: #6b7280; }
+
+    /* ══ BARRA TIEMPO ══ */
+    .tiempo-bar {
+        height: 4px; border-radius: 2px;
+        background: #e5e7eb; overflow: hidden;
+        margin-top: 0.25rem; width: 80px;
+    }
+    .tiempo-bar-fill {
+        height: 100%; border-radius: 2px;
+        transition: width 0.5s ease;
+    }
+
+    /* ══ POLLING ══ */
+    .polling-badge {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        font-size: 0.75rem; color: #6c757d;
+    }
+    .polling-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #ef4444;
+        animation: pulse-dot 1.5s ease-in-out infinite;
+    }
+    .polling-dot.ok     { background: #10b981; }
+    .polling-dot.error  { background: #9ca3af; animation: none; }
+    @keyframes pulse-dot {
+        0%,100% { opacity:1; transform:scale(1); }
+        50%      { opacity:0.35; transform:scale(0.75); }
+    }
+
+    /* ══ EMPTY / OK ══ */
+    .state-box {
+        text-align: center; padding: 4rem 1rem; color: #9ca3af;
+    }
+    .state-box i { font-size: 3.5rem; display: block; margin-bottom: 1rem; }
+
+    /* ══ SKELETON ══ */
+    .skeleton {
+        background: linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.2s infinite; border-radius: 4px;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    /* ══ SEARCH ══ */
+    .search-wrap { position: relative; }
+    .search-wrap i {
+        position: absolute; left: 0.7rem; top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af; font-size: 0.8rem;
+    }
+    .search-input {
+        border: 1.5px solid #e2e8f0; border-radius: 0.5rem;
+        padding: 0.42rem 0.9rem 0.42rem 2.1rem;
+        font-size: 0.855rem; width: 220px;
+        transition: border-color 0.2s;
+    }
+    .search-input:focus {
+        outline: none; border-color: #dc2626;
+        box-shadow: 0 0 0 3px rgba(220,38,38,0.1);
+    }
+
+    /* ══ ACCIÓN BOTÓN ══ */
+    .btn-ver {
+        background: rgba(61,144,174,0.1);
+        color: var(--hospital-primary);
+        border-radius: 0.4rem;
+        font-size: 0.75rem;
+        padding: 0.25rem 0.6rem;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: background 0.18s;
+    }
+    .btn-ver:hover { background: rgba(61,144,174,0.2); color: var(--hospital-primary); }
+</style>
+{% endblock %}
+
+{% block body %}
+
+<!-- ══ BREADCRUMB ══ -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb" style="font-size:0.82rem;">
+        <li class="breadcrumb-item">
+            <a href="{{ url_for('ble.dashboard') }}"
+               style="color:var(--hospital-primary); text-decoration:none;">
+                <i class="fas fa-map-marker-alt me-1"></i>Localización BLE
+            </a>
+        </li>
+        <li class="breadcrumb-item active">Alertas</li>
+    </ol>
+</nav>
+
+<!-- ══ HEADER ══ -->
+<div class="alertas-header">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+            <h4 class="fw-bold mb-0">
+                <i class="fas fa-bell me-2"></i>Alertas Activas
+            </h4>
+            <p class="sub">
+                Equipos sin señal o con posible batería descargada
+            </p>
+        </div>
+        <span class="polling-badge">
+            <span class="polling-dot" id="pollingDot"></span>
+            <span id="pollingStatus">Cargando...</span>
+        </span>
+    </div>
+</div>
+
+<!-- ══ TARJETAS RESUMEN ══ -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="card alerta-stat h-100">
+            <div class="card-body d-flex align-items-center gap-3 p-3">
+                <div class="alerta-stat-icon" style="background:#fee2e2;">
+                    <i class="fas fa-wifi" style="color:#dc2626;"></i>
+                </div>
+                <div>
+                    <div class="alerta-stat-num text-danger" id="cntSinSenal">—</div>
+                    <div class="alerta-stat-label">Sin Señal</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card alerta-stat h-100">
+            <div class="card-body d-flex align-items-center gap-3 p-3">
+                <div class="alerta-stat-icon" style="background:#fef9c3;">
+                    <i class="fas fa-battery-quarter" style="color:#d97706;"></i>
+                </div>
+                <div>
+                    <div class="alerta-stat-num text-warning" id="cntBateria">—</div>
+                    <div class="alerta-stat-label">Batería Baja</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card alerta-stat h-100">
+            <div class="card-body d-flex align-items-center gap-3 p-3">
+                <div class="alerta-stat-icon" style="background:#ede9fe;">
+                    <i class="fas fa-clock" style="color:#6d28d9;"></i>
+                </div>
+                <div>
+                    <div class="alerta-stat-num" style="color:#6d28d9;"
+                         id="cntMasDeHora">—</div>
+                    <div class="alerta-stat-label">Más de 1 hora</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card alerta-stat h-100">
+            <div class="card-body d-flex align-items-center gap-3 p-3">
+                <div class="alerta-stat-icon" style="background:#f0fdf4;">
+                    <i class="fas fa-shield-halved" style="color:#16a34a;"></i>
+                </div>
+                <div>
+                    <div class="alerta-stat-num text-success" id="cntTotal">—</div>
+                    <div class="alerta-stat-label">Total alertas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ CONTROLES ══ -->
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <!-- Filtros -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button class="filter-chip active" data-tipo="todos">
+            <i class="fas fa-list"></i> Todas
+        </button>
+        <button class="filter-chip" data-tipo="Sin senal">
+            <i class="fas fa-wifi"></i> Sin Señal
+        </button>
+        <button class="filter-chip" data-tipo="bateria">
+            <i class="fas fa-battery-quarter"></i> Batería
+        </button>
+    </div>
+    <!-- Búsqueda -->
+    <div class="search-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" class="search-input"
+               placeholder="Buscar equipo o área...">
+    </div>
+</div>
+
+<!-- ══ TABLA DE ALERTAS ══ -->
+<div class="card border-0 shadow-sm" style="border-radius:0.75rem;">
+    <div class="card-header bg-white border-0 d-flex align-items-center
+                justify-content-between py-3 px-4"
+         style="border-bottom:1px solid #f1f3f5;">
+        <h6 class="mb-0 fw-bold">
+            <i class="fas fa-triangle-exclamation me-2 text-danger"></i>
+            Lista de Alertas
+        </h6>
+        <span class="text-muted" style="font-size:0.8rem;" id="resultCount"></span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table alertas-table mb-0">
+                <thead>
+                    <tr>
+                        <th style="width:14px;"></th>
+                        <th>Equipo</th>
+                        <th>N° Inventario</th>
+                        <th>Área / Piso</th>
+                        <th>Tipo de Alerta</th>
+                        <th>Tiempo sin señal</th>
+                        <th>Último reporte</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="tablaAlertas">
+                    <!-- skeletons -->
+                    <tr><td colspan="8" class="py-2">
+                        <div class="skeleton" style="height:14px;margin:.3rem 1rem;"></div>
+                    </td></tr>
+                    <tr><td colspan="8" class="py-2">
+                        <div class="skeleton" style="height:14px;margin:.3rem 1rem;"></div>
+                    </td></tr>
+                    <tr><td colspan="8" class="py-2">
+                        <div class="skeleton" style="height:14px;margin:.3rem 1rem;"></div>
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+(function () {
+    'use strict';
+
+    // ══ ESTADO ══
+    let allAlertas  = [];
+    let filterTipo  = 'todos';
+    let filterText  = '';
+
+    // ══ UTILIDADES ══
+    function formatFull(ts) {
+        if (!ts) return '—';
+        return new Date(ts).toLocaleString('es-MX', {
+            day:'2-digit', month:'2-digit',
+            hour:'2-digit', minute:'2-digit'
+        });
+    }
+
+    // Calcula minutos transcurridos desde timestamp
+    function minutosDesde(ts) {
+        if (!ts) return null;
+        return Math.floor((Date.now() - new Date(ts).getTime()) / 60000);
+    }
+
+    function formatTiempo(minutos) {
+        if (minutos === null) return '—';
+        if (minutos < 60)  return `${minutos} min`;
+        const h = Math.floor(minutos / 60);
+        const m = minutos % 60;
+        return m > 0 ? `${h}h ${m}min` : `${h}h`;
+    }
+
+    function tiempoBadge(minutos) {
+        if (minutos === null) return '';
+        let cls = 'tiempo-normal';
+        if (minutos >= 60)  cls = 'tiempo-critico';
+        else if (minutos >= 10) cls = 'tiempo-advertencia';
+        return `<span class="tiempo-badge ${cls}">
+            <i class="fas fa-clock" style="font-size:0.65rem;"></i>
+            ${formatTiempo(minutos)}
+        </span>`;
+    }
+
+    function tiempoBar(minutos) {
+        if (minutos === null) return '';
+        // Barra satura a 120 min
+        const pct   = Math.min(100, Math.round((minutos / 120) * 100));
+        const color = minutos >= 60 ? '#dc2626'
+                    : minutos >= 10 ? '#f59e0b'
+                    : '#9ca3af';
+        return `<div class="tiempo-bar">
+            <div class="tiempo-bar-fill"
+                 style="width:${pct}%; background:${color};"></div>
+        </div>`;
+    }
+
+    function sevDot(minutos) {
+        if (minutos === null) return '';
+        const cls = minutos >= 10 ? 'sev-critica' : 'sev-advertencia';
+        return `<span class="sev-dot ${cls}"></span>`;
+    }
+
+    function tipoBadge(tipo) {
+        if (!tipo) return '';
+        const esBateria = tipo.toLowerCase().includes('bater');
+        if (esBateria) {
+            return `<span class="badge badge-bateria rounded-pill px-2">
+                <i class="fas fa-battery-quarter me-1"></i>Batería posible
+            </span>`;
+        }
+        return `<span class="badge badge-sin-senal rounded-pill px-2">
+            <i class="fas fa-wifi me-1"></i>Sin Señal
+        </span>`;
+    }
+
+    // ══ RESUMEN TARJETAS ══
+    function renderResumen(data) {
+        const sinSenal  = data.filter(a =>
+            !a.tipo_alerta?.toLowerCase().includes('bater')).length;
+        const bateria   = data.filter(a =>
+            a.tipo_alerta?.toLowerCase().includes('bater')).length;
+        const masHora   = data.filter(a =>
+            minutosDesde(a.ultima_vez) >= 60).length;
+
+        document.getElementById('cntSinSenal').textContent = sinSenal;
+        document.getElementById('cntBateria').textContent  = bateria;
+        document.getElementById('cntMasDeHora').textContent= masHora;
+        document.getElementById('cntTotal').textContent    = data.length;
+    }
+
+    // ══ FILTRADO ══
+    function applyFilters() {
+        const q = filterText.toLowerCase().trim();
+        return allAlertas.filter(a => {
+            // Tipo
+            if (filterTipo === 'Sin senal') {
+                if (a.tipo_alerta?.toLowerCase().includes('bater')) return false;
+            } else if (filterTipo === 'bateria') {
+                if (!a.tipo_alerta?.toLowerCase().includes('bater')) return false;
+            }
+            // Texto
+            if (!q) return true;
+            return (
+                (a.equipo_nombre     || '').toLowerCase().includes(q) ||
+                (a.numero_inventario || '').toLowerCase().includes(q) ||
+                (a.area_nombre       || '').toLowerCase().includes(q) ||
+                (a.beacon_nombre     || '').toLowerCase().includes(q)
+            );
+        });
+    }
+
+    // ══ RENDER TABLA ══
+    function renderTabla() {
+        const tbody    = document.getElementById('tablaAlertas');
+        const count    = document.getElementById('resultCount');
+        const filtered = applyFilters();
+
+        count.textContent = filtered.length === allAlertas.length
+            ? `${filtered.length} alerta${filtered.length !== 1 ? 's' : ''}`
+            : `${filtered.length} de ${allAlertas.length}`;
+
+        // Sin resultados
+        if (!filtered.length && allAlertas.length > 0) {
+            tbody.innerHTML = `
+                <tr><td colspan="8">
+                    <div class="state-box" style="padding:2rem;">
+                        <i class="fas fa-filter" style="font-size:2rem;color:#d1d5db;"></i>
+                        <p class="mb-0">Sin alertas con ese criterio</p>
+                    </div>
+                </td></tr>`;
+            return;
+        }
+
+        // Sin alertas en absoluto
+        if (!allAlertas.length) {
+            tbody.innerHTML = `
+                <tr><td colspan="8">
+                    <div class="state-box">
+                        <i class="fas fa-shield-halved text-success"
+                           style="font-size:3rem;"></i>
+                        <p class="fw-semibold mb-1" style="font-size:1rem;color:#374151;">
+                            ¡Sin alertas activas!
+                        </p>
+                        <p style="font-size:0.85rem;">
+                            Todos los equipos con beacon están localizados correctamente.
+                        </p>
+                    </div>
+                </td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(a => {
+            const mins = minutosDesde(a.ultima_vez);
+            const href = a.equipo_id
+                ? `/localizacion/equipo/${a.equipo_id}` : '#';
+            return `
+            <tr>
+                <td class="text-center" style="padding-right:0;">
+                    ${sevDot(mins)}
+                </td>
+                <td>
+                    <div class="fw-medium">${a.equipo_nombre || 'Sin nombre'}</div>
+                    <small class="text-muted">
+                        Beacon: ${a.beacon_nombre || a.mac || '—'}
+                    </small>
+                </td>
+                <td>
+                    <code style="font-size:0.78rem;">
+                        ${a.numero_inventario || '—'}
+                    </code>
+                </td>
+                <td>
+                    <div>${a.area_nombre || '—'}</div>
+                    <small class="text-muted">Nivel ${a.piso ?? '—'}</small>
+                </td>
+                <td>${tipoBadge(a.tipo_alerta)}</td>
+                <td>
+                    ${tiempoBadge(mins)}
+                    ${tiempoBar(mins)}
+                </td>
+                <td>
+                    <small class="text-muted">${formatFull(a.ultima_vez)}</small>
+                </td>
+                <td>
+                    <a href="${href}" class="btn-ver"
+                       ${!a.equipo_id ? 'tabindex="-1"' : ''}>
+                        <i class="fas fa-eye me-1"></i>Ver
+                    </a>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ══ POLLING INDICATOR ══
+    function setPolling(ok) {
+        const dot = document.getElementById('pollingDot');
+        const txt = document.getElementById('pollingStatus');
+        if (ok) {
+            dot.classList.add('ok');
+            dot.classList.remove('error');
+            const hora = new Date().toLocaleTimeString('es-MX',
+                { hour:'2-digit', minute:'2-digit' });
+            txt.textContent = `Actualizado ${hora}`;
+        } else {
+            dot.classList.remove('ok');
+            dot.classList.add('error');
+            txt.textContent = 'Sin conexión';
+        }
+    }
+
+    // ══ FETCH ══
+    async function fetchAlertas() {
+        try {
+            const res = await fetch('/api/ble/alertas');
+            if (!res.ok) throw new Error();
+            allAlertas = await res.json();
+            // Ordenar: más tiempo sin señal primero
+            allAlertas.sort((a, b) =>
+                new Date(a.ultima_vez) - new Date(b.ultima_vez));
+            renderResumen(allAlertas);
+            renderTabla();
+            setPolling(true);
+        } catch {
+            setPolling(false);
+            document.getElementById('tablaAlertas').innerHTML = `
+                <tr><td colspan="8">
+                    <div class="state-box" style="padding:2rem;">
+                        <i class="fas fa-triangle-exclamation text-warning"
+                           style="font-size:2rem;"></i>
+                        <p class="mb-1 fw-medium">Error al cargar alertas</p>
+                        <p style="font-size:0.82rem;">
+                            <a href="javascript:fetchAlertas()">Reintentar</a>
+                        </p>
+                    </div>
+                </td></tr>`;
+        }
+    }
+
+    // ══ EVENTOS ══
+    document.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.addEventListener('click', function () {
+            document.querySelectorAll('.filter-chip')
+                .forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            filterTipo = this.dataset.tipo;
+            renderTabla();
+        });
+    });
+
+    let debounce;
+    document.getElementById('searchInput').addEventListener('input', function () {
+        filterText = this.value;
+        clearTimeout(debounce);
+        debounce = setTimeout(renderTabla, 180);
+    });
+
+    // ══ ARRANQUE ══
+    fetchAlertas();
+    setInterval(fetchAlertas, 15_000);   // polling cada 15s
+
+})();
+</script>
+{% endblock %}

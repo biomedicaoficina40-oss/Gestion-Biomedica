@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+
+{% block title %}Buscar Equipo — Localización BLE{% endblock %}
+
+{% block customCSS %}
+<style>
+    /* ══ SEARCH BOX GRANDE ══ */
+    .search-hero {
+        background: linear-gradient(135deg, var(--hospital-primary) 0%, #2a6f8a 100%);
+        border-radius: 0.75rem;
+        padding: 2rem 2.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .search-hero-input-wrap {
+        position: relative;
+        max-width: 640px;
+    }
+    .search-hero-input {
+        width: 100%;
+        padding: 0.85rem 1rem 0.85rem 3rem;
+        border: none;
+        border-radius: 0.6rem;
+        font-size: 1rem;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        outline: none;
+        transition: box-shadow 0.2s;
+    }
+    .search-hero-input:focus {
+        box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+    }
+    .search-hero-icon {
+        position: absolute;
+        left: 1rem; top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af; font-size: 1.05rem;
+    }
+    .search-clear {
+        position: absolute;
+        right: 0.85rem; top: 50%;
+        transform: translateY(-50%);
+        background: none; border: none;
+        color: #9ca3af; font-size: 0.95rem;
+        cursor: pointer; display: none;
+        padding: 0.2rem;
+    }
+    .search-clear:hover { color: #6b7280; }
+
+    /* ══ FILTROS ══ */
+    .filter-chip {
+        display: inline-flex; align-items: center; gap: 0.35rem;
+        padding: 0.3rem 0.75rem;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 999px;
+        font-size: 0.78rem; font-weight: 500;
+        background: white; color: #6c757d;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        white-space: nowrap;
+    }
+    .filter-chip:hover   { border-color: var(--hospital-primary); color: var(--hospital-primary); }
+    .filter-chip.active  { background: var(--hospital-primary); border-color: var(--hospital-primary); color: white; }
+    .filter-chip i       { font-size: 0.7rem; }
+
+    /* ══ TARJETAS RESULTADO ══ */
+    .result-card {
+        border: 1.5px solid #e9ecef;
+        border-radius: 0.7rem;
+        background: white;
+        transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+        cursor: default;
+    }
+    .result-card:hover {
+        border-color: var(--hospital-primary);
+        box-shadow: 0 4px 16px rgba(61,144,174,0.12);
+        transform: translateY(-2px);
+    }
+    .result-card-header {
+        padding: 1rem 1.25rem 0.65rem;
+        border-bottom: 1px solid #f1f3f5;
+        display: flex; align-items: flex-start;
+        justify-content: space-between; gap: 0.5rem;
+    }
+    .result-card-body {
+        padding: 0.75rem 1.25rem 0.9rem;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.45rem 1.5rem;
+    }
+    .result-card-footer {
+        padding: 0.6rem 1.25rem;
+        border-top: 1px solid #f1f3f5;
+        display: flex; align-items: center;
+        justify-content: space-between; gap: 0.5rem;
+    }
+    .meta-item { display: flex; flex-direction: column; }
+    .meta-label { font-size: 0.68rem; text-transform: uppercase;
+                  letter-spacing: 0.05em; color: #9ca3af; font-weight: 600; }
+    .meta-value { font-size: 0.84rem; color: #374151; font-weight: 500; }
+
+    /* ══ RSSI INLINE ══ */
+    .rssi-pill {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        font-size: 0.76rem; padding: 0.15rem 0.55rem;
+        border-radius: 999px; font-weight: 600;
+    }
+    .rssi-strong { background: #d1fae5; color: #065f46; }
+    .rssi-medium { background: #fef9c3; color: #854d0e; }
+    .rssi-weak   { background: #fee2e2; color: #991b1b; }
+    .rssi-none   { background: #f3f4f6; color: #9ca3af; }
+
+    /* ══ BADGE ESTADO ══ */
+    .badge-localizado    { background:#d1fae5; color:#065f46; }
+    .badge-sin-senal     { background:#fee2e2; color:#991b1b; }
+    .badge-mantenimiento { background:#fef9c3; color:#854d0e; }
+
+    /* ══ CONTADOR RESULTADOS ══ */
+    .result-count {
+        font-size: 0.82rem; color: #6c757d;
+        padding: 0.25rem 0;
+    }
+    .result-count strong { color: var(--hospital-primary); }
+
+    /* ══ EMPTY / INITIAL STATES ══ */
+    .state-box {
+        text-align: center;
+        padding: 3.5rem 1rem;
+        color: #9ca3af;
+    }
+    .state-box i {
+        font-size: 3rem;
+        display: block;
+        margin-bottom: 1rem;
+    }
+    .state-box p { margin: 0; font-size: 0.9rem; }
+
+    /* ══ HIGHLIGHT ══ */
+    mark {
+        background: #fef08a;
+        color: inherit;
+        border-radius: 2px;
+        padding: 0 1px;
+    }
+
+    /* ══ SKELETON ══ */
+    .skeleton {
+        background: linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.2s infinite;
+        border-radius: 4px;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+</style>
+{% endblock %}
+
+{% block body %}
+
+<!-- ══ HERO SEARCH ══ -->
+<div class="search-hero">
+    <h5 class="text-white fw-bold mb-1">
+        <i class="fas fa-search me-2"></i>Buscar Equipo
+    </h5>
+    <p class="text-white mb-3" style="opacity:0.85; font-size:0.85rem;">
+        Localiza cualquier equipo por nombre, número de inventario, serie o área
+    </p>
+    <div class="search-hero-input-wrap">
+        <i class="fas fa-search search-hero-icon"></i>
+        <input type="text" id="searchInput" class="search-hero-input"
+               placeholder="Ej: Desfibrilador, EQ-ME001, UCI Piso 2..."
+               autocomplete="off" autofocus>
+        <button class="search-clear" id="btnClear" title="Limpiar">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+</div>
+
+<!-- ══ FILTROS DE ESTADO ══ -->
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <span class="text-muted" style="font-size:0.8rem;">Filtrar:</span>
+    <button class="filter-chip active" data-estado="todos">
+        <i class="fas fa-list"></i> Todos
+    </button>
+    <button class="filter-chip" data-estado="Localizado">
+        <i class="fas fa-map-marker-alt"></i> Localizados
+    </button>
+    <button class="filter-chip" data-estado="Sin senal">
+        <i class="fas fa-wifi"></i> Sin Señal
+    </button>
+    <button class="filter-chip" data-estado="En mantenimiento">
+        <i class="fas fa-tools"></i> Mantenimiento
+    </button>
+
+    <span class="ms-auto result-count" id="resultCount"></span>
+</div>
+
+<!-- ══ CONTENEDOR RESULTADOS ══ -->
+<div id="resultsContainer">
+    <!-- Estado inicial -->
+    <div class="state-box" id="stateInitial">
+        <i class="fas fa-satellite-dish" style="color:#d1d5db;"></i>
+        <p>Cargando equipos...</p>
+    </div>
+</div>
+
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+(function () {
+    'use strict';
+
+    // ══ REFS ══
+    const searchInput   = document.getElementById('searchInput');
+    const btnClear      = document.getElementById('btnClear');
+    const container     = document.getElementById('resultsContainer');
+    const resultCount   = document.getElementById('resultCount');
+    const stateInitial  = document.getElementById('stateInitial');
+    const filterChips   = document.querySelectorAll('.filter-chip');
+
+    // ══ ESTADO ══
+    let allEquipos  = [];
+    let queryText   = '';
+    let filterEstado= 'todos';
+
+    // ══ UTILIDADES ══
+    function rssiInfo(rssi) {
+        if (!rssi || rssi < -85) return { cls: 'rssi-none',   label: 'Sin señal',  icon: 'fa-wifi' };
+        if (rssi < -75)          return { cls: 'rssi-weak',   label: 'Débil',      icon: 'fa-wifi' };
+        if (rssi < -60)          return { cls: 'rssi-medium', label: 'Media',      icon: 'fa-wifi' };
+        return                          { cls: 'rssi-strong', label: 'Fuerte',     icon: 'fa-wifi' };
+    }
+    function badgeEstado(estado) {
+        const map = {
+            'Localizado':       'badge-localizado',
+            'Sin senal':        'badge-sin-senal',
+            'Sin señal':        'badge-sin-senal',
+            'En mantenimiento': 'badge-mantenimiento',
+        };
+        const cls = map[estado] || 'badge-localizado';
+        const lbl = estado === 'Sin senal' ? 'Sin Señal' : estado;
+        return `<span class="badge ${cls} rounded-pill px-2">${lbl}</span>`;
+    }
+    function formatDateTime(ts) {
+        if (!ts) return '—';
+        const d = new Date(ts);
+        return d.toLocaleString('es-MX', {
+            day: '2-digit', month: '2-digit',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
+
+    // Resalta el término buscado en un texto
+    function highlight(text, query) {
+        if (!query || !text) return text || '—';
+        const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return String(text).replace(
+            new RegExp(`(${escaped})`, 'gi'),
+            '<mark>$1</mark>'
+        );
+    }
+
+    // ══ FILTRADO ══
+    function applyFilters() {
+        const q = queryText.toLowerCase().trim();
+        return allEquipos.filter(e => {
+            // Filtro de estado
+            if (filterEstado !== 'todos' && e.estado !== filterEstado) return false;
+            // Filtro de texto
+            if (!q) return true;
+            return (
+                (e.equipo_nombre     || '').toLowerCase().includes(q) ||
+                (e.numero_inventario || '').toLowerCase().includes(q) ||
+                (e.departamento      || '').toLowerCase().includes(q) ||
+                (e.area_nombre       || '').toLowerCase().includes(q) ||
+                (e.beacon_nombre     || '').toLowerCase().includes(q) ||
+                (e.mac               || '').toLowerCase().includes(q)
+            );
+        });
+    }
+
+    // ══ RENDER ══
+    function render() {
+        const q        = queryText.trim();
+        const filtered = applyFilters();
+
+        // Contador
+        if (allEquipos.length > 0) {
+            resultCount.innerHTML = filtered.length === allEquipos.length
+                ? `<strong>${filtered.length}</strong> equipos`
+                : `<strong>${filtered.length}</strong> de ${allEquipos.length} equipos`;
+        }
+
+        // Vacío
+        if (!filtered.length) {
+            container.innerHTML = `
+                <div class="state-box">
+                    <i class="fas fa-search" style="color:#d1d5db;"></i>
+                    <p class="fw-medium mb-1">Sin resultados</p>
+                    <p class="text-muted" style="font-size:0.82rem;">
+                        Intenta con otro término o cambia el filtro de estado
+                    </p>
+                </div>`;
+            return;
+        }
+
+        // Grid de tarjetas
+        container.innerHTML = `
+            <div class="row g-3">
+                ${filtered.map(e => renderCard(e, q)).join('')}
+            </div>`;
+    }
+
+    function renderCard(e, q) {
+        const rssi = rssiInfo(e.rssi_max);
+        const href = e.equipo_id
+            ? `/localizacion/equipo/${e.equipo_id}`
+            : '#';
+
+        return `
+        <div class="col-12 col-md-6 col-xl-4">
+          <div class="result-card">
+
+            <div class="result-card-header">
+              <div style="min-width:0;">
+                <div class="fw-semibold text-truncate" style="font-size:0.95rem;" title="${e.equipo_nombre || ''}">
+                  ${highlight(e.equipo_nombre || 'Sin nombre', q)}
+                </div>
+                <code style="font-size:0.75rem; color:#6c757d;">
+                  ${highlight(e.numero_inventario || '—', q)}
+                </code>
+              </div>
+              ${badgeEstado(e.estado)}
+            </div>
+
+            <div class="result-card-body">
+              <div class="meta-item">
+                <span class="meta-label">Área actual</span>
+                <span class="meta-value">
+                  <i class="fas fa-location-dot me-1" style="color:var(--hospital-primary); font-size:0.75rem;"></i>
+                  ${highlight(e.area_nombre || '—', q)}
+                </span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Piso</span>
+                <span class="meta-value">Nivel ${e.piso ?? '—'}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Último reporte</span>
+                <span class="meta-value" style="font-size:0.78rem;">
+                  ${formatDateTime(e.ultima_vez)}
+                </span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Señal BLE</span>
+                <span class="meta-value">
+                  <span class="rssi-pill ${rssi.cls}">
+                    <i class="fas ${rssi.icon}" style="font-size:0.65rem;"></i>
+                    ${rssi.label}
+                    ${e.rssi_max ? `(${e.rssi_max} dBm)` : ''}
+                  </span>
+                </span>
+              </div>
+              <div class="meta-item" style="grid-column: 1 / -1;">
+                <span class="meta-label">Departamento</span>
+                <span class="meta-value">
+                  ${highlight(e.departamento || '—', q)}
+                </span>
+              </div>
+            </div>
+
+            <div class="result-card-footer">
+              <small class="text-muted" style="font-size:0.73rem;">
+                <i class="fas fa-broadcast-tower me-1"></i>
+                Beacon: ${highlight(e.beacon_nombre || e.mac || '—', q)}
+              </small>
+              <a href="${href}"
+                 class="btn btn-sm"
+                 style="background:rgba(61,144,174,0.1); color:var(--hospital-primary);
+                        border-radius:0.4rem; font-size:0.78rem; white-space:nowrap;"
+                 ${!e.equipo_id ? 'tabindex="-1" aria-disabled="true"' : ''}>
+                <i class="fas fa-clock-rotate-left me-1"></i>Ver historial
+              </a>
+            </div>
+
+          </div>
+        </div>`;
+    }
+
+    // ══ CARGA DE DATOS ══
+    async function loadData() {
+        try {
+            const res  = await fetch('/api/ble/posicion-actual');
+            if (!res.ok) throw new Error('API error');
+            allEquipos = await res.json();
+            render();
+        } catch (err) {
+            console.error('[BLE Buscar]', err);
+            container.innerHTML = `
+                <div class="state-box">
+                    <i class="fas fa-triangle-exclamation text-warning"></i>
+                    <p class="fw-medium mb-1">Error al cargar datos</p>
+                    <p style="font-size:0.82rem;">
+                        Verifica la conexión con el servidor BLE.
+                        <a href="javascript:location.reload()" class="ms-1">Reintentar</a>
+                    </p>
+                </div>`;
+        }
+    }
+
+    // ══ EVENTOS ══
+    let debounceTimer;
+    searchInput.addEventListener('input', function () {
+        queryText = this.value;
+        btnClear.style.display = queryText ? 'block' : 'none';
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(render, 180);  // debounce 180ms
+    });
+
+    btnClear.addEventListener('click', function () {
+        searchInput.value  = '';
+        queryText          = '';
+        btnClear.style.display = 'none';
+        searchInput.focus();
+        render();
+    });
+
+    filterChips.forEach(chip => {
+        chip.addEventListener('click', function () {
+            filterChips.forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            filterEstado = this.dataset.estado;
+            render();
+        });
+    });
+
+    // ══ ARRANQUE ══
+    loadData();
+
+})();
+</script>
+{% endblock %}

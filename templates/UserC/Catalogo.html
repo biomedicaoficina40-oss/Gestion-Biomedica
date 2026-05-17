@@ -625,6 +625,59 @@
     border-left: 4px solid #3d90ae;
 }
 /* ==================== FIN TARJETA GALENIA ==================== */
+
+
+/* NFC Field */
+.nfc-field { align-items: center; }
+
+.nfc-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.nfc-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+.nfc-active  { background: #d4f5e2; color: #1a7a45; }
+.nfc-inactive{ background: #f0f0f0; color: #888; }
+
+/* Toggle switch */
+.nfc-toggle {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 24px;
+    cursor: pointer;
+}
+.nfc-toggle input { opacity: 0; width: 0; height: 0; }
+
+.nfc-slider {
+    position: absolute;
+    inset: 0;
+    background: #ccc;
+    border-radius: 24px;
+    transition: .3s;
+}
+.nfc-slider::before {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    left: 3px; bottom: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: .3s;
+}
+.nfc-toggle input:checked + .nfc-slider { background: #1a7a45; }
+.nfc-toggle input:checked + .nfc-slider::before { transform: translateX(22px); }
+.nfc-toggle input:disabled + .nfc-slider { opacity: 0.5; cursor: not-allowed; }
 </style>
 {% endblock %}
 
@@ -760,6 +813,33 @@
                 {% endif %}
             </span>
         </div>
+            {% if current_user.is_authenticated %}
+<div class="data-field nfc-field">
+    <span class="data-label">
+        <i class="fas fa-wifi" style="transform: rotate(45deg);"></i>
+        Chip NFC
+    </span>
+    <div class="nfc-control">
+        <span class="nfc-status-badge {% if equipo.tiene_nfc %}nfc-active{% else %}nfc-inactive{% endif %}"
+              id="nfc-status-badge">
+            {% if equipo.tiene_nfc %}
+                <i class="fas fa-check-circle"></i> Instalado
+            {% else %}
+                <i class="fas fa-times-circle"></i> Sin chip
+            {% endif %}
+        </span>
+
+        <label class="nfc-toggle" title="Activar/desactivar chip NFC">
+            <input type="checkbox"
+                   id="nfc-toggle-input"
+                   {% if equipo.tiene_nfc %}checked{% endif %}
+                   data-inventario="{{ equipo.numero_inventario }}">
+            <span class="nfc-slider"></span>
+        </label>
+    </div>
+</div>
+{% endif %}
+    </div>
     </div>
 
 </div>
@@ -946,5 +1026,51 @@ if (deptoRaw) {
             });
         }
     });
+// ── NFC Toggle ──────────────────────────────────────────────
+const nfcInput = document.getElementById('nfc-toggle-input');
+if (nfcInput) {
+    nfcInput.addEventListener('change', async function () {
+        const inventario = this.dataset.inventario;
+        const badge = document.getElementById('nfc-status-badge');
+
+        this.disabled = true; // evita doble click
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+            const res = await fetch(
+                `/Catalogo/${inventario}/toggle-nfc`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrfToken
+                    }
+                }
+            );
+
+            if (!res.ok) throw new Error('Sin autorización o error de servidor');
+
+            const data = await res.json();
+
+            // Actualiza badge
+            if (data.tiene_nfc) {
+                badge.className = 'nfc-status-badge nfc-active';
+                badge.innerHTML = '<i class="fas fa-check-circle"></i> Instalado';
+            } else {
+                badge.className = 'nfc-status-badge nfc-inactive';
+                badge.innerHTML = '<i class="fas fa-times-circle"></i> Sin chip';
+            }
+
+        } catch (err) {
+            console.error('Error NFC:', err);
+            // Revierte el toggle visualmente si falló
+            this.checked = !this.checked;
+            alert('No se pudo actualizar el estado NFC.');
+        } finally {
+            this.disabled = false;
+        }
+    });
+}
 </script>
 {% endblock %}

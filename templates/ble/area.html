@@ -1,0 +1,515 @@
+{% extends "base.html" %}
+
+{% block title %}Vista de Área — Localización BLE{% endblock %}
+
+{% block customCSS %}
+<style>
+    /* ══ HEADER DE ÁREA ══ */
+    .area-header {
+        background: linear-gradient(135deg, var(--hospital-primary) 0%, #2a6f8a 100%);
+        border-radius: 0.75rem;
+        padding: 1.5rem 2rem;
+        color: white;
+        margin-bottom: 1.5rem;
+    }
+    .area-header .piso-badge {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        background: rgba(255,255,255,0.2);
+        border-radius: 999px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.78rem; font-weight: 600;
+    }
+    .area-stat {
+        background: rgba(255,255,255,0.15);
+        border-radius: 0.5rem;
+        padding: 0.65rem 1.1rem;
+        text-align: center;
+        min-width: 90px;
+    }
+    .area-stat-num  { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+    .area-stat-lbl  { font-size: 0.72rem; opacity: 0.85; margin-top: 0.15rem; }
+
+    /* ══ RSSI GAUGE ══ */
+    .rssi-gauge-wrap {
+        display: flex; flex-direction: column;
+        align-items: center; gap: 0.35rem;
+        min-width: 72px;
+    }
+    .rssi-gauge {
+        width: 64px; height: 64px;
+        position: relative;
+    }
+    .rssi-gauge svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .rssi-gauge-bg  { fill: none; stroke: #e5e7eb; stroke-width: 6; }
+    .rssi-gauge-fill{
+        fill: none; stroke-width: 6;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.6s ease, stroke 0.4s ease;
+    }
+    .rssi-gauge-text {
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.65rem; font-weight: 700; color: #374151;
+    }
+    .rssi-lbl {
+        font-size: 0.7rem; font-weight: 600;
+        text-align: center;
+    }
+
+    /* ══ TARJETA EQUIPO ══ */
+    .equipo-card {
+        border: 1.5px solid #e9ecef;
+        border-radius: 0.7rem;
+        background: white;
+        transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+        padding: 1rem 1.25rem;
+        display: flex; align-items: center; gap: 1.1rem;
+    }
+    .equipo-card:hover {
+        border-color: var(--hospital-primary);
+        box-shadow: 0 4px 14px rgba(61,144,174,0.12);
+        transform: translateY(-2px);
+    }
+    .equipo-icon {
+        width: 46px; height: 46px; border-radius: 0.5rem;
+        background: rgba(61,144,174,0.1);
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        font-size: 1.2rem; color: var(--hospital-primary);
+    }
+    .equipo-info   { flex: 1; min-width: 0; }
+    .equipo-nombre { font-weight: 600; font-size: 0.9rem; color: #1f2937;
+                     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .equipo-meta   { font-size: 0.76rem; color: #6c757d; margin-top: 0.1rem; }
+
+    /* ══ BADGE ESTADO ══ */
+    .badge-localizado    { background:#d1fae5; color:#065f46; }
+    .badge-sin-senal     { background:#fee2e2; color:#991b1b; }
+    .badge-mantenimiento { background:#fef9c3; color:#854d0e; }
+
+    /* ══ BARRA RSSI HORIZONTAL ══ */
+    .rssi-bar-wrap { width: 100%; margin-top: 0.4rem; }
+    .rssi-bar {
+        height: 5px; border-radius: 3px;
+        background: #e5e7eb; overflow: hidden;
+    }
+    .rssi-bar-fill {
+        height: 100%; border-radius: 3px;
+        transition: width 0.5s ease;
+    }
+    .fill-strong { background: #10b981; }
+    .fill-medium { background: #f59e0b; }
+    .fill-weak   { background: #ef4444; }
+    .fill-none   { background: #d1d5db; }
+
+    /* ══ POLLING ══ */
+    .polling-badge {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        font-size: 0.75rem; color: #6c757d;
+    }
+    .polling-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #10b981;
+        animation: pulse-dot 2s ease-in-out infinite;
+    }
+    .polling-dot.error { background: #ef4444; animation: none; }
+    @keyframes pulse-dot {
+        0%,100% { opacity:1; transform:scale(1); }
+        50%      { opacity:0.4; transform:scale(0.8); }
+    }
+
+    /* ══ EMPTY ══ */
+    .empty-state {
+        text-align: center; padding: 3rem 1rem; color: #9ca3af;
+    }
+    .empty-state i { font-size: 2.8rem; display: block; margin-bottom: 0.75rem; }
+
+    /* ══ SKELETON ══ */
+    .skeleton {
+        background: linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.2s infinite;
+        border-radius: 4px;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    /* ══ SELECTOR DE ÁREA ══ */
+    .area-select-wrap select {
+        border: 1.5px solid #e2e8f0;
+        border-radius: 0.5rem;
+        padding: 0.4rem 0.85rem;
+        font-size: 0.85rem;
+        color: #374151;
+        background: white;
+        cursor: pointer;
+        transition: border-color 0.2s;
+    }
+    .area-select-wrap select:focus {
+        outline: none;
+        border-color: var(--hospital-primary);
+        box-shadow: 0 0 0 3px rgba(61,144,174,0.12);
+    }
+
+    /* ══ ORDENAR ══ */
+    .sort-btn {
+        background: white;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 0.5rem;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem; color: #6c757d;
+        cursor: pointer; transition: all 0.18s;
+        white-space: nowrap;
+    }
+    .sort-btn:hover, .sort-btn.active {
+        border-color: var(--hospital-primary);
+        color: var(--hospital-primary);
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+
+<!-- ══ BREADCRUMB ══ -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb" style="font-size:0.82rem;">
+        <li class="breadcrumb-item">
+            <a href="{{ url_for('ble.dashboard') }}"
+               style="color:var(--hospital-primary); text-decoration:none;">
+                <i class="fas fa-map-marker-alt me-1"></i>Localización BLE
+            </a>
+        </li>
+        <li class="breadcrumb-item active" id="bcAreaNombre">Área</li>
+    </ol>
+</nav>
+
+<!-- ══ HEADER DINÁMICO DEL ÁREA ══ -->
+<div class="area-header" id="areaHeader">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+        <div>
+            <div class="piso-badge mb-2" id="pisoBadge">
+                <i class="fas fa-layer-group"></i>
+                <span id="pisoLabel">Cargando...</span>
+            </div>
+            <h4 class="fw-bold mb-0" id="areaNombre">—</h4>
+            <p class="mb-0 mt-1" style="opacity:0.8; font-size:0.82rem;">
+                <i class="fas fa-microchip me-1"></i>
+                <span id="esp32Label">—</span>
+            </p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <div class="area-stat">
+                <div class="area-stat-num" id="statTotal">—</div>
+                <div class="area-stat-lbl">Equipos</div>
+            </div>
+            <div class="area-stat">
+                <div class="area-stat-num" id="statLocalizados">—</div>
+                <div class="area-stat-lbl">Localizados</div>
+            </div>
+            <div class="area-stat">
+                <div class="area-stat-num" id="statSinSenal">—</div>
+                <div class="area-stat-lbl">Sin Señal</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ CONTROLES ══ -->
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <!-- Selector de área -->
+        <div class="area-select-wrap">
+            <select id="areaSelect" title="Cambiar área">
+                <option value="">Cargando áreas...</option>
+            </select>
+        </div>
+        <!-- Ordenar -->
+        <button class="sort-btn active" data-sort="rssi" id="btnSortRssi">
+            <i class="fas fa-signal me-1"></i>Mayor señal
+        </button>
+        <button class="sort-btn" data-sort="nombre" id="btnSortNombre">
+            <i class="fas fa-sort-alpha-down me-1"></i>Nombre
+        </button>
+    </div>
+    <span class="polling-badge">
+        <span class="polling-dot" id="pollingDot"></span>
+        <span id="pollingStatus">Actualizando...</span>
+    </span>
+</div>
+
+<!-- ══ GRID DE EQUIPOS ══ -->
+<div id="equiposGrid">
+    <!-- Skeletons iniciales -->
+    <div class="row g-3">
+        {% for _ in range(4) %}
+        <div class="col-12 col-md-6 col-xl-4">
+            <div class="equipo-card">
+                <div class="skeleton" style="width:46px;height:46px;border-radius:0.5rem;flex-shrink:0;"></div>
+                <div style="flex:1;">
+                    <div class="skeleton" style="height:14px;width:70%;margin-bottom:0.4rem;"></div>
+                    <div class="skeleton" style="height:11px;width:45%;"></div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+(function () {
+    'use strict';
+
+    // ══ ÁREA ID desde la URL (/localizacion/area/7) ══
+    const pathParts = window.location.pathname.split('/');
+    let areaId      = parseInt(pathParts[pathParts.length - 1]) || null;
+
+    // ══ ESTADO ══
+    let equipos    = [];
+    let sortMode   = 'rssi';
+    let allAreas   = [];
+
+    // ══ UTILIDADES ══
+    function rssiInfo(rssi) {
+        if (!rssi || rssi < -85)
+            return { cls:'fill-none',   label:'Sin señal', color:'#9ca3af', pct:0 };
+        const pct = Math.round(((rssi + 85) / 45) * 100);
+        const p   = Math.max(0, Math.min(100, pct));
+        if (rssi < -75) return { cls:'fill-weak',   label:'Débil',  color:'#ef4444', pct:p };
+        if (rssi < -60) return { cls:'fill-medium', label:'Media',  color:'#f59e0b', pct:p };
+        return              { cls:'fill-strong', label:'Fuerte', color:'#10b981', pct:p };
+    }
+
+    function badgeEstado(estado) {
+        const map = {
+            'Localizado':       'badge-localizado',
+            'Sin senal':        'badge-sin-senal',
+            'Sin señal':        'badge-sin-senal',
+            'En mantenimiento': 'badge-mantenimiento',
+        };
+        const lbl = estado === 'Sin senal' ? 'Sin Señal' : estado;
+        return `<span class="badge ${map[estado]||'badge-localizado'} rounded-pill px-2">${lbl}</span>`;
+    }
+
+    function formatTime(ts) {
+        if (!ts) return '—';
+        const d = new Date(ts);
+        return d.toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' });
+    }
+
+    // RSSI circular gauge SVG
+    function buildGauge(rssi) {
+        const r    = 24;
+        const circ = 2 * Math.PI * r;          // 150.8
+        const info = rssiInfo(rssi);
+        const dash = (info.pct / 100) * circ;
+        return `
+        <div class="rssi-gauge">
+          <svg viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+            <circle class="rssi-gauge-bg"   cx="28" cy="28" r="${r}"/>
+            <circle class="rssi-gauge-fill"
+              cx="28" cy="28" r="${r}"
+              stroke="${info.color}"
+              stroke-dasharray="${dash} ${circ}"
+              stroke-dashoffset="0"/>
+          </svg>
+          <div class="rssi-gauge-text">${rssi ? rssi+'<br>dBm' : '—'}</div>
+        </div>
+        <div class="rssi-lbl" style="color:${info.color};">${info.label}</div>`;
+    }
+
+    // ══ RENDER ESTADÍSTICAS DEL HEADER ══
+    function renderHeader(area) {
+        if (!area) return;
+        document.getElementById('areaNombre').textContent   = area.nombre || '—';
+        document.getElementById('pisoLabel').textContent    = `Nivel ${area.piso ?? '—'}`;
+        document.getElementById('esp32Label').textContent   = `ESP32: ${area.esp32_id || '—'}`;
+        document.getElementById('bcAreaNombre').textContent = area.nombre || 'Área';
+    }
+
+    function renderStats(data) {
+        const total  = data.length;
+        const loc    = data.filter(e => e.estado === 'Localizado').length;
+        const sin    = data.filter(e =>
+            e.estado === 'Sin senal' || e.estado === 'Sin señal').length;
+        document.getElementById('statTotal').textContent       = total;
+        document.getElementById('statLocalizados').textContent = loc;
+        document.getElementById('statSinSenal').textContent    = sin;
+    }
+
+    // ══ RENDER GRID ══
+    function renderGrid() {
+        const grid = document.getElementById('equiposGrid');
+
+        if (!equipos.length) {
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-satellite-dish" style="color:#d1d5db;"></i>
+                    <p class="fw-medium mb-1">Sin equipos en esta área</p>
+                    <p style="font-size:0.82rem;">
+                        Ningún beacon activo ha sido detectado en este momento.
+                    </p>
+                </div>`;
+            return;
+        }
+
+        const sorted = [...equipos].sort((a, b) => {
+            if (sortMode === 'rssi') {
+                return (b.rssi_max ?? -999) - (a.rssi_max ?? -999);
+            }
+            return (a.equipo_nombre || '').localeCompare(b.equipo_nombre || '');
+        });
+
+        grid.innerHTML = `
+        <div class="row g-3">
+            ${sorted.map(e => {
+                const rssi = rssiInfo(e.rssi_max);
+                const href = e.equipo_id
+                    ? `/localizacion/equipo/${e.equipo_id}` : '#';
+                return `
+                <div class="col-12 col-md-6 col-xl-4">
+                  <div class="equipo-card">
+                    <!-- Gauge circular RSSI -->
+                    <div class="rssi-gauge-wrap">
+                      ${buildGauge(e.rssi_max)}
+                    </div>
+
+                    <!-- Info del equipo -->
+                    <div class="equipo-info">
+                      <div class="equipo-nombre" title="${e.equipo_nombre || ''}">
+                        ${e.equipo_nombre || 'Sin nombre'}
+                      </div>
+                      <div class="equipo-meta">
+                        <code style="font-size:0.72rem;">${e.numero_inventario || '—'}</code>
+                        · Beacon: ${e.beacon_nombre || e.mac || '—'}
+                      </div>
+                      <!-- Barra RSSI -->
+                      <div class="rssi-bar-wrap">
+                        <div class="rssi-bar">
+                          <div class="rssi-bar-fill ${rssi.cls}"
+                               style="width:${rssi.pct}%;"></div>
+                        </div>
+                      </div>
+                      <div class="d-flex align-items-center
+                                  justify-content-between mt-2 flex-wrap gap-1">
+                        ${badgeEstado(e.estado)}
+                        <div class="d-flex align-items-center gap-2">
+                          <small class="text-muted" style="font-size:0.7rem;">
+                            ${formatTime(e.ultima_vez)}
+                          </small>
+                          <a href="${href}"
+                             class="btn btn-sm"
+                             style="background:rgba(61,144,174,0.1);
+                                    color:var(--hospital-primary);
+                                    border-radius:0.4rem; font-size:0.72rem;
+                                    padding:0.2rem 0.55rem;"
+                             ${!e.equipo_id ? 'tabindex="-1"' : ''}>
+                            <i class="fas fa-eye"></i>
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>`;
+            }).join('')}
+        </div>`;
+    }
+
+    // ══ POLLING INDICATOR ══
+    function setPolling(ok) {
+        const dot = document.getElementById('pollingDot');
+        const txt = document.getElementById('pollingStatus');
+        if (ok) {
+            dot.classList.remove('error');
+            txt.textContent = `Actualizado ${formatTime(new Date().toISOString())}`;
+        } else {
+            dot.classList.add('error');
+            txt.textContent = 'Sin conexión';
+        }
+    }
+
+    // ══ CARGA EQUIPOS DEL ÁREA ══
+    async function fetchEquipos() {
+        if (!areaId) return;
+        try {
+            const res = await fetch(`/api/ble/area/${areaId}/equipos`);
+            if (!res.ok) throw new Error();
+            equipos = await res.json();
+            renderStats(equipos);
+            renderGrid();
+            setPolling(true);
+        } catch {
+            setPolling(false);
+        }
+    }
+
+    // ══ CARGA LISTA DE ÁREAS (selector) ══
+    async function fetchAreas() {
+        try {
+            // Reutilizamos posicion-actual para obtener áreas únicas
+            const res  = await fetch('/api/ble/posicion-actual');
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+
+            // Extraer áreas únicas
+            const mapaAreas = {};
+            data.forEach(e => {
+                if (e.area_nombre && e.piso !== undefined) {
+                    // Usamos area_nombre como clave provisional;
+                    // necesitamos el id del área desde la ruta de área
+                    mapaAreas[e.area_nombre] = e.piso;
+                }
+            });
+
+            // Poblar selector desde get_todas_las_areas via endpoint dedicado
+            const resAreas = await fetch('/api/ble/areas');
+            if (resAreas.ok) {
+                allAreas = await resAreas.json();
+                const sel = document.getElementById('areaSelect');
+                sel.innerHTML = allAreas.map(a =>
+                    `<option value="${a.id}" ${a.id == areaId ? 'selected' : ''}>
+                        Nivel ${a.piso} — ${a.nombre}
+                    </option>`
+                ).join('');
+
+                // Mostrar datos del área actual en el header
+                const areaActual = allAreas.find(a => a.id == areaId);
+                if (areaActual) renderHeader(areaActual);
+            }
+        } catch (err) {
+            console.warn('[BLE Área] No se pudo cargar lista de áreas:', err);
+        }
+    }
+
+    // ══ EVENTOS ══
+    document.getElementById('areaSelect').addEventListener('change', function () {
+        areaId = parseInt(this.value);
+        // Actualizar URL sin recargar
+        history.pushState(null, '', `/localizacion/area/${areaId}`);
+        // Actualizar header
+        const a = allAreas.find(x => x.id == areaId);
+        if (a) renderHeader(a);
+        // Cargar equipos del nuevo área
+        fetchEquipos();
+    });
+
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            sortMode = this.dataset.sort;
+            renderGrid();
+        });
+    });
+
+    // ══ ARRANQUE ══
+    fetchAreas();
+    fetchEquipos();
+    setInterval(fetchEquipos, 10_000);   // polling cada 10s
+
+})();
+</script>
+{% endblock %}

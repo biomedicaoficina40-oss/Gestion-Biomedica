@@ -131,62 +131,24 @@
   }
   .sec-body { padding: 14px; }
 
- /* ══ FIELD GRID ══ */
-.fg {
-  width: 100%;
-  display: block; /* Importante: Cambiamos grid por block */
-  clear: both;
-}
-
-/* Las filas ahora sirven para agrupar y limpiar los elementos flotantes */
-.fg-row {
-  display: block;
-  width: 100%;
-  clear: both;
-  margin-bottom: 8px; /* Espacio entre filas */
-}
-
-/* Los campos individuales se comportarán como columnas */
-.f {
-  float: left; /* Técnica infalible para alineación en PDF */
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 32%; /* Un tercio de la página (con margen de error) */
-  margin-right: 1.33%;
-}
-
-/* Modificadores de ancho */
-.f.half { 
-  width: 65.33%; /* Ocupa dos columnas */
-}
-
-.f.full { 
-  width: 100%; 
-  float: none;
-  margin-right: 0;
-}
-
-/* Eliminar el margen derecho del último elemento de cada fila */
-.fg-row .f:last-child {
-  margin-right: 0;
-}
-
-/* Limpieza de floats al final de cada fila */
-.fg-row::after {
-  content: "";
-  display: table;
-  clear: both;
-}
-
-.f-lbl {
-  font-size: 8px;
-  color: #6b7280;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  margin-bottom: 2px;
-}
+  /* ══ FIELD GRID ══ */
+    .fg {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      width: 100%;
+    }
+      .fg-row { display: flex; gap: 10px; margin-bottom: 10px; }
+      .f { display: flex; flex-direction: column; gap: 3px; }
+      .f.full { grid-column: 1 / -1; }
+      .f.half { grid-column: span 2; }
+      .f-lbl {
+    font-size: 8px;
+    color: #6b7280;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
   .f-box {
     border: 1px solid #d1d5db;
     border-radius: 4px;

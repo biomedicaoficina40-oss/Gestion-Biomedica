@@ -1,0 +1,384 @@
+{% extends 'base.html' %}
+{% block title %}Reglas de Alerta BLE — Hospital Galenia{% endblock %}
+
+{% block customCSS %}
+<style>
+    .regla-card {
+        background: #fff;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        transition: box-shadow 0.2s;
+    }
+    .regla-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.11); }
+
+    .tipo-badge {
+        font-size: 0.72rem; font-weight: 600;
+        padding: 0.25rem 0.65rem;
+        border-radius: 999px; letter-spacing: 0.03em;
+    }
+    .tipo-sin_senal { background: #fff3cd; color: #856404; }
+    .tipo-bateria   { background: #fde8e8; color: #842029; }
+    .tipo-rssi      { background: #e0f0fb; color: #084298; }
+
+    .umbral-display {
+        font-size: 1.5rem; font-weight: 700;
+        color: var(--hospital-primary);
+        line-height: 1;
+    }
+    .umbral-unit { font-size: 0.75rem; color: #6c757d; }
+
+    .toggle-switch {
+        position: relative; display: inline-block;
+        width: 44px; height: 24px;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+        position: absolute; cursor: pointer; inset: 0;
+        background: #dee2e6; border-radius: 24px;
+        transition: background 0.25s;
+    }
+    .toggle-slider:before {
+        content: ''; position: absolute;
+        width: 18px; height: 18px; left: 3px; bottom: 3px;
+        background: white; border-radius: 50%;
+        transition: transform 0.25s;
+    }
+    input:checked + .toggle-slider { background: var(--hospital-primary); }
+    input:checked + .toggle-slider:before { transform: translateX(20px); }
+
+    .base-badge {
+        font-size: 0.68rem; background: #e9ecef;
+        color: #495057; padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+    }
+
+    /* Shimmer skeleton */
+    .skeleton-row {
+        height: 110px; background: linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.2s infinite;
+        border-radius: 0.75rem; margin-bottom: 1rem;
+    }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* Toast */
+    #toast-reglas {
+        position: fixed; bottom: 1.5rem; right: 1.5rem;
+        min-width: 260px; padding: 0.85rem 1.2rem;
+        border-radius: 0.6rem; color: #fff;
+        font-size: 0.875rem; font-weight: 500;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+        z-index: 9999; opacity: 0;
+        transform: translateY(12px);
+        transition: opacity 0.3s, transform 0.3s;
+        pointer-events: none;
+    }
+    #toast-reglas.show { opacity: 1; transform: translateY(0); }
+    #toast-reglas.ok  { background: #198754; }
+    #toast-reglas.err { background: #dc3545; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <div>
+        <h4 class="mb-0 fw-bold" style="color:#212529;">
+            <i class="fas fa-sliders-h me-2" style="color:var(--hospital-primary);"></i>
+            Reglas de Alerta
+        </h4>
+        <p class="text-muted mb-0" style="font-size:0.85rem;">
+            Umbrales configurables del motor de alertas BLE
+        </p>
+    </div>
+    <button class="btn btn-sm ms-auto"
+            style="background:var(--hospital-primary);color:#fff;border-radius:0.5rem;"
+            onclick="abrirModalNueva()">
+        <i class="fas fa-plus me-1"></i> Nueva regla
+    </button>
+</div>
+
+<!-- Contenedor de tarjetas -->
+<div id="reglas-container">
+    <div class="skeleton-row"></div>
+    <div class="skeleton-row"></div>
+    <div class="skeleton-row"></div>
+</div>
+
+<!-- ── Modal editar / crear ─────────────────────────── -->
+<div class="modal fade" id="modalRegla" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:0.75rem;border:none;">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold" id="modalReglaTitle">Nueva regla</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-2">
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" style="font-size:0.85rem;">
+                        Nombre descriptivo
+                    </label>
+                    <input type="text" id="rNombre" class="form-control"
+                           placeholder="ej: Timeout UCI extendido">
+                </div>
+
+                <div class="mb-3" id="tipoWrap">
+                    <label class="form-label fw-semibold" style="font-size:0.85rem;">Tipo</label>
+                    <select id="rTipo" class="form-select" onchange="actualizarUnidad()">
+                        <option value="sin_senal">Sin señal (minutos sin reporte)</option>
+                        <option value="bateria">Batería (minutos para alerta)</option>
+                        <option value="rssi">RSSI mínimo (dBm)</option>
+                    </select>
+                </div>
+
+                <div class="mb-1">
+                    <label class="form-label fw-semibold" style="font-size:0.85rem;">
+                        Umbral — <span id="unidadLabel" class="text-muted fw-normal">minutos</span>
+                    </label>
+                    <input type="number" id="rUmbral" class="form-control"
+                           min="-100" max="9999" step="1" placeholder="ej: 5">
+                    <div class="form-text" id="umbralHelp">
+                        Minutos sin reporte antes de marcar el beacon como Sin señal.
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-sm text-white" id="btnGuardarRegla"
+                        style="background:var(--hospital-primary);min-width:90px;"
+                        onclick="guardarRegla()">
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast-reglas"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Estado ──────────────────────────────────────────────────────────
+let _reglas   = [];
+let _editId   = null;  // null = crear, número = editar
+const modal   = new bootstrap.Modal(document.getElementById('modalRegla'));
+
+const TIPO_INFO = {
+    sin_senal: { label: 'minutos', help: 'Minutos sin reporte antes de marcar el beacon como Sin señal.' },
+    bateria:   { label: 'minutos', help: 'Minutos sin reporte para clasificar como posible batería descargada.' },
+    rssi:      { label: 'dBm',     help: 'RSSI mínimo aceptado (valor negativo, ej: -85). Lecturas por debajo se ignoran.' },
+};
+
+const TIPO_BADGE = {
+    sin_senal: 'tipo-sin_senal',
+    bateria:   'tipo-bateria',
+    rssi:      'tipo-rssi',
+};
+
+const TIPO_TEXTO = {
+    sin_senal: 'Sin señal',
+    bateria:   'Batería',
+    rssi:      'RSSI',
+};
+
+// ── Carga inicial ────────────────────────────────────────────────────
+async function cargarReglas() {
+    try {
+        const r = await fetch('/api/ble/admin/reglas');
+        _reglas  = await r.json();
+        renderReglas();
+    } catch {
+        document.getElementById('reglas-container').innerHTML =
+            '<div class="alert alert-danger">Error al cargar las reglas.</div>';
+    }
+}
+
+function renderReglas() {
+    const c = document.getElementById('reglas-container');
+    if (!_reglas.length) {
+        c.innerHTML = '<p class="text-muted">No hay reglas configuradas.</p>';
+        return;
+    }
+
+    c.innerHTML = _reglas.map(r => {
+        const esBase   = r.id <= 3;
+        const unidad   = TIPO_INFO[r.tipo]?.label || '';
+        const badgeCSS = TIPO_BADGE[r.tipo] || '';
+        const tipoTxt  = TIPO_TEXTO[r.tipo] || r.tipo;
+
+        return `
+        <div class="regla-card p-3 mb-3 d-flex align-items-center gap-3" id="card-regla-${r.id}">
+
+            <!-- Umbral grande -->
+            <div class="text-center" style="min-width:72px;">
+                <div class="umbral-display">${r.umbral_valor}</div>
+                <div class="umbral-unit">${unidad}</div>
+            </div>
+
+            <!-- Info -->
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                    <span class="fw-semibold" style="font-size:0.95rem;">${r.nombre}</span>
+                    <span class="tipo-badge ${badgeCSS}">${tipoTxt}</span>
+                    ${esBase ? '<span class="base-badge">Base</span>' : ''}
+                </div>
+                <div class="text-muted" style="font-size:0.78rem;">
+                    ${TIPO_INFO[r.tipo]?.help || ''}
+                </div>
+            </div>
+
+            <!-- Controles -->
+            <div class="d-flex align-items-center gap-3 flex-shrink-0">
+
+                <!-- Toggle activa -->
+                <label class="toggle-switch" title="${r.activa ? 'Desactivar' : 'Activar'}">
+                    <input type="checkbox" ${r.activa ? 'checked' : ''}
+                           onchange="toggleRegla(${r.id}, this)">
+                    <span class="toggle-slider"></span>
+                </label>
+
+                <!-- Editar -->
+                <button class="btn btn-sm btn-light" title="Editar"
+                        onclick="abrirModalEditar(${r.id})">
+                    <i class="fas fa-pen" style="font-size:0.8rem;"></i>
+                </button>
+
+                <!-- Eliminar (solo no-base) -->
+                ${!esBase ? `
+                <button class="btn btn-sm btn-light text-danger" title="Eliminar"
+                        onclick="eliminarRegla(${r.id})">
+                    <i class="fas fa-trash" style="font-size:0.8rem;"></i>
+                </button>` : `
+                <button class="btn btn-sm btn-light text-muted" disabled title="Regla base — no eliminable">
+                    <i class="fas fa-lock" style="font-size:0.8rem;"></i>
+                </button>`}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ── Modal ────────────────────────────────────────────────────────────
+function abrirModalNueva() {
+    _editId = null;
+    document.getElementById('modalReglaTitle').textContent = 'Nueva regla';
+    document.getElementById('rNombre').value  = '';
+    document.getElementById('rTipo').value    = 'sin_senal';
+    document.getElementById('rUmbral').value  = '';
+    document.getElementById('tipoWrap').style.display = '';
+    actualizarUnidad();
+    modal.show();
+}
+
+function abrirModalEditar(id) {
+    const r = _reglas.find(x => x.id === id);
+    if (!r) return;
+    _editId = id;
+    document.getElementById('modalReglaTitle').textContent = 'Editar regla';
+    document.getElementById('rNombre').value  = r.nombre;
+    document.getElementById('rTipo').value    = r.tipo;
+    document.getElementById('rUmbral').value  = r.umbral_valor;
+    // El tipo no se puede cambiar en edición
+    document.getElementById('tipoWrap').style.display = 'none';
+    actualizarUnidad(r.tipo);
+    modal.show();
+}
+
+function actualizarUnidad(tipoForzado) {
+    const tipo  = tipoForzado || document.getElementById('rTipo').value;
+    const info  = TIPO_INFO[tipo] || {};
+    document.getElementById('unidadLabel').textContent = info.label || '';
+    document.getElementById('umbralHelp').textContent  = info.help  || '';
+}
+
+async function guardarRegla() {
+    const nombre = document.getElementById('rNombre').value.trim();
+    const tipo   = document.getElementById('rTipo').value;
+    const umbral = parseInt(document.getElementById('rUmbral').value, 10);
+
+    if (!nombre || isNaN(umbral)) {
+        toast('Completa todos los campos', 'err'); return;
+    }
+
+    const btn = document.getElementById('btnGuardarRegla');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    try {
+        let url    = '/api/ble/admin/reglas';
+        let method = 'POST';
+        let body   = { nombre, tipo, umbral_valor: umbral };
+
+        if (_editId) {
+            url    = `/api/ble/admin/reglas/${_editId}`;
+            method = 'PUT';
+            body   = { nombre, umbral_valor: umbral };
+        }
+
+        const r  = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const res = await r.json();
+
+        if (!r.ok) { toast(res.error || 'Error al guardar', 'err'); return; }
+
+        modal.hide();
+        toast(_editId ? 'Regla actualizada' : 'Regla creada', 'ok');
+        await cargarReglas();
+
+    } catch {
+        toast('Error de conexión', 'err');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Guardar';
+    }
+}
+
+// ── Toggle ───────────────────────────────────────────────────────────
+async function toggleRegla(id, checkbox) {
+    const anterior = !checkbox.checked;
+    try {
+        const r   = await fetch(`/api/ble/admin/reglas/${id}/toggle`, { method: 'PUT' });
+        const res = await r.json();
+        if (!r.ok) { checkbox.checked = anterior; toast(res.error || 'Error', 'err'); return; }
+        // Actualizar cache local sin recargar todo
+        const reg = _reglas.find(x => x.id === id);
+        if (reg) reg.activa = res.activa;
+        toast(res.activa ? 'Regla activada' : 'Regla desactivada', 'ok');
+    } catch {
+        checkbox.checked = anterior;
+        toast('Error de conexión', 'err');
+    }
+}
+
+// ── Eliminar ─────────────────────────────────────────────────────────
+async function eliminarRegla(id) {
+    if (!confirm('¿Eliminar esta regla permanentemente?')) return;
+    try {
+        const r   = await fetch(`/api/ble/admin/reglas/${id}`, { method: 'DELETE' });
+        const res = await r.json();
+        if (!r.ok) { toast(res.error || 'No se pudo eliminar', 'err'); return; }
+        toast('Regla eliminada', 'ok');
+        await cargarReglas();
+    } catch {
+        toast('Error de conexión', 'err');
+    }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────
+function toast(msg, tipo) {
+    const t = document.getElementById('toast-reglas');
+    t.textContent = msg;
+    t.className   = `show ${tipo}`;
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => { t.className = ''; }, 3200);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', cargarReglas);
+</script>
+{% endblock %}

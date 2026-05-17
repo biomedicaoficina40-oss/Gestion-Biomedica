@@ -1,0 +1,606 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar Área' if area else 'Nueva Área' }} — Admin BLE{% endblock %}
+
+{% block customCSS %}
+<style>
+    :root {
+        --frm-accent:  #3D90AE;
+        --frm-danger:  #ef4444;
+        --frm-border:  #e5e7eb;
+        --frm-radius:  0.75rem;
+        --frm-muted:   #6b7280;
+        --frm-surface: #ffffff;
+    }
+
+    /* ── Breadcrumb ── */
+    .frm-breadcrumb {
+        display: flex; align-items: center; gap: 0.5rem;
+        font-size: 0.82rem; color: var(--frm-muted);
+        margin-bottom: 1.5rem; flex-wrap: wrap;
+    }
+    .frm-breadcrumb a {
+        color: var(--frm-accent); text-decoration: none; font-weight: 500;
+    }
+    .frm-breadcrumb a:hover { text-decoration: underline; }
+    .frm-breadcrumb i.sep { font-size: 0.65rem; color: #d1d5db; }
+
+    /* ── Layout dos columnas ── */
+    .frm-layout {
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        gap: 1.5rem;
+        align-items: start;
+    }
+    @media (max-width: 860px) {
+        .frm-layout { grid-template-columns: 1fr; }
+    }
+
+    /* ── Card base ── */
+    .frm-card {
+        background: var(--frm-surface);
+        border-radius: var(--frm-radius);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+        overflow: hidden;
+    }
+    .frm-card-header {
+        padding: 1.1rem 1.4rem;
+        border-bottom: 1px solid var(--frm-border);
+        display: flex; align-items: center; gap: 0.65rem;
+    }
+    .frm-card-header-icon {
+        width: 36px; height: 36px; border-radius: 0.5rem;
+        background: rgba(61,144,174,0.1);
+        display: flex; align-items: center; justify-content: center;
+        color: var(--frm-accent); font-size: 0.95rem; flex-shrink: 0;
+    }
+    .frm-card-header h5 {
+        font-size: 0.95rem; font-weight: 600;
+        color: #1f2937; margin: 0;
+    }
+    .frm-card-header p {
+        font-size: 0.78rem; color: var(--frm-muted); margin: 0;
+    }
+    .frm-card-body { padding: 1.4rem; }
+
+    /* ── Campos del formulario ── */
+    .frm-field { margin-bottom: 1.25rem; }
+    .frm-field:last-child { margin-bottom: 0; }
+
+    .frm-label {
+        display: block;
+        font-size: 0.8rem; font-weight: 600;
+        color: #374151; margin-bottom: 0.4rem;
+        letter-spacing: 0.01em;
+    }
+    .frm-label span.req { color: var(--frm-danger); margin-left: 2px; }
+
+    .frm-input, .frm-select {
+        width: 100%;
+        padding: 0.55rem 0.85rem;
+        border: 1.5px solid var(--frm-border);
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        color: #1f2937;
+        background: #fff;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        font-family: inherit;
+    }
+    .frm-input:focus, .frm-select:focus {
+        border-color: var(--frm-accent);
+        box-shadow: 0 0 0 3px rgba(61,144,174,0.12);
+    }
+    .frm-input.error  { border-color: var(--frm-danger); }
+    .frm-input.ok     { border-color: #10b981; }
+
+    /* Input con ícono prefijo */
+    .frm-input-wrap { position: relative; }
+    .frm-input-wrap .frm-input { padding-left: 2.4rem; }
+    .frm-input-wrap .frm-prefix-icon {
+        position: absolute; left: 0.75rem; top: 50%;
+        transform: translateY(-50%);
+        color: var(--frm-muted); font-size: 0.8rem;
+        pointer-events: none;
+    }
+
+    /* Código monospace para esp32_id */
+    #inp_esp32 { font-family: 'Courier New', monospace; font-size: 0.85rem; }
+
+    .frm-hint {
+        font-size: 0.76rem; color: var(--frm-muted);
+        margin-top: 0.3rem; display: block;
+    }
+    .frm-error-msg {
+        font-size: 0.76rem; color: var(--frm-danger);
+        margin-top: 0.3rem; display: none;
+    }
+    .frm-error-msg.show { display: block; }
+
+    /* ── Selector de piso visual ── */
+    .piso-selector {
+        display: flex; gap: 0.5rem; flex-wrap: wrap;
+    }
+    .piso-opt {
+        flex: 1; min-width: 60px;
+        padding: 0.55rem 0.5rem;
+        border: 1.5px solid var(--frm-border);
+        border-radius: 0.5rem;
+        text-align: center;
+        cursor: pointer;
+        font-size: 0.85rem; font-weight: 600;
+        color: var(--frm-muted);
+        transition: all 0.15s;
+        user-select: none;
+    }
+    .piso-opt:hover { border-color: var(--frm-accent); color: var(--frm-accent); }
+    .piso-opt.selected {
+        border-color: var(--frm-accent);
+        background: var(--frm-accent);
+        color: white;
+    }
+    .piso-opt span { display: block; font-size: 0.65rem; font-weight: 400; opacity: 0.8; }
+
+    /* ── Botones footer ── */
+    .frm-footer {
+        display: flex; gap: 0.75rem;
+        padding: 1rem 1.4rem;
+        border-top: 1px solid var(--frm-border);
+        background: #f9fafb;
+        flex-wrap: wrap;
+    }
+    .frm-btn {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        padding: 0.55rem 1.1rem;
+        border-radius: 0.5rem; border: none;
+        font-size: 0.875rem; font-weight: 500;
+        cursor: pointer; transition: all 0.18s;
+        text-decoration: none;
+    }
+    .frm-btn-primary {
+        background: var(--frm-accent); color: white;
+    }
+    .frm-btn-primary:hover  { background: #2d7a96; color: white; }
+    .frm-btn-primary:active { transform: scale(0.97); }
+    .frm-btn-primary:disabled {
+        opacity: 0.6; pointer-events: none;
+    }
+    .frm-btn-ghost {
+        background: transparent; color: var(--frm-muted);
+        border: 1.5px solid var(--frm-border);
+    }
+    .frm-btn-ghost:hover { border-color: #9ca3af; color: #374151; }
+
+    /* Spinner dentro del botón */
+    .frm-btn .spinner {
+        width: 14px; height: 14px;
+        border: 2px solid rgba(255,255,255,0.4);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        display: none;
+    }
+    .frm-btn.loading .spinner { display: inline-block; }
+    .frm-btn.loading .btn-icon { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Card lateral: ayuda ── */
+    .help-item {
+        display: flex; gap: 0.75rem;
+        padding: 0.85rem 0;
+        border-bottom: 1px solid var(--frm-border);
+    }
+    .help-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .help-icon {
+        width: 30px; height: 30px; border-radius: 0.4rem;
+        background: rgba(61,144,174,0.1);
+        display: flex; align-items: center; justify-content: center;
+        color: var(--frm-accent); font-size: 0.8rem; flex-shrink: 0;
+    }
+    .help-item h6 { font-size: 0.8rem; font-weight: 600; color: #374151; margin: 0 0 0.15rem; }
+    .help-item p  { font-size: 0.76rem; color: var(--frm-muted); margin: 0; line-height: 1.45; }
+
+    /* ── Preview del área ── */
+    .area-preview {
+        background: #f9fafb;
+        border: 1.5px dashed var(--frm-border);
+        border-radius: 0.6rem;
+        padding: 1rem;
+        margin-top: 0.25rem;
+    }
+    .area-preview-nombre {
+        font-weight: 700; font-size: 1rem; color: #1f2937; margin-bottom: 0.3rem;
+    }
+    .area-preview-sub {
+        font-size: 0.78rem; color: var(--frm-muted);
+        display: flex; gap: 0.75rem; flex-wrap: wrap;
+    }
+    .area-preview-sub span { display: flex; align-items: center; gap: 0.3rem; }
+
+    /* Badge estado nuevo */
+    .badge-nueva {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        padding: 0.2rem 0.6rem; border-radius: 999px;
+        font-size: 0.72rem; font-weight: 600;
+        background: #d1fae5; color: #065f46;
+    }
+
+    /* ── Toast ── */
+    .adm-toast {
+        position: fixed; bottom: 1.5rem; right: 1.5rem;
+        padding: 0.75rem 1.1rem; border-radius: 0.6rem;
+        font-size: 0.875rem; font-weight: 500; color: white;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+        display: flex; align-items: center; gap: 0.5rem;
+        z-index: 9999;
+        transform: translateY(80px); opacity: 0;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+        pointer-events: none;
+    }
+    .adm-toast.show { transform: translateY(0); opacity: 1; }
+    .adm-toast.ok  { background: #10b981; }
+    .adm-toast.err { background: var(--frm-danger); }
+</style>
+{% endblock %}
+
+{% block body %}
+
+<!-- ── Breadcrumb ── -->
+<div class="frm-breadcrumb">
+    <a href="{{ url_for('ble.admin_panel') }}">
+        <i class="fas fa-cogs"></i> Admin BLE
+    </a>
+    <i class="fas fa-chevron-right sep"></i>
+    <span>{{ 'Editar Área' if area else 'Nueva Área' }}</span>
+</div>
+
+<!-- ── Layout ── -->
+<div class="frm-layout">
+
+    <!-- ══ COLUMNA PRINCIPAL: FORMULARIO ══ -->
+    <div class="frm-card">
+        <div class="frm-card-header">
+            <div class="frm-card-header-icon">
+                <i class="fas fa-{{ 'pen' if area else 'plus' }}"></i>
+            </div>
+            <div>
+                <h5>{{ 'Editar área' if area else 'Registrar nueva área' }}</h5>
+                <p>{{ 'Modifica los datos del área y su ESP32 asociado.' if area else 'Completa los campos para dar de alta un área en el sistema BLE.' }}</p>
+            </div>
+        </div>
+
+        <div class="frm-card-body">
+
+            <!-- Nombre -->
+            <div class="frm-field">
+                <label class="frm-label" for="inp_nombre">
+                    Nombre del área <span class="req">*</span>
+                </label>
+                <div class="frm-input-wrap">
+                    <i class="fas fa-map-marker-alt frm-prefix-icon"></i>
+                    <input id="inp_nombre" class="frm-input"
+                           type="text" maxlength="100"
+                           placeholder="ej. UCI Piso 2"
+                           value="{{ area.nombre if area else '' }}"
+                           oninput="actualizarPreview()">
+                </div>
+                <span class="frm-error-msg" id="err_nombre">El nombre es obligatorio.</span>
+            </div>
+
+            <!-- Piso (selector visual) -->
+            <div class="frm-field">
+                <label class="frm-label">
+                    Nivel / Piso <span class="req">*</span>
+                </label>
+                <div class="piso-selector" id="pisoSelector">
+                    {% for n in [1,2,3,4] %}
+                    <div class="piso-opt {{ 'selected' if area and area.piso == n else '' }}"
+                         data-piso="{{ n }}"
+                         onclick="seleccionarPiso({{ n }}, this)">
+                        Nivel {{ n }}
+                        <span>Piso {{ n }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                <input type="hidden" id="inp_piso" value="{{ area.piso if area else '' }}">
+                <input type="hidden" id="csrf_token" value="{{ csrf_token() }}">
+                <span class="frm-error-msg" id="err_piso">Selecciona un nivel.</span>
+            </div>
+
+            <!-- ESP32 ID -->
+            <div class="frm-field">
+                <label class="frm-label" for="inp_esp32">
+                    ID del ESP32 <span class="req">*</span>
+                </label>
+                <div class="frm-input-wrap">
+                    <i class="fas fa-microchip frm-prefix-icon"></i>
+                    <input id="inp_esp32" class="frm-input"
+                           type="text" maxlength="50"
+                           placeholder="ej. esp32-piso2-uci"
+                           value="{{ area.esp32_id if area else '' }}"
+                           oninput="actualizarPreview(); limpiarError('err_esp32')">
+                </div>
+                <span class="frm-hint">
+                    Debe coincidir exactamente con <code>ESP32_ID</code> en el <code>config.h</code> del firmware.
+                </span>
+                <span class="frm-error-msg" id="err_esp32">El ID del ESP32 es obligatorio.</span>
+                <span class="frm-error-msg" id="err_esp32_dup">Este ID ya está registrado en otra área.</span>
+            </div>
+
+            <!-- Preview dinámica -->
+            <div class="frm-field">
+                <label class="frm-label">Vista previa</label>
+                <div class="area-preview">
+                    <div class="area-preview-nombre" id="prev_nombre">—</div>
+                    <div class="area-preview-sub">
+                        <span><i class="fas fa-layer-group"></i> <span id="prev_piso">Sin nivel</span></span>
+                        <span><i class="fas fa-microchip"></i> <code id="prev_esp32">—</code></span>
+                        <span><span class="badge-nueva"><span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block"></span> Nueva</span></span>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /card-body -->
+
+        <div class="frm-footer">
+            <button id="btnGuardar" class="frm-btn frm-btn-primary" onclick="guardar()">
+                <i class="fas fa-save btn-icon"></i>
+                <span class="spinner"></span>
+                {{ 'Guardar cambios' if area else 'Crear área' }}
+            </button>
+            <a href="{{ url_for('ble.admin_panel') }}" class="frm-btn frm-btn-ghost">
+                <i class="fas fa-arrow-left"></i> Cancelar
+            </a>
+        </div>
+    </div><!-- /frm-card principal -->
+
+    <!-- ══ COLUMNA LATERAL: AYUDA ══ -->
+    <div style="display:flex; flex-direction:column; gap:1.25rem;">
+
+        <div class="frm-card">
+            <div class="frm-card-header">
+                <div class="frm-card-header-icon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div>
+                    <h5>Guía de campos</h5>
+                </div>
+            </div>
+            <div class="frm-card-body" style="padding-top:0.5rem">
+                <div class="help-item">
+                    <div class="help-icon"><i class="fas fa-map-marker-alt"></i></div>
+                    <div>
+                        <h6>Nombre del área</h6>
+                        <p>Nombre legible que verán los usuarios en el panel, ej. <em>Quirófano 3</em> o <em>Farmacia PB</em>.</p>
+                    </div>
+                </div>
+                <div class="help-item">
+                    <div class="help-icon"><i class="fas fa-layer-group"></i></div>
+                    <div>
+                        <h6>Nivel / Piso</h6>
+                        <p>Planta física del hospital donde está instalado el ESP32. Afecta filtros y agrupaciones del dashboard.</p>
+                    </div>
+                </div>
+                <div class="help-item">
+                    <div class="help-icon"><i class="fas fa-microchip"></i></div>
+                    <div>
+                        <h6>ID del ESP32</h6>
+                        <p>Identificador único que va en <code>config.h</code> del firmware. Cada ESP32 debe tener un ID distinto. Convención: <code>esp32-pisoN-zona</code>.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if area %}
+        <div class="frm-card">
+            <div class="frm-card-header">
+                <div class="frm-card-header-icon" style="background:rgba(239,68,68,0.1)">
+                    <i class="fas fa-exclamation-triangle" style="color:#ef4444"></i>
+                </div>
+                <div>
+                    <h5>Zona de peligro</h5>
+                </div>
+            </div>
+            <div class="frm-card-body">
+                <p style="font-size:0.8rem;color:#6b7280;margin-bottom:0.85rem">
+                    Desactivar el área la oculta del sistema sin borrar su historial.
+                    Se puede reactivar desde el panel de administración.
+                </p>
+                <button class="frm-btn"
+                        style="border:1.5px solid #fca5a5;color:#ef4444;background:transparent;width:100%"
+                        onclick="desactivarDesdeForm({{ area.id }})">
+                    <i class="fas fa-toggle-{{ 'off' if area.activa else 'on' }}"></i>
+                    {{ 'Desactivar esta área' if area.activa else 'Reactivar esta área' }}
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+    </div><!-- /columna lateral -->
+
+</div><!-- /frm-layout -->
+
+<div class="adm-toast" id="admToast"></div>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+// ══════════════════════════════════════════════════════════
+//  DATOS DESDE FLASK
+// ══════════════════════════════════════════════════════════
+const MODO      = '{{ "editar" if area else "crear" }}';
+const AREA_ID   = {{ area.id if area else 'null' }};
+const URL_ADMIN = '{{ url_for("ble.admin_panel") }}';
+
+// ══════════════════════════════════════════════════════════
+//  SELECTOR DE PISO
+// ══════════════════════════════════════════════════════════
+function seleccionarPiso(n, el) {
+    document.querySelectorAll('.piso-opt').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('inp_piso').value = n;
+    limpiarError('err_piso');
+    actualizarPreview();
+}
+
+// ══════════════════════════════════════════════════════════
+//  PREVIEW EN TIEMPO REAL
+// ══════════════════════════════════════════════════════════
+function actualizarPreview() {
+    const nombre = document.getElementById('inp_nombre').value.trim();
+    const piso   = document.getElementById('inp_piso').value;
+    const esp32  = document.getElementById('inp_esp32').value.trim();
+
+    document.getElementById('prev_nombre').textContent = nombre || '—';
+    document.getElementById('prev_piso').textContent   = piso ? `Nivel ${piso}` : 'Sin nivel';
+    document.getElementById('prev_esp32').textContent  = esp32 || '—';
+}
+
+// ══════════════════════════════════════════════════════════
+//  VALIDACIÓN
+// ══════════════════════════════════════════════════════════
+function validar() {
+    let ok = true;
+
+    const nombre = document.getElementById('inp_nombre').value.trim();
+    const piso   = document.getElementById('inp_piso').value;
+    const esp32  = document.getElementById('inp_esp32').value.trim();
+
+    // Nombre
+    if (!nombre) {
+        mostrarError('err_nombre'); ok = false;
+    } else {
+        limpiarError('err_nombre');
+    }
+
+    // Piso
+    if (!piso) {
+        mostrarError('err_piso'); ok = false;
+    } else {
+        limpiarError('err_piso');
+    }
+
+    // ESP32 ID
+    if (!esp32) {
+        mostrarError('err_esp32'); ok = false;
+    } else {
+        limpiarError('err_esp32');
+    }
+
+    return ok;
+}
+
+function mostrarError(id) {
+    document.getElementById(id)?.classList.add('show');
+}
+function limpiarError(id) {
+    document.getElementById(id)?.classList.remove('show');
+}
+
+// ══════════════════════════════════════════════════════════
+//  GUARDAR (crear o editar)
+// ══════════════════════════════════════════════════════════
+async function guardar() {
+    limpiarError('err_esp32_dup');
+    if (!validar()) return;
+
+    const btn    = document.getElementById('btnGuardar');
+    const nombre = document.getElementById('inp_nombre').value.trim();
+    const piso   = parseInt(document.getElementById('inp_piso').value);
+    const esp32  = document.getElementById('inp_esp32').value.trim();
+
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    try {
+        const url    = MODO === 'editar'
+            ? `/api/ble/admin/areas/${AREA_ID}`
+            : '/api/ble/admin/areas';
+        const method = MODO === 'editar' ? 'PUT' : 'POST';
+
+const res  = await fetch(url, {
+            method,
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.getElementById('csrf_token').value 
+            },
+            body: JSON.stringify({ nombre, piso, esp32_id: esp32 })
+        });
+        const data = await res.json();
+
+        if (res.status === 409) {
+            mostrarError('err_esp32_dup');
+            document.getElementById('inp_esp32').classList.add('error');
+            return;
+        }
+        if (!res.ok) throw new Error(data.error || 'Error del servidor');
+
+        // Éxito → redirigir al panel con parámetro de toast
+        const msg = encodeURIComponent(
+            MODO === 'editar' ? 'Área actualizada correctamente' : 'Área creada correctamente'
+        );
+        window.location.href = `${URL_ADMIN}?toast=${msg}&tipo=ok`;
+
+    } catch (err) {
+        toast(err.message || 'Error inesperado', 'err');
+    } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+//  DESACTIVAR DESDE EL FORMULARIO DE EDICIÓN
+// ══════════════════════════════════════════════════════════
+async function desactivarDesdeForm(id) {
+    const area   = document.getElementById('inp_nombre').value || 'esta área';
+    const activa = {{ 'true' if area and area.activa else 'false' }};
+    const accion = activa ? 'desactivar' : 'reactivar';
+
+    if (!confirm(`¿Confirmas ${accion} "${area}"?`)) return;
+
+    try {
+        const res  = await fetch(`/api/ble/admin/areas/${id}`, { 
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': document.getElementById('csrf_token').value
+            }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error');
+
+        const msg = encodeURIComponent(activa ? 'Área desactivada' : 'Área reactivada');
+        window.location.href = `${URL_ADMIN}?toast=${msg}&tipo=ok`;
+    } catch (err) {
+        toast(err.message, 'err');
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════════════
+let _toastTimer = null;
+function toast(msg, tipo = 'ok') {
+    const t    = document.getElementById('admToast');
+    const icon = tipo === 'ok' ? 'fa-check-circle' : 'fa-exclamation-circle';
+    t.innerHTML = `<i class="fas ${icon}"></i> ${msg}`;
+    t.className = `adm-toast ${tipo} show`;
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// ══════════════════════════════════════════════════════════
+//  LEER TOAST DESDE URL (regreso del form al panel)
+// ══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+    actualizarPreview();
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('toast')) {
+        toast(decodeURIComponent(params.get('toast')), params.get('tipo') || 'ok');
+        // Limpiar URL sin recargar
+        history.replaceState(null, '', window.location.pathname);
+    }
+});
+</script>
+{% endblock %}

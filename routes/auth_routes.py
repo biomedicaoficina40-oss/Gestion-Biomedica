@@ -5,6 +5,7 @@ from models.entities.User import User
 from database.db import get_connection
 
 
+
 auth_bp = Blueprint('auth', __name__)
 
 

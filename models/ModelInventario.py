@@ -406,20 +406,20 @@ class ModelInventario:
                 os.remove(filepath)
             raise ValueError(f"Error al procesar la imagen: {e}")
 
-@classmethod
-def eliminar_archivo_fisico(cls, ruta_relativa):
-    """
-    Borra una imagen física del disco.
-    ruta_relativa viene de la columna 'imagen' en la BD.
-    Ej: 'equipos/20250401_abc123.jpg'
-    """
-    if not ruta_relativa:
-        return
-    try:
-        path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), '..', 'static', 'uploads', ruta_relativa)
-        )
-        if os.path.exists(path):
-            os.remove(path)
-    except Exception as e:
-        print(f"Error eliminar_archivo_fisico [{ruta_relativa}]: {e}")
+    @classmethod
+    def eliminar_archivo_fisico(cls, ruta_relativa):
+        """
+        Borra una imagen física del disco.
+        ruta_relativa viene de la columna 'imagen' en la BD.
+        Ej: 'equipos/20250401_abc123.jpg'
+        """
+        if not ruta_relativa:
+            return
+        try:
+            path = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), '..', 'static', 'uploads', ruta_relativa)
+            )
+            if os.path.exists(path):
+                os.remove(path)
+        except Exception as e:
+            print(f"Error eliminar_archivo_fisico [{ruta_relativa}]: {e}")

@@ -9,6 +9,7 @@ from io import BytesIO
 from models.ModelInventario import ModelInventario
 from models.model_recursos import ModelRecursos
 from models.ModelReportes import ModelReportes
+from models.ModelUsuarios import ModelUsuarios
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -471,20 +472,7 @@ def categorias():
     return redirect(url_for('admin.ver_inventario'))
 
 
-# ── Usuarios ───────────────────────────────────────────────────
 
-@admin_bp.route('/usuarios')
-@login_required
-def usuarios():
-    # TODO: Implementar gestión de usuarios
-    # Listar todos los usuarios del sistema
-    # Acciones: crear, editar rol, activar/desactivar, resetear contraseña
-    # Roles sugeridos: admin, tecnico, visualizador
-    # Modelo: ModelUsuarios.get_all(db)
-    flash('Gestión de usuarios en construcción', 'info')
-    return redirect(url_for('admin.ver_inventario'))
-
-# ── Recursos de Equipos ────────────────────────────────────────
 
 @admin_bp.route('/inventario/<int:id>/recursos')
 @login_required
@@ -596,3 +584,90 @@ def eliminar_recurso(id, recurso_id):
         flash('Error al eliminar el recurso.', 'error')
 
     return redirect(url_for('admin.ver_recursos', id=id))
+
+
+# ── Gestión de Usuarios ───────────────────────────────────────
+# Pega este bloque en tu admin_bp, después de los imports existentes.
+# Agrega también al tope del archivo:
+#   from models.ModelUsuarios import ModelUsuarios
+
+@admin_bp.route('/usuarios')
+@login_required
+def ver_usuarios():
+    usuarios = ModelUsuarios.get_all()
+    return render_template('admin/usuarios.html', usuarios=usuarios)
+
+
+@admin_bp.route('/usuarios/crear', methods=['POST'])
+@login_required
+def crear_usuario():
+    nombre   = request.form.get('NombreUsuario', '').strip()
+    apellido = request.form.get('Apellido', '').strip()
+    email    = request.form.get('Email', '').strip()
+    password = request.form.get('Password', '').strip()
+    permiso  = request.form.get('Permiso', 'Usuario')
+
+    # ── Validaciones básicas ──
+    if not all([nombre, apellido, email, password]):
+        flash('Todos los campos son obligatorios.', 'error')
+        return redirect(url_for('admin.ver_usuarios'))
+
+    if ModelUsuarios.email_existe(email):
+        flash('Ya existe un usuario con ese email.', 'error')
+        return redirect(url_for('admin.ver_usuarios'))
+
+    try:
+        ModelUsuarios.crear(nombre, apellido, email, password, permiso)
+        flash(f'Usuario {nombre} creado correctamente.', 'success')
+    except Exception as e:
+        current_app.logger.error(f'Error al crear usuario: {e}')
+        flash('Error al crear el usuario.', 'error')
+
+    return redirect(url_for('admin.ver_usuarios'))
+
+
+@admin_bp.route('/usuarios/<int:uid>/editar', methods=['POST'])
+@login_required
+def editar_usuario(uid):
+    nombre   = request.form.get('NombreUsuario', '').strip()
+    apellido = request.form.get('Apellido', '').strip()
+    email    = request.form.get('Email', '').strip()
+    password = request.form.get('Password', '').strip() or None
+    permiso  = request.form.get('Permiso', 'Usuario')
+    estado   = int(request.form.get('Estado', 1))
+
+    if not all([nombre, apellido, email]):
+        flash('Nombre, apellido y email son obligatorios.', 'error')
+        return redirect(url_for('admin.ver_usuarios'))
+
+    if ModelUsuarios.email_existe(email, exclude_uid=uid):
+        flash('Ese email ya está en uso por otro usuario.', 'error')
+        return redirect(url_for('admin.ver_usuarios'))
+
+    try:
+        ModelUsuarios.editar(uid, nombre, apellido, email, permiso, estado, password)
+        flash(f'Usuario {nombre} actualizado correctamente.', 'success')
+    except Exception as e:
+        current_app.logger.error(f'Error al editar usuario {uid}: {e}')
+        flash('Error al actualizar el usuario.', 'error')
+
+    return redirect(url_for('admin.ver_usuarios'))
+
+
+@admin_bp.route('/usuarios/<int:uid>/toggle', methods=['POST'])
+@login_required
+def toggle_estado_usuario(uid):
+    try:
+        u = ModelUsuarios.get_by_id(uid)
+        if not u:
+            flash('Usuario no encontrado.', 'error')
+            return redirect(url_for('admin.ver_usuarios'))
+
+        ModelUsuarios.toggle_estado(uid)
+        nuevo = 'desactivado' if u['Estado'] else 'activado'
+        flash(f'Usuario {u["NombreUsuario"]} {nuevo} correctamente.', 'success')
+    except Exception as e:
+        current_app.logger.error(f'Error al cambiar estado del usuario {uid}: {e}')
+        flash('Error al cambiar el estado.', 'error')
+
+    return redirect(url_for('admin.ver_usuarios'))

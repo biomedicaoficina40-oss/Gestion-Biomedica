@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -350,10 +351,47 @@
                     </li>
 
                     <li>
-                        <a class="nav-link" href="{{ url_for('admin.usuarios') }}">
+                        <a class="nav-link" href="{{ url_for('admin.ver_usuarios') }}">
                             <i class="fas fa-users nav-icon"></i>
                             <span class="nav-link-text">Usuarios</span>
                         </a>
+                    </li>
+                    <li class="nav-section-label">Localización BLE</li>
+
+                    <li>
+                        <button class="nav-link w-100 border-0 bg-transparent"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#bleMenu"
+                            aria-expanded="false"
+                            aria-controls="bleMenu">
+                            <i class="fas fa-map-marker-alt nav-icon"></i>
+                            <span class="nav-link-text">Localización</span>
+                            <i class="fas fa-chevron-right nav-arrow"></i>
+                        </button>
+                        <div class="collapse nav-dropdown-menu" id="bleMenu">
+
+                            <a class="nav-link" href="{{ url_for('ble.admin_panel') }}">
+                                <i class="fas fa-cogs nav-icon"></i>
+                                <span class="nav-link-text">Administración</span>
+                            </a>
+                            <a class="nav-link" href="{{ url_for('ble.admin_reglas') }}">
+                                <i class="fas fa-sliders-h nav-icon"></i>
+                                <span class="nav-link-text">Reglas de Alerta</span>
+                            </a>
+                            <a class="nav-link" href="{{ url_for('ble.dashboard') }}">
+                                <i class="fas fa-tachometer-alt nav-icon"></i>
+                                <span class="nav-link-text">Dashboard</span>
+                            </a>
+                            <a class="nav-link" href="{{ url_for('ble.buscar') }}">
+                                <i class="fas fa-search nav-icon"></i>
+                                <span class="nav-link-text">Buscar Equipo</span>
+                            </a>
+                            <a class="nav-link" href="{{ url_for('ble.ver_alertas') }}">
+                                <i class="fas fa-bell nav-icon"></i>
+                                <span class="nav-link-text">Alertas</span>
+                            </a>
+                        </div>
                     </li>
 
                     {% endif %}
