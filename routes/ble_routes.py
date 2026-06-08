@@ -151,7 +151,15 @@ def recibir_lecturas():
                 continue
 
             # Actualizar posicion actual
-            ModelBLE.upsert_posicion_actual(db, beacon_id, area_id, rssi)
+            ok_pos = ModelBLE.upsert_posicion_actual(db, beacon_id, area_id, rssi)
+            if not ok_pos:
+                current_app.logger.warning(
+                    f"[BLE/lecturas] Falló upsert_posicion_actual "
+                    f"beacon_id={beacon_id} area_id={area_id} rssi={rssi}"
+                )
+                # No hacemos continue: la lectura histórica ya quedó guardada,
+                # solo falló la actualización de posición actual.
+
             procesados += 1
 
         # ── 5. Marcar Sin senal ───────────────────────────────

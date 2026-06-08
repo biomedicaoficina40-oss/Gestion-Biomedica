@@ -365,52 +365,71 @@ class ModelBLE:
     def upsert_posicion_actual(cls, db, beacon_id: int,
                             area_id: int, rssi: int) -> bool:
         """
-        Actualiza posición actual del beacon de forma ATÓMICA (MERGE).
-        Soporta múltiples ESP32 con el mismo esp32_id en la misma área:
-        - Misma área   → actualiza ultima_vez siempre; rssi_max solo si mejora.
-        - Área distinta → solo cambia si el nuevo RSSI supera al actual en ≥5 dBm.
-        El MERGE evita race conditions cuando dos ESP32 escriben simultáneamente.
+        Actualiza la posición actual del beacon.
+        - Si ya existe en la misma área: refresca ultima_vez y rssi_max si mejora.
+        - Si existe en área distinta: solo mueve si el nuevo RSSI supera en ≥5 dBm
+        al mejor registrado (anti-parpadeo entre áreas adyacentes).
+        - Si no existe: inserta.
+        En TODOS los casos donde el beacon ya existe actualiza ultima_vez
+        para evitar falsos 'Sin señal'.
         """
         cursor = None
         try:
             ahora = datetime.utcnow()
             cursor = db.cursor()
-            cursor.execute("""
-                MERGE ble_posicion_actual AS tgt
-                USING (
-                    SELECT ? AS beacon_id,
-                        ? AS area_id,
-                        ? AS rssi_nuevo,
-                        ? AS ahora
-                ) AS src ON tgt.beacon_id = src.beacon_id
 
-                -- Mismo área: actualizar siempre ultima_vez;
-                --             rssi_max solo si la nueva lectura es mejor
-                WHEN MATCHED AND tgt.area_id = src.area_id
-                    THEN UPDATE SET
-                        rssi_max   = CASE
-                                    WHEN src.rssi_nuevo > tgt.rssi_max
-                                    THEN src.rssi_nuevo
-                                    ELSE tgt.rssi_max
-                                    END,
-                        ultima_vez = src.ahora,
-                        estado     = 'Localizado'
+            # ── 1. Leer estado actual ─────────────────────────────────
+            cursor.execute(
+                f"SELECT area_id, rssi_max "
+                f"FROM {cls.T_POS} "
+                f"WHERE beacon_id = ?",
+                (beacon_id,)
+            )
+            row = cursor.fetchone()
 
-                -- Área distinta: solo mover si el nuevo RSSI supera en ≥5 dBm
-                --                (anti-parpadeo para áreas adyacentes)
-                WHEN MATCHED AND src.rssi_nuevo > (ISNULL(tgt.rssi_max, -100) - 5)
-                    THEN UPDATE SET
-                        area_id    = src.area_id,
-                        rssi_max   = src.rssi_nuevo,
-                        ultima_vez = src.ahora,
-                        estado     = 'Localizado'
+            if row is None:
+                # ── 2a. Primera vez que se ve este beacon ─────────────
+                cursor.execute(
+                    f"INSERT INTO {cls.T_POS} "
+                    f"(beacon_id, area_id, rssi_max, ultima_vez, estado) "
+                    f"VALUES (?, ?, ?, ?, 'Localizado')",
+                    (beacon_id, area_id, rssi, ahora)
+                )
 
-                -- Primera lectura del beacon
-                WHEN NOT MATCHED
-                    THEN INSERT (beacon_id, area_id, rssi_max, ultima_vez, estado)
-                        VALUES (src.beacon_id, src.area_id,
-                                src.rssi_nuevo, src.ahora, 'Localizado');
-            """, (beacon_id, area_id, rssi, ahora))
+            else:
+                area_actual  = row[0]
+                rssi_max_act = row[1] if row[1] is not None else -100
+
+                if area_actual == area_id:
+                    # ── 2b. Misma área: refrescar siempre ────────────
+                    nuevo_rssi_max = rssi if rssi > rssi_max_act else rssi_max_act
+                    cursor.execute(
+                        f"UPDATE {cls.T_POS} "
+                        f"SET rssi_max = ?, ultima_vez = ?, estado = 'Localizado' "
+                        f"WHERE beacon_id = ?",
+                        (nuevo_rssi_max, ahora, beacon_id)
+                    )
+                elif rssi > (rssi_max_act - 5):
+                    # ── 2c. Área distinta con señal suficientemente mejor:
+                    #        mover el beacon (y actualizar ultima_vez) ──────
+                    cursor.execute(
+                        f"UPDATE {cls.T_POS} "
+                        f"SET area_id = ?, rssi_max = ?, "
+                        f"    ultima_vez = ?, estado = 'Localizado' "
+                        f"WHERE beacon_id = ?",
+                        (area_id, rssi, ahora, beacon_id)
+                    )
+                else:
+                    # ── 2d. Área distinta con señal débil: NO mover,
+                    #        pero SÍ refrescar ultima_vez para no marcar
+                    #        como 'Sin señal' un beacon que sigue activo ──
+                    cursor.execute(
+                        f"UPDATE {cls.T_POS} "
+                        f"SET ultima_vez = ?, estado = 'Localizado' "
+                        f"WHERE beacon_id = ?",
+                        (ahora, beacon_id)
+                    )
+
             db.commit()
             return True
 

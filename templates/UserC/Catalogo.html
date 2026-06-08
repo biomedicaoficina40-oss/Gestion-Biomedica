@@ -262,6 +262,7 @@
     .data-field {
         display: flex;
         flex-direction: column;
+        min-width: 0;
     }
 
     .data-label {
@@ -275,6 +276,8 @@
         font-size: 1.125rem;
         font-weight: 500;
         color: #212529;
+        overflow-wrap: break-word; /* ← parte palabras largas si es necesario */
+        word-break: break-word;
     }
 
     .status-badge {
