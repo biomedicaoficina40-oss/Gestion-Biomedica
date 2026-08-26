@@ -1,0 +1,391 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Mantenimiento — {{ equipo.equipo_unidad }}{% endblock %}
+
+{% block customCSS %}
+<style>
+    /* ── Breadcrumb ── */
+    .mant-breadcrumb {
+        font-size: 0.82rem;
+        color: #6c757d;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+    }
+    .mant-breadcrumb a { color: var(--hospital-primary); text-decoration: none; }
+    .mant-breadcrumb a:hover { text-decoration: underline; }
+    .mant-breadcrumb i { font-size: 0.65rem; color: #adb5bd; }
+
+    /* ── Header del equipo ── */
+    .equipo-header {
+        background: #fff;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1.1rem;
+    }
+    .equipo-header-icon {
+        width: 46px; height: 46px;
+        border-radius: 0.55rem;
+        background: rgba(61,144,174,0.1);
+        color: var(--hospital-primary);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.25rem; flex-shrink: 0;
+    }
+    .equipo-header-info h2 {
+        font-size: 1.05rem; font-weight: 700;
+        color: #212529; margin: 0 0 0.15rem;
+    }
+    .equipo-header-info p {
+        font-size: 0.8rem; color: #6c757d; margin: 0;
+    }
+
+    /* ── Card del formulario ── */
+    .form-card {
+        background: #fff;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+    .form-card-header {
+        padding: 0.9rem 1.5rem;
+        border-bottom: 1px solid rgba(0,0,0,0.06);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .form-card-header h5 {
+        font-size: 0.92rem; font-weight: 600;
+        color: #212529; margin: 0;
+    }
+    .form-card-header i { color: var(--hospital-primary); }
+    .form-card-body { padding: 1.5rem; }
+
+    /* ── Labels y campos ── */
+    .form-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #495057;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.35rem;
+    }
+    .form-control, .form-select {
+        font-size: 0.9rem;
+        border-radius: 0.5rem;
+        border: 1.5px solid #dee2e6;
+        padding: 0.55rem 0.85rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: var(--hospital-primary);
+        box-shadow: 0 0 0 3px rgba(61,144,174,0.15);
+        outline: none;
+    }
+    textarea.form-control { min-height: 90px; resize: vertical; }
+
+    /* ── Hint bajo los campos de fecha ── */
+    .campo-hint {
+        font-size: 0.75rem;
+        color: #adb5bd;
+        margin-top: 0.3rem;
+    }
+    .campo-hint i { font-size: 0.7rem; }
+
+    /* ── Grid 2 columnas ── */
+    .form-grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.1rem;
+    }
+    @media (max-width: 576px) {
+        .form-grid-2 { grid-template-columns: 1fr; }
+    }
+
+    /* ── Botones ── */
+    .form-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        padding-top: 0.5rem;
+    }
+    .btn-guardar {
+        background: var(--hospital-primary);
+        color: white; border: none;
+        border-radius: 0.5rem;
+        padding: 0.6rem 1.4rem;
+        font-size: 0.88rem; font-weight: 500;
+        display: inline-flex; align-items: center; gap: 0.45rem;
+        cursor: pointer;
+        transition: background 0.2s, box-shadow 0.2s;
+    }
+    .btn-guardar:hover {
+        background: #2e7a96;
+        box-shadow: 0 4px 12px rgba(61,144,174,0.3);
+    }
+    .btn-cancelar {
+        background: transparent;
+        color: #6c757d;
+        border: 1.5px solid #dee2e6;
+        border-radius: 0.5rem;
+        padding: 0.6rem 1.1rem;
+        font-size: 0.88rem;
+        display: inline-flex; align-items: center; gap: 0.45rem;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    .btn-cancelar:hover {
+        color: var(--hospital-primary);
+        border-color: var(--hospital-primary);
+    }
+
+    /* ── Aviso de autocompletado ── */
+    .aviso-autocomplete {
+        background: rgba(61,144,174,0.06);
+        border: 1px solid rgba(61,144,174,0.2);
+        border-radius: 0.5rem;
+        padding: 0.65rem 1rem;
+        font-size: 0.8rem;
+        color: #495057;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        margin-bottom: 1.1rem;
+    }
+    .aviso-autocomplete i { color: var(--hospital-primary); margin-top: 0.1rem; flex-shrink: 0; }
+</style>
+{% endblock %}
+
+{% block body %}
+
+{# ── Breadcrumb ── #}
+<nav class="mant-breadcrumb">
+    <a href="{{ url_for('equipos.Catalogo') }}"><i class="fas fa-home"></i> Inicio</a>
+    <i class="fas fa-chevron-right"></i>
+    <a href="{{ url_for('equipos.Catalogo') }}">Catálogo</a>
+    <i class="fas fa-chevron-right"></i>
+    <a href="{{ url_for('equipos.DetalleEquipo', numero_inventario=equipo.numero_inventario) }}">
+        {{ equipo.equipo_unidad }}
+    </a>
+    <i class="fas fa-chevron-right"></i>
+    <a href="{{ url_for('mantenimientos.programa_mantenimiento', numero_inventario=equipo.numero_inventario) }}">
+        Mantenimiento
+    </a>
+    <i class="fas fa-chevron-right"></i>
+    <span>{{ 'Editar' if mantenimiento else 'Registrar' }}</span>
+</nav>
+
+{# ── Flash messages ── #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show mb-3" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+{# ── Header del equipo ── #}
+<div class="equipo-header">
+    <div class="equipo-header-icon">
+        <i class="fas fa-stethoscope"></i>
+    </div>
+    <div class="equipo-header-info">
+        <h2>{{ equipo.equipo_unidad }}</h2>
+        <p>{{ equipo.marca }} {{ equipo.modelo }} &nbsp;·&nbsp; N° Inv: {{ equipo.numero_inventario }}</p>
+    </div>
+</div>
+
+{# ── Formulario ── #}
+<form method="POST"
+      action="{{ url_for('mantenimientos.editar_mantenimiento', numero_inventario=equipo.numero_inventario) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {# ── Bloque 1: Tipo y frecuencia ── #}
+    <div class="form-card">
+        <div class="form-card-header">
+            <i class="fas fa-sliders-h"></i>
+            <h5>Configuración del mantenimiento</h5>
+        </div>
+        <div class="form-card-body">
+            <div class="form-grid-2">
+                <div>
+                    <label class="form-label">Tipo de mantenimiento</label>
+                    <select name="tipo_mantenimiento" class="form-select" required>
+                        {% set tipo_actual = mantenimiento.tipo_mantenimiento if mantenimiento else 'Preventivo' %}
+                        {% for tipo in ['Preventivo', 'Correctivo', 'Calibración', 'Verificación'] %}
+                            <option value="{{ tipo }}" {{ 'selected' if tipo_actual == tipo }}>
+                                {{ tipo }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Frecuencia</label>
+                    <select name="frecuencia_meses" class="form-select" id="selectFrecuencia" required>
+                        {% set frec_actual = mantenimiento.frecuencia_meses | int if mantenimiento and mantenimiento.frecuencia_meses else 6 %}
+                        {% for meses, label in [(3, 'Cada 3 meses'), (6, 'Cada 6 meses'), (12, 'Cada 12 meses (anual)')] %}
+                            <option value="{{ meses }}" {{ 'selected' if frec_actual == meses }}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Bloque 2: Fechas ── #}
+    <div class="form-card">
+        <div class="form-card-header">
+            <i class="fas fa-calendar-alt"></i>
+            <h5>Fechas</h5>
+        </div>
+        <div class="form-card-body">
+
+            <div class="aviso-autocomplete">
+                <i class="fas fa-info-circle"></i>
+                <span>Si ingresas el último mantenimiento y dejas vacío el próximo,
+                      la fecha se calculará automáticamente según la frecuencia.</span>
+            </div>
+
+            <div class="form-grid-2">
+                <div>
+                    <label class="form-label">Último mantenimiento</label>
+                    <input type="date"
+                           name="ultimo_mantenimiento"
+                           id="inputUltimo"
+                           class="form-control"
+                           value="{{ mantenimiento.ultimo_mantenimiento.strftime('%Y-%m-%d')
+                                     if mantenimiento and mantenimiento.ultimo_mantenimiento
+                                        and mantenimiento.ultimo_mantenimiento is not string
+                                     else (mantenimiento.ultimo_mantenimiento
+                                           if mantenimiento and mantenimiento.ultimo_mantenimiento
+                                           else '') }}">
+                    <p class="campo-hint">
+                        <i class="fas fa-circle-info"></i>
+                        Fecha en que se realizó el último mantenimiento
+                    </p>
+                </div>
+                <div>
+                    <label class="form-label">Próximo mantenimiento</label>
+                    <input type="date"
+                           name="proximo_mantenimiento"
+                           id="inputProximo"
+                           class="form-control"
+                           value="{{ mantenimiento.proximo_mantenimiento.strftime('%Y-%m-%d')
+                                     if mantenimiento and mantenimiento.proximo_mantenimiento
+                                        and mantenimiento.proximo_mantenimiento is not string
+                                     else (mantenimiento.proximo_mantenimiento
+                                           if mantenimiento and mantenimiento.proximo_mantenimiento
+                                           else '') }}">
+                    <p class="campo-hint">
+                        <i class="fas fa-circle-info"></i>
+                        Se autocompleta al guardar si se deja vacío
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Bloque 3: Responsable y notas ── #}
+    <div class="form-card">
+        <div class="form-card-header">
+            <i class="fas fa-user-cog"></i>
+            <h5>Responsable y observaciones</h5>
+        </div>
+        <div class="form-card-body">
+            <div class="mb-3">
+                <label class="form-label">Responsable</label>
+                <input type="text"
+                       name="responsable"
+                       class="form-control"
+                       placeholder="Ej: Ing. Eduardo / Proveedor Externo / Biomédica Galenia"
+                       value="{{ mantenimiento.responsable if mantenimiento and mantenimiento.responsable else '' }}"
+                       maxlength="150">
+            </div>
+            <div>
+                <label class="form-label">Notas u observaciones</label>
+                <textarea name="notas"
+                          class="form-control"
+                          placeholder="Observaciones del mantenimiento, pendientes, condiciones del equipo...">{{ mantenimiento.notas if mantenimiento and mantenimiento.notas else '' }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    {# ── Acciones ── #}
+    <div class="form-actions">
+        <button type="submit" class="btn-guardar">
+            <i class="fas fa-save"></i>
+            {{ 'Actualizar mantenimiento' if mantenimiento else 'Registrar mantenimiento' }}
+        </button>
+        <a href="{{ url_for('mantenimientos.programa_mantenimiento', numero_inventario=equipo.numero_inventario) }}"
+           class="btn-cancelar">
+            <i class="fas fa-times"></i> Cancelar
+        </a>
+    </div>
+
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/**
+ * Autocompleta la fecha del próximo mantenimiento
+ * cuando el usuario cambia el último o la frecuencia.
+ * Solo actúa si el campo próximo está vacío.
+ */
+(function () {
+    const inputUltimo   = document.getElementById('inputUltimo');
+    const inputProximo  = document.getElementById('inputProximo');
+    const selectFrec    = document.getElementById('selectFrecuencia');
+
+    function calcularProximo() {
+        const ultimoVal = inputUltimo.value;
+        const frecMeses = parseInt(selectFrec.value, 10);
+
+        // Solo si próximo está vacío y tenemos los datos necesarios
+        if (!ultimoVal || inputProximo.value) return;
+
+        const fecha = new Date(ultimoVal + 'T00:00:00');
+        if (isNaN(fecha.getTime())) return;
+
+        fecha.setMonth(fecha.getMonth() + frecMeses);
+
+        // Formato YYYY-MM-DD para el input date
+        const yyyy = fecha.getFullYear();
+        const mm   = String(fecha.getMonth() + 1).padStart(2, '0');
+        const dd   = String(fecha.getDate()).padStart(2, '0');
+        inputProximo.value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    // Recalcular si el usuario borra el próximo y cambia el último
+    inputUltimo.addEventListener('change', calcularProximo);
+    selectFrec.addEventListener('change', function () {
+        // Si el usuario cambia la frecuencia y ya hay fecha próxima,
+        // preguntar si desea recalcular
+        if (inputProximo.value && inputUltimo.value) {
+            const recalc = confirm(
+                '¿Deseas recalcular la fecha del próximo mantenimiento según la nueva frecuencia?'
+            );
+            if (recalc) {
+                inputProximo.value = '';
+                calcularProximo();
+            }
+        } else {
+            calcularProximo();
+        }
+    });
+})();
+</script>
+{% endblock %}

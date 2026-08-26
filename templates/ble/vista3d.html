@@ -1,0 +1,1142 @@
+{% extends "base.html" %}
+{% block title %}Visor 3D — Hospital Galenia{% endblock %}
+
+{% block customCSS %}
+<style>
+    #viewer3d-wrap {
+        position: relative;
+        width: 100%;
+        height: 78vh;
+        min-height: 480px;
+        background: #1a1d23;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    }
+
+    #viewer3d-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+
+    #viewer3d-loader {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        background: #1a1d23;
+        color: #fff;
+        z-index: 5;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    #viewer3d-loader.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
+    .viewer3d-spinner {
+        width: 42px;
+        height: 42px;
+        border: 4px solid rgba(255,255,255,0.15);
+        border-top-color: var(--hospital-primary);
+        border-radius: 50%;
+        animation: spin3d 0.85s linear infinite;
+    }
+    @keyframes spin3d { to { transform: rotate(360deg); } }
+
+    #viewer3d-error {
+        position: absolute;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: #1a1d23;
+        color: #ff6b6b;
+        text-align: center;
+        padding: 2rem;
+        z-index: 6;
+    }
+
+    .viewer3d-toolbar {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+        flex-wrap: wrap;
+    }
+    .viewer3d-toolbar .btn {
+        font-size: 0.82rem;
+    }
+
+    .viewer3d-hint {
+        font-size: 0.78rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+    }
+
+    /* ══ MODO COLOCAR PIN ══ */
+    .btn-placing {
+        background: #ffc107 !important;
+        border-color: #ffc107 !important;
+        color: #212529 !important;
+    }
+
+    /* ══ PIN 3D (etiqueta HTML sobre el canvas) ══ */
+    .pin3d {
+        position: absolute;
+        transform: translate(-50%, -100%);
+        cursor: pointer;
+        pointer-events: auto;
+        z-index: 4;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        user-select: none;
+    }
+    .pin3d-drop {
+        width: 26px;
+        height: 26px;
+        border-radius: 50% 50% 50% 0;
+        background: var(--hospital-primary);
+        border: 2px solid #fff;
+        transform: rotate(-45deg);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        transition: transform 0.15s ease, background 0.15s ease;
+    }
+    .pin3d-drop i {
+        transform: rotate(45deg);
+        display: block;
+        text-align: center;
+        line-height: 22px;
+        color: #fff;
+        font-size: 0.7rem;
+    }
+    .pin3d:hover .pin3d-drop {
+        transform: rotate(-45deg) scale(1.15);
+    }
+    .pin3d.pin3d-temp .pin3d-drop {
+        background: #ffc107;
+    }
+    /* ══ PIN DE ÁREA FLOTANTE (ej. UCIN) ══ */
+    .pin3d-area .pin3d-drop {
+        width: 34px;
+        height: 34px;
+        background: #16a3c4;
+        animation: floatPin 2.4s ease-in-out infinite;
+    }
+    .pin3d-area .pin3d-drop i {
+        line-height: 30px;
+        font-size: 0.9rem;
+    }
+    .pin3d-area .pin3d-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        background: rgba(22,163,196,0.92);
+    }
+    /* El área tiene equipos que dejaron de reportar */
+    .pin3d-area.pin3d-alerta .pin3d-drop  { background: #ef4444; }
+    .pin3d-area.pin3d-alerta .pin3d-label { background: rgba(239,68,68,0.92); }
+    @keyframes floatPin {
+        0%, 100% { transform: rotate(-45deg) translateY(0); }
+        50% { transform: rotate(-45deg) translateY(-6px); }
+    }
+
+    /* Contador de equipos, anclado a la esquina de la gota (34px, centrada) */
+    .pin3d-count {
+        position: absolute;
+        top: -6px;
+        left: calc(50% + 8px);
+        min-width: 20px;
+        height: 20px;
+        padding: 0 5px;
+        border-radius: 999px;
+        background: #fff;
+        color: #14506b;
+        border: 2px solid #16a3c4;
+        font-size: 0.68rem;
+        font-weight: 700;
+        line-height: 16px;
+        text-align: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.35);
+    }
+    .pin3d-alerta .pin3d-count { border-color: #ef4444; color: #b91c1c; }
+    .pin3d-label {
+        margin-top: 2px;
+        background: rgba(26,29,35,0.85);
+        color: #fff;
+        font-size: 0.68rem;
+        padding: 1px 6px;
+        border-radius: 4px;
+        white-space: nowrap;
+    }
+
+    /* ══ PANEL DE COORDENADAS (modo colocar) ══ */
+    #coordPanel {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        background: rgba(26,29,35,0.9);
+        color: #d8f0f5;
+        font-family: monospace;
+        font-size: 0.78rem;
+        padding: 0.6rem 0.8rem;
+        border-radius: 0.5rem;
+        z-index: 6;
+        max-width: 320px;
+        display: none;
+    }
+    #coordPanel.visible { display: block; }
+    #coordPanel strong { color: #fff; }
+
+    /* ══ POPUP DE ÁREA (info al hacer click en pin) ══ */
+    #areaPopup {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        width: 370px;
+        max-width: calc(100% - 30px);
+        background: #fff;
+        border-radius: 0.6rem;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        z-index: 7;
+        display: none;
+        overflow: hidden;
+    }
+    #areaPopup.visible { display: block; }
+    #areaPopup .popup-header {
+        background: var(--hospital-primary);
+        color: #fff;
+        padding: 0.6rem 0.9rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.5rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    #areaPopup .popup-sub {
+        font-weight: 400;
+        font-size: 0.72rem;
+        opacity: 0.85;
+        margin-top: 0.15rem;
+    }
+    #areaPopup .popup-close {
+        background: none;
+        border: none;
+        color: #fff;
+        opacity: 0.85;
+        cursor: pointer;
+        font-size: 0.9rem;
+        line-height: 1;
+    }
+    #areaPopup .popup-close:hover { opacity: 1; }
+    #areaPopup .popup-body {
+        padding: 0.6rem 0.75rem;
+        max-height: 52vh;
+        overflow-y: auto;
+    }
+
+    /* ── Tarjeta de equipo ── */
+    .v3d-eq {
+        display: flex;
+        gap: 0.6rem;
+        padding: 0.55rem 0;
+        border-bottom: 1px solid #eef2f4;
+    }
+    .v3d-eq:last-child { border-bottom: none; }
+    .v3d-eq-img, .v3d-eq-ph {
+        width: 52px; height: 52px;
+        border-radius: 0.45rem;
+        flex-shrink: 0;
+    }
+    .v3d-eq-img { object-fit: cover; border: 1px solid #e9ecef; background: #f8f9fa; }
+    .v3d-eq-ph {
+        background: var(--hospital-bg, #eef6f9);
+        color: var(--hospital-primary);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.95rem;
+    }
+    .v3d-eq-body  { flex: 1; min-width: 0; }
+    .v3d-eq-nom   {
+        font-weight: 600; font-size: 0.83rem; color: #1f2937;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .v3d-eq-nom.sin-asignar { color: #b45309; font-style: italic; }
+    .v3d-eq-meta  {
+        font-size: 0.72rem; color: #6c757d;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .v3d-eq-meta code {
+        font-size: 0.7rem;
+        background: #eef2f4;
+        padding: 0.05rem 0.3rem;
+        border-radius: 0.25rem;
+        color: #374151;
+    }
+    .v3d-eq-badges {
+        display: flex; flex-wrap: wrap; align-items: center;
+        gap: 0.3rem; margin-top: 0.28rem;
+    }
+    .v3d-tag {
+        font-size: 0.63rem; font-weight: 600;
+        padding: 0.1rem 0.38rem;
+        border-radius: 0.3rem;
+        white-space: nowrap;
+    }
+    .v3d-tag-ok    { background: #dcfce7; color: #166534; }
+    .v3d-tag-warn  { background: #fef3c7; color: #92400e; }
+    .v3d-tag-bad   { background: #fee2e2; color: #991b1b; }
+    .v3d-tag-mute  { background: #f1f5f9; color: #475569; }
+
+    /* Señal */
+    .v3d-senal { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.3rem; }
+    .v3d-bar {
+        flex: 1; height: 5px; border-radius: 3px;
+        background: #e5e7eb; overflow: hidden;
+    }
+    .v3d-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+    .fill-strong { background: #10b981; }
+    .fill-medium { background: #f59e0b; }
+    .fill-weak   { background: #ef4444; }
+    .fill-none   { background: #d1d5db; }
+    .v3d-rssi { font-size: 0.66rem; color: #6c757d; min-width: 62px; text-align: right; }
+
+    .v3d-eq-pie {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 0.4rem; margin-top: 0.25rem;
+    }
+    .v3d-visto { font-size: 0.68rem; color: #9ca3af; }
+    .v3d-ver {
+        font-size: 0.68rem; font-weight: 600;
+        color: var(--hospital-primary);
+        text-decoration: none; white-space: nowrap;
+    }
+    .v3d-ver:hover { text-decoration: underline; }
+
+    .v3d-vacio { text-align: center; color: #9ca3af; padding: 1.5rem 0.5rem; font-size: 0.82rem; }
+    .v3d-vacio i { font-size: 1.8rem; display: block; margin-bottom: 0.5rem; }
+    .v3d-nota {
+        font-size: 0.7rem; color: #92400e;
+        background: #fffbeb; border: 1px solid #fde68a;
+        border-radius: 0.35rem;
+        padding: 0.3rem 0.5rem; margin-top: 0.5rem;
+    }
+
+    /* ══ INDICADOR DE ACTUALIZACIÓN ══ */
+    .polling-badge {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        font-size: 0.75rem; color: #6c757d;
+        margin-left: auto;
+    }
+    .polling-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #10b981;
+        animation: pulse-dot 2s ease-in-out infinite;
+    }
+    .polling-dot.error { background: #ef4444; animation: none; }
+    @keyframes pulse-dot {
+        0%,100% { opacity:1; transform:scale(1); }
+        50%      { opacity:0.4; transform:scale(0.8); }
+    }
+
+    /* Áreas con equipos pero sin coordenadas de pin */
+    #areasSinPin {
+        display: none;
+        font-size: 0.78rem;
+        color: #92400e;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 0.45rem;
+        padding: 0.5rem 0.75rem;
+        margin-top: 0.75rem;
+    }
+    #areasSinPin.visible { display: block; }
+
+    /* ══ LISTA DE ÁREAS DEFINIDAS (debajo del visor) ══ */
+    #areasDefinidas {
+        margin-top: 1rem;
+        display: none;
+    }
+    #areasDefinidas.visible { display: block; }
+    #areasDefinidas table { font-size: 0.8rem; }
+    #areasDefinidas code {
+        font-size: 0.75rem;
+        background: #eef2f4;
+        padding: 0.1rem 0.35rem;
+        border-radius: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h4 class="mb-1"><i class="fas fa-cube me-2" style="color: var(--hospital-primary);"></i>Visor 3D — Localización</h4>
+        <p class="text-muted mb-0" style="font-size:0.85rem;">
+            Equipos ubicados por los beacons BLE, sobre el modelo del hospital.
+            Click en un pin para ver el detalle del área.
+        </p>
+    </div>
+</div>
+
+<div class="viewer3d-toolbar">
+    <button id="btnResetCam" type="button" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-sync-alt me-1"></i>Restablecer cámara
+    </button>
+    <button id="btnWireframe" type="button" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-border-none me-1"></i>Wireframe
+    </button>
+    <button id="btnAutoRotate" type="button" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-play me-1"></i>Auto-rotar
+    </button>
+    <button id="btnPlaceMode" type="button" class="btn btn-sm btn-outline-warning">
+        <i class="fas fa-map-pin me-1"></i>Modo colocar pin
+    </button>
+    <span class="polling-badge">
+        <span class="polling-dot" id="pollingDot"></span>
+        <span id="pollingStatus">Conectando...</span>
+    </span>
+</div>
+
+<div id="viewer3d-wrap">
+    <div id="viewer3d-loader">
+        <div class="viewer3d-spinner"></div>
+        <span>Cargando modelo 3D...</span>
+    </div>
+    <div id="viewer3d-error">
+        <div>
+            <i class="fas fa-exclamation-triangle mb-2" style="font-size:1.5rem;"></i>
+            <p class="mb-0" id="viewer3d-error-msg">No se pudo cargar el modelo 3D.</p>
+        </div>
+    </div>
+    <canvas id="viewer3d-canvas"></canvas>
+
+    <div id="pinsLayer"></div>
+
+    <div id="coordPanel">
+        <div><strong>📍 Modo colocar pin activo</strong></div>
+        <div>Click sobre el modelo o el piso para colocar un pin.</div>
+        <div class="mt-1">Última coordenada: <strong id="lastCoord">—</strong></div>
+    </div>
+
+    <div id="areaPopup">
+        <div class="popup-header">
+            <div id="popupTitle">Área</div>
+            <button class="popup-close" id="popupClose"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="popup-body" id="popupBody"></div>
+    </div>
+</div>
+
+<p class="viewer3d-hint">
+    <i class="fas fa-mouse me-1"></i>Click + arrastrar para rotar · Scroll para zoom · Click derecho + arrastrar para desplazar.
+</p>
+
+<div id="areasSinPin">
+    <i class="fas fa-map-pin me-1"></i>
+    <strong>Áreas con equipos pero sin pin colocado:</strong>
+    <span id="areasSinPinLista"></span>.
+    Usa <em>Modo colocar pin</em> para capturar sus coordenadas.
+</div>
+
+<div id="areasDefinidas">
+    <h6 class="mb-2"><i class="fas fa-list me-1"></i>Pines colocados en esta sesión</h6>
+    <div class="table-responsive">
+        <table class="table table-sm table-bordered align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Nombre</th>
+                    <th>Coordenadas (x, y, z)</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="areasTbody"></tbody>
+        </table>
+    </div>
+    <p class="viewer3d-hint mb-0">
+        Copia estas coordenadas y pégalas en el diccionario <code>AREAS_3D</code> de
+        <code>routes/ble_routes.py</code>, con el nombre exacto del área tal como está en
+        <code>ble_areas</code>. A partir de ahí el pin se llena solo con los equipos que reporte el BLE.
+    </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+    }
+}
+</script>
+
+<script type="module">
+    import * as THREE from "three";
+    import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const MODEL_URL = "{{ url_for('static', filename='models3d/pruebaweb.glb') }}";
+    const DATOS_URL = "{{ url_for('ble.api_vista3d_datos') }}";
+    const UPLOADS   = "{{ url_for('static', filename='uploads/') }}";
+
+    // Coordenadas de los pines, indexadas por nombre de área de ble_areas.
+    // Vienen de AREAS_3D en routes/ble_routes.py; los equipos NO vienen aquí,
+    // se piden a DATOS_URL y se refrescan cada 10 s.
+    const PINES_3D = {{ areas_3d | tojson }};
+
+    const wrap      = document.getElementById('viewer3d-wrap');
+    const canvas     = document.getElementById('viewer3d-canvas');
+    const loaderEl   = document.getElementById('viewer3d-loader');
+    const errorEl    = document.getElementById('viewer3d-error');
+    const errorMsgEl = document.getElementById('viewer3d-error-msg');
+
+    // ── Escena base ──────────────────────────────────────────────
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1d23);
+
+    const camera = new THREE.PerspectiveCamera(
+        50,
+        wrap.clientWidth / wrap.clientHeight,
+        0.1,
+        1000
+    );
+    camera.position.set(4, 3, 6);
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+
+    // ── Luces ────────────────────────────────────────────────────
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.9;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const ambient = new THREE.AmbientLight(0xffffff, 0.65);
+    scene.add(ambient);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
+    dirLight.position.set(6, 12, 8);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(2048, 2048);
+    dirLight.shadow.camera.near = 0.5;
+    dirLight.shadow.camera.far = 60;
+    dirLight.shadow.bias = -0.0015;
+    scene.add(dirLight);
+
+    // Luz de relleno desde el lado opuesto, para suavizar sombras duras
+    const fillDirLight = new THREE.DirectionalLight(0xbcd8ff, 0.4);
+    fillDirLight.position.set(-8, 6, -6);
+    scene.add(fillDirLight);
+
+    const fillLight = new THREE.HemisphereLight(0xffffff, 0x4b4f58, 0.4);
+    scene.add(fillLight);
+
+    // Luz suave centrada sobre el área de UCIN, para destacarla
+    const ucinSpot = new THREE.PointLight(0xbfe6ff, 3, 18, 2);
+    ucinSpot.position.set(-1.47, 4.5, -0.11);
+    scene.add(ucinSpot);
+
+    // ── Piso de referencia (grid) ───────────────────────────────
+    const grid = new THREE.GridHelper(20, 20, 0x3D90AE, 0x333844);
+    scene.add(grid);
+
+    // ── Controles ────────────────────────────────────────────────
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, 0, 0);
+
+    // ── Carga del modelo ─────────────────────────────────────────
+    let modeloActual = null;
+    const loader = new GLTFLoader();
+
+    loader.load(
+        MODEL_URL,
+        (gltf) => {
+            modeloActual = gltf.scene;
+
+            modeloActual.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+
+            // Centrar y escalar automáticamente el modelo en la vista
+            const box = new THREE.Box3().setFromObject(modeloActual);
+            const center = box.getCenter(new THREE.Vector3());
+
+            modeloActual.position.x -= center.x;
+            modeloActual.position.y -= box.min.y; // apoyar sobre el "piso"
+            modeloActual.position.z -= center.z;
+
+            scene.add(modeloActual);
+            loaderEl.classList.add('hidden');
+
+            // Encuadre inicial: enfocar el área con perímetro definido
+            aplicarEncuadreInicial();
+        },
+        undefined,
+        (err) => {
+            console.error('Error cargando el modelo 3D:', err);
+            errorMsgEl.textContent = 'No se pudo cargar "pruebaweb.glb". Verifica que el archivo exista en static/models3d/.';
+            loaderEl.classList.add('hidden');
+            errorEl.style.display = 'flex';
+        }
+    );
+
+    // ── Resize responsivo ────────────────────────────────────────
+    function onResize() {
+        const w = wrap.clientWidth;
+        const h = wrap.clientHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+    }
+    window.addEventListener('resize', onResize);
+
+    // ══════════════════════════════════════════════════════════════
+    //  SISTEMA DE PINES INTERACTIVOS
+    // ══════════════════════════════════════════════════════════════
+
+    // ── 1. Encuadre inicial a partir del perímetro del área ────────
+    // El perímetro se capturó con el "Modo colocar pin" recorriendo el contorno
+    // real de la sala. No se dibuja: solo sirve para calcular centro y tamaño
+    // del área y enfocarla al cargar. Se toma el del primer pin que traiga uno.
+
+    // Guarda el encuadre calculado para poder volver a él con "Restablecer cámara"
+    let encuadreInicial = null;
+
+    function aplicarEncuadreArea(perimetro) {
+        if (!perimetro || perimetro.length === 0) return;
+
+        const box = new THREE.Box3();
+        perimetro.forEach(p => box.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)));
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+
+        const maxDim = Math.max(size.x, size.z) || 10;
+        // Factor conservador: encuadra la sala completa sin alejarse demasiado
+        const distancia = maxDim * 0.62;
+
+        const camPos = new THREE.Vector3(
+            center.x + distancia * 0.55,
+            distancia * 0.55,
+            center.z + distancia * 0.85
+        );
+        const target = new THREE.Vector3(center.x, 1.2, center.z);
+
+        camera.position.copy(camPos);
+        controls.target.copy(target);
+        controls.update();
+
+        encuadreInicial = { camPos: camPos.clone(), target: target.clone() };
+    }
+
+    function aplicarEncuadreInicial() {
+        const conPerimetro = Object.values(PINES_3D).find(p => p.perimetro && p.perimetro.length);
+        if (conPerimetro) aplicarEncuadreArea(conPerimetro.perimetro);
+    }
+
+    const pinsLayer   = document.getElementById('pinsLayer');
+    const areaPopup   = document.getElementById('areaPopup');
+    const popupTitle  = document.getElementById('popupTitle');
+    const popupBody   = document.getElementById('popupBody');
+    const popupClose  = document.getElementById('popupClose');
+    const coordPanel  = document.getElementById('coordPanel');
+    const lastCoordEl = document.getElementById('lastCoord');
+    const areasDefinidasBox = document.getElementById('areasDefinidas');
+    const areasTbody  = document.getElementById('areasTbody');
+    const btnPlaceMode = document.getElementById('btnPlaceMode');
+
+    // Cada pin: { id, nombre, position: THREE.Vector3, el: <div>, data }
+    const pinesActivos = [];
+    let placeModeOn = false;
+    let contadorPinesNuevos = 0;
+
+    // ── Helpers de presentación (mismos criterios que ble/area.html) ──
+    function esc(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+
+    // Escala -85..-40 dBm a 0-100 %
+    function rssiInfo(rssi) {
+        if (rssi === null || rssi === undefined) {
+            return { pct: 0, cls: 'fill-none', txt: 'Sin dato' };
+        }
+        const pct = Math.max(0, Math.min(100, Math.round(((rssi + 85) / 45) * 100)));
+        if (rssi < -75) return { pct, cls: 'fill-weak',   txt: `${rssi} dBm` };
+        if (rssi < -60) return { pct, cls: 'fill-medium', txt: `${rssi} dBm` };
+        return { pct, cls: 'fill-strong', txt: `${rssi} dBm` };
+    }
+
+    // Estado BLE de la posición (p.estado)
+    function tagEstadoBle(estado) {
+        if (estado === 'Localizado')       return { txt: 'Localizado',       cls: 'v3d-tag-ok'   };
+        if (estado === 'En mantenimiento') return { txt: 'En mantenimiento', cls: 'v3d-tag-warn' };
+        if (estado === 'Sin senal' || estado === 'Sin señal') {
+            return { txt: 'Sin señal', cls: 'v3d-tag-bad' };
+        }
+        return { txt: estado || '—', cls: 'v3d-tag-mute' };
+    }
+
+    // Estado de inventario del equipo (e.estado)
+    function tagEstadoEquipo(estado) {
+        if (!estado) return null;
+        const e = estado.toLowerCase();
+        if (e.startsWith('operativo'))     return { txt: estado, cls: 'v3d-tag-ok'   };
+        if (e.startsWith('mantenimiento')) return { txt: estado, cls: 'v3d-tag-warn' };
+        return { txt: estado, cls: 'v3d-tag-bad' };
+    }
+
+    function formatTime(iso) {
+        if (!iso) return 'Sin registro';
+        const d = new Date(iso);
+        if (isNaN(d)) return 'Sin registro';
+
+        const diffMin = Math.floor((Date.now() - d.getTime()) / 60000);
+        if (diffMin < 1)  return 'hace un momento';
+        if (diffMin < 60) return `hace ${diffMin} min`;
+
+        const diffH = Math.floor(diffMin / 60);
+        if (diffH < 24) return `hace ${diffH} h`;
+
+        const diffD = Math.floor(diffH / 24);
+        if (diffD === 1) return 'ayer';
+        return `hace ${diffD} días`;
+    }
+
+    // Normaliza el nombre del área para empatar BD ↔ PINES_3D
+    // ("UCIN", "ucin", "Ucín" caen todos en la misma llave).
+    function normalizar(nombre) {
+        // \p{Diacritic} en vez de un rango literal: el rango traía los caracteres
+        // combinantes crudos en el fuente y cualquier round-trip de codificación
+        // los rompe (el proyecto ya tuvo ese problema con los acentos).
+        return String(nombre || '')
+            .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+            .trim().toUpperCase();
+    }
+
+    const PINES_POR_NOMBRE = {};
+    Object.entries(PINES_3D).forEach(([nombre, cfg]) => {
+        PINES_POR_NOMBRE[normalizar(nombre)] = cfg;
+    });
+
+    function crearElementoPin(esTemporal, esArea, icono) {
+        const div = document.createElement('div');
+        div.className = 'pin3d' + (esTemporal ? ' pin3d-temp' : '') + (esArea ? ' pin3d-area' : '');
+        div.innerHTML = `
+            <div class="pin3d-drop"><i class="fas ${icono || 'fa-map-marker-alt'}"></i></div>
+            ${esArea ? '<div class="pin3d-count"></div>' : ''}
+            <div class="pin3d-label"></div>
+        `;
+        pinsLayer.appendChild(div);
+        return div;
+    }
+
+    function agregarPin({ id, nombre, x, y, z, data, temporal = false, esArea = false, icono }) {
+        const el = crearElementoPin(temporal, esArea, icono);
+        el.querySelector('.pin3d-label').textContent = nombre;
+
+        const pin = {
+            id,
+            nombre,
+            position: new THREE.Vector3(x, y, z),
+            el,
+            data,
+            temporal
+        };
+
+        el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (temporal) return; // los pines temporales de "modo colocar" no abren popup
+            mostrarPopup(pin);
+        });
+
+        pinesActivos.push(pin);
+        return pin;
+    }
+
+    // ── 1b. Pines de área alimentados por la BD ────────────────────
+    // Un pin por área de ble_areas que (a) tenga coordenadas en AREAS_3D y
+    // (b) esté reportando equipos. Las áreas sin coordenadas se avisan abajo
+    // del visor para saber cuál toca colocar.
+    const pinesPorArea = new Map();   // area_id → pin
+    let pinAbiertoId = null;
+
+    function sincronizarPines(areas) {
+        const vistas = new Set();
+        const sinPin = [];
+
+        areas.forEach(area => {
+            const cfg = PINES_POR_NOMBRE[normalizar(area.area_nombre)];
+            if (!cfg) {
+                sinPin.push(area);
+                return;
+            }
+
+            vistas.add(area.area_id);
+            let pin = pinesPorArea.get(area.area_id);
+
+            if (!pin) {
+                pin = agregarPin({
+                    id: area.area_id,
+                    nombre: area.area_nombre,
+                    x: cfg.x, y: cfg.y, z: cfg.z,
+                    data: { ...area, descripcion: cfg.descripcion },
+                    esArea: true,
+                    icono: 'fa-hospital'
+                });
+                pinesPorArea.set(area.area_id, pin);
+            } else {
+                pin.data = { ...area, descripcion: cfg.descripcion };
+            }
+
+            // El contador habla de equipos. Los beacons sin vincular se marcan
+            // como alerta (hay hardware puesto que nadie registró) y se detallan
+            // dentro del popup.
+            const conAlerta = area.sin_senal > 0 || (area.total === 0 && area.sin_asignar > 0);
+            pin.el.classList.toggle('pin3d-alerta', conAlerta);
+            pin.el.querySelector('.pin3d-count').textContent = area.total;
+
+            // Si el popup está abierto sobre este pin, repintarlo con lo fresco
+            if (pinAbiertoId === area.area_id) mostrarPopup(pin);
+        });
+
+        // Áreas que dejaron de reportar: quitar su pin
+        pinesPorArea.forEach((pin, areaId) => {
+            if (vistas.has(areaId)) return;
+            pin.el.remove();
+            const i = pinesActivos.indexOf(pin);
+            if (i !== -1) pinesActivos.splice(i, 1);
+            pinesPorArea.delete(areaId);
+            if (pinAbiertoId === areaId) cerrarPopup();
+        });
+
+        mostrarAreasSinPin(sinPin);
+    }
+
+    const areasSinPinBox   = document.getElementById('areasSinPin');
+    const areasSinPinLista = document.getElementById('areasSinPinLista');
+
+    function mostrarAreasSinPin(areas) {
+        if (areas.length === 0) {
+            areasSinPinBox.classList.remove('visible');
+            return;
+        }
+        areasSinPinLista.textContent = areas
+            .map(a => `${a.area_nombre} (${a.total} equipos)`)
+            .join(', ');
+        areasSinPinBox.classList.add('visible');
+    }
+
+    // ── 1c. Carga y refresco cada 10 s ─────────────────────────────
+    const pollingDot    = document.getElementById('pollingDot');
+    const pollingStatus = document.getElementById('pollingStatus');
+
+    async function cargarDatos() {
+        try {
+            const resp = await fetch(DATOS_URL, { headers: { 'Accept': 'application/json' } });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+            const json = await resp.json();
+            if (!json.ok) throw new Error(json.error || 'Respuesta inválida');
+
+            sincronizarPines(json.areas || []);
+
+            pollingDot.classList.remove('error');
+            pollingStatus.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-MX', {
+                hour: '2-digit', minute: '2-digit'
+            });
+        } catch (err) {
+            console.error('[vista3d] No se pudieron cargar los datos:', err);
+            pollingDot.classList.add('error');
+            pollingStatus.textContent = 'Sin conexión con el servidor';
+        }
+    }
+
+    cargarDatos();
+    setInterval(() => {
+        if (!document.hidden) cargarDatos();   // no consultar con la pestaña oculta
+    }, 10000);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) cargarDatos();
+    });
+
+    // ── 2. Proyección 3D → 2D (posicionar los <div> sobre el canvas) ──
+    const tempV = new THREE.Vector3();
+    function actualizarPosicionesPines() {
+        const w = wrap.clientWidth;
+        const h = wrap.clientHeight;
+
+        pinesActivos.forEach(pin => {
+            tempV.copy(pin.position).project(camera);
+
+            const detrasDeCamara = tempV.z > 1;
+            if (detrasDeCamara) {
+                pin.el.style.display = 'none';
+                return;
+            }
+            pin.el.style.display = 'flex';
+
+            const x = (tempV.x * 0.5 + 0.5) * w;
+            const y = (-tempV.y * 0.5 + 0.5) * h;
+            pin.el.style.left = x + 'px';
+            pin.el.style.top  = y + 'px';
+        });
+    }
+
+    // ── 3. Popup con los equipos que el BLE reporta en el área ─────
+    function tarjetaEquipo(eq) {
+        const asignado = eq.equipo_id !== null && eq.equipo_id !== undefined;
+        const rssi     = rssiInfo(eq.rssi_max);
+        const ble      = tagEstadoBle(eq.estado);
+        const inv      = asignado ? tagEstadoEquipo(eq.estado_equipo) : null;
+
+        // Sin imagen no se pinta un <img> que va a fallar: el 404 por tarjeta
+        // ensucia la consola y no hay placeholder en static/img.
+        const media = eq.imagen
+            ? `<img class="v3d-eq-img" src="${UPLOADS}${esc(eq.imagen)}" alt="" loading="lazy">`
+            : `<div class="v3d-eq-ph"><i class="fas fa-camera"></i></div>`;
+
+        const nombre = asignado
+            ? `<div class="v3d-eq-nom" title="${esc(eq.equipo_nombre)}">${esc(eq.equipo_nombre)}</div>`
+            : `<div class="v3d-eq-nom sin-asignar">Beacon sin equipo asignado</div>`;
+
+        const marcaModelo = [eq.marca, eq.modelo].filter(Boolean).join(' ');
+
+        let meta;
+        if (asignado) {
+            meta = `
+                <div class="v3d-eq-meta">${esc(marcaModelo) || 'Sin marca ni modelo'}</div>
+                <div class="v3d-eq-meta">
+                    <code>${esc(eq.numero_inventario || 's/n')}</code>
+                    ${eq.numero_serie ? ' · Serie ' + esc(eq.numero_serie) : ''}
+                </div>`;
+        } else {
+            meta = `<div class="v3d-eq-meta">${esc(eq.beacon_nombre || '')} · ${esc(eq.mac || '')}</div>`;
+        }
+
+        const badges = [
+            `<span class="v3d-tag ${ble.cls}">${ble.txt}</span>`,
+            inv ? `<span class="v3d-tag ${inv.cls}">${esc(inv.txt)}</span>` : '',
+            (eq.bateria_pct !== null && eq.bateria_pct !== undefined)
+                ? `<span class="v3d-tag v3d-tag-mute"><i class="fas fa-battery-half me-1"></i>${eq.bateria_pct}%</span>`
+                : ''
+        ].filter(Boolean).join('');
+
+        const verFicha = asignado
+            ? `<a class="v3d-ver" href="/localizacion/equipo/${eq.equipo_id}">Ver ficha <i class="fas fa-arrow-right"></i></a>`
+            : '';
+
+        return `
+            <div class="v3d-eq">
+                ${media}
+                <div class="v3d-eq-body">
+                    ${nombre}
+                    ${meta}
+                    <div class="v3d-eq-badges">${badges}</div>
+                    <div class="v3d-senal">
+                        <div class="v3d-bar"><div class="v3d-bar-fill ${rssi.cls}" style="width:${rssi.pct}%;"></div></div>
+                        <span class="v3d-rssi">${rssi.txt}</span>
+                    </div>
+                    <div class="v3d-eq-pie">
+                        <span class="v3d-visto"><i class="fas fa-clock me-1"></i>${formatTime(eq.ultima_vez)}</span>
+                        ${verFicha}
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    function mostrarPopup(pin) {
+        const area = pin.data;
+        pinAbiertoId = area.area_id;
+
+        const resumen = [
+            `${area.total} equipo${area.total === 1 ? '' : 's'}`,
+            `${area.localizados} localizado${area.localizados === 1 ? '' : 's'}`,
+            area.sin_senal > 0 ? `${area.sin_senal} sin señal` : ''
+        ].filter(Boolean).join(' · ');
+
+        popupTitle.innerHTML = `
+            ${esc(area.area_nombre)}
+            <div class="popup-sub">
+                <i class="fas fa-layer-group me-1"></i>Piso ${area.piso ?? '—'} · ${resumen}
+            </div>`;
+
+        const equipos = area.equipos || [];
+        if (equipos.length === 0) {
+            popupBody.innerHTML = `
+                <div class="v3d-vacio">
+                    <i class="fas fa-satellite-dish"></i>
+                    Ningún beacon está reportando en esta área en este momento.
+                </div>`;
+        } else {
+            popupBody.innerHTML = equipos.map(tarjetaEquipo).join('');
+        }
+
+        if (area.sin_asignar > 0) {
+            popupBody.innerHTML += `
+                <div class="v3d-nota">
+                    <i class="fas fa-triangle-exclamation me-1"></i>
+                    ${area.sin_asignar} beacon${area.sin_asignar === 1 ? '' : 's'} en el área sin equipo
+                    vinculado. Se asignan desde <strong>Localización → Administración</strong>.
+                </div>`;
+        }
+
+        // Fallback de imagen: si el archivo no está, se sustituye por el
+        // placeholder. { once: true } evita el bucle de repintado.
+        popupBody.querySelectorAll('.v3d-eq-img').forEach(img => {
+            img.addEventListener('error', () => {
+                const ph = document.createElement('div');
+                ph.className = 'v3d-eq-ph';
+                ph.innerHTML = '<i class="fas fa-camera"></i>';
+                img.replaceWith(ph);
+            }, { once: true });
+        });
+
+        areaPopup.classList.add('visible');
+    }
+
+    function cerrarPopup() {
+        areaPopup.classList.remove('visible');
+        pinAbiertoId = null;
+    }
+    popupClose.addEventListener('click', cerrarPopup);
+
+    // ── 4. Modo "click para colocar pin" con raycasting ─────────────
+    const raycaster = new THREE.Raycaster();
+    const mouseNDC  = new THREE.Vector2();
+    let pinTemporalActual = null;
+
+    btnPlaceMode.addEventListener('click', () => {
+        placeModeOn = !placeModeOn;
+        btnPlaceMode.classList.toggle('btn-placing', placeModeOn);
+        btnPlaceMode.classList.toggle('btn-outline-warning', !placeModeOn);
+        coordPanel.classList.toggle('visible', placeModeOn);
+        controls.enabled = true; // seguimos permitiendo rotar; el click normal coloca el pin
+        btnPlaceMode.innerHTML = placeModeOn
+            ? '<i class="fas fa-times me-1"></i>Salir de modo colocar'
+            : '<i class="fas fa-map-pin me-1"></i>Modo colocar pin';
+    });
+
+    // Distinguir click de arrastre (para no crear pines al rotar la cámara)
+    let mouseDownPos = null;
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+        mouseDownPos = { x: e.clientX, y: e.clientY };
+    });
+
+    renderer.domElement.addEventListener('pointerup', (e) => {
+        if (!placeModeOn || !mouseDownPos) return;
+        const dist = Math.hypot(e.clientX - mouseDownPos.x, e.clientY - mouseDownPos.y);
+        mouseDownPos = null;
+        if (dist > 6) return; // fue un arrastre/rotación, no un click real
+
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouseNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouseNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouseNDC, camera);
+
+        const objetivos = [];
+        if (modeloActual) objetivos.push(modeloActual);
+        objetivos.push(grid);
+
+        const intersecciones = raycaster.intersectObjects(objetivos, true);
+        if (intersecciones.length === 0) return;
+
+        const punto = intersecciones[0].point;
+        colocarPinTemporal(punto.x, punto.y, punto.z);
+    });
+
+    function colocarPinTemporal(x, y, z) {
+        // quitar el pin temporal anterior si existía
+        if (pinTemporalActual) {
+            pinTemporalActual.el.remove();
+            pinesActivos.splice(pinesActivos.indexOf(pinTemporalActual), 1);
+        }
+
+        contadorPinesNuevos++;
+        const nombreTemp = `Nuevo pin ${contadorPinesNuevos}`;
+
+        pinTemporalActual = agregarPin({
+            id: `temp-${contadorPinesNuevos}`,
+            nombre: nombreTemp,
+            x, y, z,
+            data: null,
+            temporal: true
+        });
+
+        const coordTxt = `x: ${x.toFixed(2)}, y: ${y.toFixed(2)}, z: ${z.toFixed(2)}`;
+        lastCoordEl.textContent = coordTxt;
+        console.log(`📍 ${nombreTemp} →`, { x: +x.toFixed(3), y: +y.toFixed(3), z: +z.toFixed(3) });
+
+        agregarFilaAreaDefinida(nombreTemp, x, y, z);
+    }
+
+    function agregarFilaAreaDefinida(nombre, x, y, z) {
+        areasDefinidasBox.classList.add('visible');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${contadorPinesNuevos}</td>
+            <td>${nombre}</td>
+            <td><code>{ x: ${x.toFixed(2)}, y: ${y.toFixed(2)}, z: ${z.toFixed(2)} }</code></td>
+            <td><button class="btn btn-sm btn-outline-danger btn-quitar-fila"><i class="fas fa-trash"></i></button></td>
+        `;
+        tr.querySelector('.btn-quitar-fila').addEventListener('click', () => tr.remove());
+        areasTbody.appendChild(tr);
+    }
+
+    // ── Toolbar ───────────────────────────────────────────────────
+    document.getElementById('btnResetCam').addEventListener('click', () => {
+        if (encuadreInicial) {
+            camera.position.copy(encuadreInicial.camPos);
+            controls.target.copy(encuadreInicial.target);
+        } else {
+            camera.position.set(4, 3, 6);
+            controls.target.set(0, 0, 0);
+        }
+        controls.update();
+    });
+
+    let wireframeOn = false;
+    document.getElementById('btnWireframe').addEventListener('click', (e) => {
+        if (!modeloActual) return;
+        wireframeOn = !wireframeOn;
+        modeloActual.traverse((child) => {
+            if (child.isMesh) child.material.wireframe = wireframeOn;
+        });
+        e.currentTarget.classList.toggle('btn-outline-secondary', !wireframeOn);
+        e.currentTarget.classList.toggle('btn-secondary', wireframeOn);
+    });
+
+    let autoRotate = false;
+    document.getElementById('btnAutoRotate').addEventListener('click', (e) => {
+        autoRotate = !autoRotate;
+        controls.autoRotate = autoRotate;
+        controls.autoRotateSpeed = 2.0;
+        e.currentTarget.innerHTML = autoRotate
+            ? '<i class="fas fa-pause me-1"></i>Auto-rotar'
+            : '<i class="fas fa-play me-1"></i>Auto-rotar';
+    });
+
+    // ── Loop de render ────────────────────────────────────────────
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        actualizarPosicionesPines();
+        renderer.render(scene, camera);
+    }
+    animate();
+</script>
+{% endblock %}

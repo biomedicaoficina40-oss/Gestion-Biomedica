@@ -82,10 +82,7 @@
                      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .equipo-meta   { font-size: 0.76rem; color: #6c757d; margin-top: 0.1rem; }
 
-    /* ══ BADGE ESTADO ══ */
-    .badge-localizado    { background:#d1fae5; color:#065f46; }
-    .badge-sin-senal     { background:#fee2e2; color:#991b1b; }
-    .badge-mantenimiento { background:#fef9c3; color:#854d0e; }
+    /* Los badges de estado viven en base.html — sistema visual del módulo. */
 
     /* ══ BARRA RSSI HORIZONTAL ══ */
     .rssi-bar-wrap { width: 100%; margin-top: 0.4rem; }
@@ -296,7 +293,25 @@
     function formatTime(ts) {
         if (!ts) return '—';
         const d = new Date(ts);
-        return d.toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' });
+        if (isNaN(d)) return '—';
+        const hora = d.toLocaleTimeString('es-MX',
+            { hour:'2-digit', minute:'2-digit' });
+
+        // Mostrar la antiguedad, no solo la hora: sin esto un reporte de
+        // hace 3 dias a las 16:45 se veia identico a uno de hoy a las 16:45
+        // y un dato obsoleto pasaba por fresco.
+        const hoy    = new Date();
+        const dDia   = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const hoyDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+        const dias   = Math.round((hoyDia - dDia) / 86400000);
+
+        if (dias === 0) return hora;
+        if (dias === 1) return `Ayer ${hora}`;
+        if (dias > 1 && dias < 7) return `hace ${dias} días · ${hora}`;
+
+        const dd = String(d.getDate()).padStart(2,'0');
+        const MM = String(d.getMonth() + 1).padStart(2,'0');
+        return `${dd}/${MM} ${hora}`;
     }
 
     // RSSI circular gauge SVG

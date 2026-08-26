@@ -713,22 +713,88 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
       </div>
       <div style="padding:12px;display:flex;flex-direction:column;gap:6px;">
 
-        <a href="{{ url_for('admin.ver_mantenimientos', id=equipo.id) }}"
-          class="adm-qa-btn adm-qa-mant">
-          <div class="adm-qa-icon"><i class="fas fa-wrench"></i></div>
+        {# Levantar un reporte desde aquí evita el rodeo de ir al Centro y
+           volver a buscar el equipo: es donde el biomédico ya está parado
+           cuando decide actuar. #}
+        {% if puede(ROL_BIOMEDICO) %}
+        <a href="{{ url_for('reportes.nuevo', tipo='preventivo', equipo=equipo.id) }}"
+          class="adm-qa-btn" style="background:#e0f2fe;color:#075985;">
+          <div class="adm-qa-icon" style="background:rgba(7,89,133,0.12);">
+            <i class="fas fa-screwdriver-wrench"></i>
+          </div>
           <div class="adm-qa-label">
-            <strong>Mantenimientos</strong>
-            <span>Historial e intervenciones</span>
+            <strong>Mantenimiento preventivo</strong>
+            <span>Levantar el reporte de este equipo</span>
           </div>
         </a>
-        <a href="{{ url_for('admin.descargar_reporte_alta', id=equipo.id) }}"
+        <a href="{{ url_for('reportes.nuevo', tipo='correctivo', equipo=equipo.id) }}"
+          class="adm-qa-btn" style="background:#fef3c7;color:#92400e;">
+          <div class="adm-qa-icon" style="background:rgba(146,64,14,0.12);">
+            <i class="fas fa-wrench"></i>
+          </div>
+          <div class="adm-qa-label">
+            <strong>Mantenimiento correctivo</strong>
+            <span>Reportar y atender una falla</span>
+          </div>
+        </a>
+        <a href="{{ url_for('reportes.nuevo', tipo='salida', equipo=equipo.id) }}"
+          class="adm-qa-btn" style="background:#fee2e2;color:#991b1b;">
+          <div class="adm-qa-icon" style="background:rgba(153,27,27,0.12);">
+            <i class="fas fa-right-from-bracket"></i>
+          </div>
+          <div class="adm-qa-label">
+            <strong>Salida de equipo</strong>
+            <span>Registrar que sale del hospital</span>
+          </div>
+        </a>
+        <a href="{{ url_for('reportes.nuevo', tipo='entrada', equipo=equipo.id) }}"
+          class="adm-qa-btn" style="background:#dcfce7;color:#166534;">
+          <div class="adm-qa-icon" style="background:rgba(22,101,52,0.12);">
+            <i class="fas fa-right-to-bracket"></i>
+          </div>
+          <div class="adm-qa-label">
+            <strong>Entrada de equipo</strong>
+            <span>Registrar su regreso o ingreso</span>
+          </div>
+        </a>
+        <a href="{{ url_for('reportes.nuevo', tipo='tecnovigilancia', equipo=equipo.id) }}"
+          class="adm-qa-btn" style="background:#fef3c7;color:#92400e;">
+          <div class="adm-qa-icon" style="background:rgba(146,64,14,0.12);">
+            <i class="fas fa-triangle-exclamation"></i>
+          </div>
+          <div class="adm-qa-label">
+            <strong>Tecnovigilancia</strong>
+            <span>Reportar un evento adverso o casi incidente</span>
+          </div>
+        </a>
+        {% endif %}
+
+        <a href="{{ url_for('reportes.centro', q=equipo.numero_inventario) }}"
+          class="adm-qa-btn adm-qa-mant">
+          <div class="adm-qa-icon"><i class="fas fa-folder-open"></i></div>
+          <div class="adm-qa-label">
+            <strong>Reportes del equipo</strong>
+            <span>Historial completo de intervenciones</span>
+          </div>
+        </a>
+        <a href="{{ url_for('reportes.expediente', equipo_id=equipo.id) }}"
+          class="adm-qa-btn" style="background:#ede9fe;color:#5b21b6;">
+          <div class="adm-qa-icon" style="background:rgba(91,33,182,0.12);">
+            <i class="fas fa-timeline"></i>
+          </div>
+          <div class="adm-qa-label">
+            <strong>Expediente</strong>
+            <span>Línea de vida: qué le ha pasado a este equipo</span>
+          </div>
+        </a>
+        <a href="{{ url_for('admin.ver_reporte_alta', id=equipo.id) }}"
           class="adm-qa-btn" style="background:#e8f0fe;color:#1d4ed8;">
           <div class="adm-qa-icon" style="background:rgba(29,78,216,0.12);">
             <i class="fas fa-file-pdf"></i>
           </div>
           <div class="adm-qa-label">
             <strong>Reporte de alta</strong>
-            <span>Descargar PDF del ingreso</span>
+            <span>Ver y descargar el PDF del ingreso</span>
           </div>
         </a>
         <a href="{{ url_for('equipos.DetalleEquipo', numero_inventario=equipo.numero_inventario) }}"

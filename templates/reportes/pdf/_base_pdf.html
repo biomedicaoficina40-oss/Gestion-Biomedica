@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* ══════════════════════════════════════════════════════════
+     BASE DE LOS PDF DE REPORTE
+
+     Membrete, pie, firmas y anexo fotográfico viven aquí una sola vez;
+     cada tipo de reporte solo aporta su cuerpo en el bloque "cuerpo".
+
+     (Ojo al documentar: escribir una etiqueta de Jinja literal dentro de un
+     comentario CSS no la desactiva. Jinja procesa la plantilla antes de que
+     exista CSS alguno, así que la lee como una apertura de bloque de verdad y
+     el render truena con "Unexpected end of template".)
+
+     COMPATIBILIDAD — el entorno corre WeasyPrint 52.5, que NO soporta
+     CSS Grid: todo `display:grid` cae en silencio a `display:block` y
+     los campos se derraman fuera de sus recuadros. Se maqueta SOLO con
+     tablas e inline-block, que se comportan igual en 52.5 y en versiones
+     nuevas.
+     ══════════════════════════════════════════════════════════ */
+
+  @page {
+    size: letter;
+    margin: 26mm 14mm 16mm 14mm;
+
+    @top-center    { content: element(hdr); width: 100%; vertical-align: bottom; }
+    @bottom-left   { content: element(ftr); width: 72%; vertical-align: top;
+                     font-size: 7.5px; color: #9ca3af; }
+    @bottom-right  { content: "Página " counter(page) " de " counter(pages);
+                     width: 28%; text-align: right; vertical-align: top;
+                     font-size: 7.5px; color: #9ca3af; }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body { font-family: 'Arial', sans-serif; font-size: 10.5px; color: #1f2937; background: #fff; }
+
+  /* Ninguna caja puede empujar fuera de su recuadro, ni siquiera un número
+     de serie de 100 caracteres sin espacios. */
+  .f-box, .obs-box, .tbl td, .meta-val, .firma-name, .doc-title, .foto-pie {
+    word-wrap: break-word; overflow-wrap: break-word;
+  }
+
+  /* ══ MARCA DE AGUA ══
+     Solo en la vista previa. `position: fixed` en WeasyPrint repite la caja
+     en TODAS las páginas, que es justo lo que se quiere aquí (y justo por lo
+     que las firmas no pueden usarlo). */
+  .marca-agua {
+    position: fixed;
+    top: 42%;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    transform: rotate(-24deg);
+    font-size: 46px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: #dc2626;
+    opacity: 0.12;
+    z-index: 1000;
+  }
+
+  /* ══ ENCABEZADO CORRIDO ══ */
+  .doc-header { position: running(hdr); width: 100%; background: #0e1d3e; border-radius: 6px; }
+  .hdr-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .hdr-tbl td { padding: 10px 16px; vertical-align: middle; }
+  .hdr-right { text-align: right; width: 34%; }
+  /* Logo blanco con transparencia, directo sobre el azul. 431x265 -> 30px ≈ 49 de ancho. */
+  .logo-img { height: 30px; width: auto; vertical-align: middle; margin-right: 12px; }
+  .hdr-txt  { display: inline-block; vertical-align: middle; }
+  .doc-title { color: #fff; font-size: 11.5px; font-weight: 700;
+               text-transform: uppercase; letter-spacing: 0.4px; }
+  .doc-sub   { color: #b9c2d4; font-size: 8px; margin-top: 2px; }
+  .folio-lbl { font-size: 7px; color: #9aa6bd; text-transform: uppercase; }
+  .folio-val { font-size: 14px; font-weight: 700; color: #fff;
+               font-family: 'Courier New', monospace; letter-spacing: 1px; }
+
+  /* ══ PIE CORRIDO ══ */
+  .doc-footer { position: running(ftr); width: 100%; }
+
+  /* ══ META ══ */
+  .meta-row { width: 100%; border-collapse: collapse; table-layout: fixed;
+              border: 1px solid #d1d5db; margin-bottom: 10px;
+              page-break-inside: avoid; break-inside: avoid; }
+  .meta-row td { padding: 8px 11px; border-right: 1px solid #d1d5db; vertical-align: top; }
+  .meta-row td:last-child { border-right: none; }
+  .meta-lbl { font-size: 7.5px; color: #6b7280; text-transform: uppercase;
+              font-weight: 700; letter-spacing: 0.3px; }
+  .meta-val { font-size: 10px; font-weight: 600; margin-top: 2px; }
+
+  /* ══ SECCIONES ══ */
+  .section { margin-bottom: 9px; page-break-inside: avoid; break-inside: avoid; }
+  .section-flow { page-break-inside: auto; break-inside: auto; }
+  .sec-hd {
+    background: #f3f4f6; border-left: 3px solid #0e1d3e;
+    padding: 4px 9px; font-size: 8px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.5px; color: #374151;
+    margin-bottom: 5px;
+  }
+
+  /* ══ CAMPOS ══ */
+  .campos { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .campos td { padding: 0 4px 6px 0; vertical-align: top; }
+  .campos td.last { padding-right: 0; }
+  .f-lbl { font-size: 7.5px; color: #6b7280; text-transform: uppercase;
+           font-weight: 700; letter-spacing: 0.3px; margin-bottom: 2px; }
+  .f-box { border: 1px solid #d1d5db; border-radius: 3px; padding: 5px 8px;
+           font-size: 9.5px; min-height: 22px; background: #fff; }
+
+  /* ══ TEXTO LARGO ══ */
+  /* pre-line y NO pre-wrap: pre-wrap conserva también los espacios de
+     indentación del textarea y descuadra el bloque. */
+  .obs-box { border: 1px solid #d1d5db; border-radius: 3px; padding: 7px 9px;
+             font-size: 9.5px; white-space: pre-line; min-height: 30px; }
+
+  /* ══ TABLAS ══ */
+  .tbl { width: 100%; border-collapse: collapse; table-layout: fixed;
+         border: 1px solid #d1d5db; font-size: 9px; }
+  /* Repite la cabecera si la tabla se parte entre hojas. */
+  .tbl thead { display: table-header-group; }
+  .tbl th { background: #f3f4f6; padding: 5px 7px; text-align: left;
+            font-size: 7.5px; text-transform: uppercase; font-weight: 800;
+            color: #374151; border-bottom: 1px solid #d1d5db; }
+  .tbl td { padding: 5px 7px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  .tbl tr:last-child td { border-bottom: none; }
+  .tbl .num { text-align: right; font-family: 'Courier New', monospace; }
+  .tbl tfoot td { font-weight: 700; border-top: 1px solid #9ca3af; background: #f9fafb; }
+
+  /* ══ FIRMAS ══ */
+  .firmas-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .firmas-tbl > tbody > tr > td { padding-right: 7px; vertical-align: top; }
+  .firmas-tbl > tbody > tr > td.last { padding-right: 0; padding-left: 7px; }
+  .firma-blk { border: 1px solid #d1d5db; border-radius: 6px;
+               page-break-inside: avoid; break-inside: avoid; }
+  .firma-hd  { padding: 7px 11px; background: #f8f9fa; border-bottom: 1px solid #d1d5db; }
+  .firma-role { font-size: 7.5px; color: #6b7280; font-weight: 800;
+                text-transform: uppercase; letter-spacing: 0.5px; }
+  .firma-name { font-size: 9.5px; margin-top: 2px; font-weight: 600; color: #1f2937; }
+  .firma-espacio { height: 62px; padding: 44px 11px 0; }
+  .firma-linea { border-bottom: 1px solid #9ca3af; padding-bottom: 2px;
+                 font-size: 7.5px; color: #9ca3af; text-align: center; }
+  .firma-trazo-caja { height: 62px; padding: 4px 11px 0; text-align: center; }
+  .firma-trazo { max-height: 44px; max-width: 100%; }
+  .firma-datos { padding: 3px 11px 7px; border-top: 1px solid #9ca3af;
+                 margin: 0 11px; text-align: center; }
+  .firma-datos-nombre { font-size: 9px; font-weight: 700; color: #1f2937; }
+  .firma-datos-meta   { font-size: 7px; color: #6b7280; margin-top: 1px; }
+  .firma-pendiente { display: inline-block; margin-top: 3px; padding: 1px 6px;
+                     border: 1px solid #d97706; border-radius: 3px;
+                     background: #fffbeb; color: #b45309; font-size: 7px;
+                     font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; }
+
+  /* Empuja las firmas al pie de la última hoja. La altura la mide el motor
+     con una pasada previa de render; con 0 el documento fluye normal. */
+  .espaciador-firmas { width: 100%; }
+
+  /* Corte elegido por el motor para repartir las secciones entre las hojas. */
+  .corte-antes { page-break-before: always; break-before: page; }
+
+  /* ══ ANEXO FOTOGRÁFICO ══
+     Va SIEMPRE en hojas aparte: la hoja del reporte nunca lleva fotos.
+     Dos por hoja, cada una con su pie. */
+  .anexo { page-break-before: always; break-before: page; }
+  .anexo-hd { background: #0e1d3e; color: #fff; padding: 6px 11px;
+              border-radius: 4px; margin-bottom: 10px; }
+  .anexo-tit { font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+               letter-spacing: 0.5px; }
+  .anexo-sub { font-size: 7.5px; color: #b9c2d4; margin-top: 1px; }
+  .foto-blk  { page-break-inside: avoid; break-inside: avoid; margin-bottom: 11px;
+               border: 1px solid #d1d5db; border-radius: 5px; padding: 8px; }
+  .foto-caja { text-align: center; background: #f9fafb; padding: 5px;
+               border-radius: 3px; }
+  /* 92mm deja espacio para dos fotos con pie en una hoja carta. */
+  .foto-img  { max-height: 92mm; max-width: 100%; }
+  .foto-pie  { margin-top: 6px; font-size: 8.5px; color: #374151; }
+  .foto-num  { font-size: 7.5px; font-weight: 800; color: #6b7280;
+               text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
+  .foto-etapa { display: inline-block; padding: 1px 6px; border-radius: 3px;
+                background: #eef2f7; color: #374151; font-size: 7px;
+                font-weight: 700; text-transform: uppercase; }
+</style>
+</head>
+<body>
+
+{% if marca_agua %}<div class="marca-agua">{{ marca_agua }}</div>{% endif %}
+
+{# Encabezado corrido — WeasyPrint lo repite en todas las páginas #}
+<div class="doc-header">
+  <table class="hdr-tbl">
+    <tr>
+      <td>
+        {% if logo_url %}<img class="logo-img" src="{{ logo_url }}" alt="Hospital Galenia">{% endif %}
+        <span class="hdr-txt">
+          <span class="doc-title">{% block titulo_doc %}Reporte{% endblock %}</span>
+          <div class="doc-sub">Hospital Galenia — Departamento de Ingeniería Biomédica</div>
+        </span>
+      </td>
+      <td class="hdr-right">
+        <div class="folio-lbl">Folio de Control</div>
+        <div class="folio-val">{{ folio }}</div>
+      </td>
+    </tr>
+  </table>
+</div>
+
+{# Pie corrido #}
+<div class="doc-footer">
+  Generado por el Sistema de Activos — Galenia Biomedical Engineering
+  {%- if anio %} © {{ anio }}{% endif %} · Folio {{ folio }}
+</div>
+
+{% block cuerpo %}{% endblock %}
+
+{# ══ Espaciador + firmas ══
+   El espaciador lo calcula el motor midiendo el hueco al pie de la última
+   hoja: sin él las firmas quedan a media página. #}
+{% if espaciador %}<div class="espaciador-firmas" style="height:{{ espaciador }}px"></div>{% endif %}
+
+{% if firmas_requeridas %}
+<table class="firmas-tbl">
+  <tr>
+    {% for rol, etiqueta, fijo in firmas_requeridas %}
+      {% set firma = firmas.get(rol) %}
+      <td class="{{ 'last' if not loop.first }}" style="width: {{ (100 / firmas_requeridas|length)|round|int }}%">
+        <div class="firma-blk">
+          <div class="firma-hd">
+            <div class="firma-role">{{ etiqueta }}</div>
+            <div class="firma-name">{{ fijo or '&nbsp;'|safe }}</div>
+          </div>
+          {% if firma %}
+            <div class="firma-trazo-caja">
+              <img class="firma-trazo" src="{{ firma.url }}" alt="Firma">
+            </div>
+            <div class="firma-datos">
+              <div class="firma-datos-nombre">{{ firma.nombre }}</div>
+              <div class="firma-datos-meta">
+                {%- if firma.cargo %}{{ firma.cargo }} · {% endif -%}
+                Firmado el {{ firma.fecha_txt }}
+              </div>
+            </div>
+          {% else %}
+            <div class="firma-espacio">
+              <div class="firma-linea">Firma y sello</div>
+            </div>
+            <div class="firma-datos">
+              <span class="firma-pendiente">Pendiente de firma</span>
+            </div>
+          {% endif %}
+        </div>
+      </td>
+    {% endfor %}
+  </tr>
+</table>
+{% endif %}
+
+{# ══ Anexo fotográfico ══
+   La hoja del reporte nunca lleva fotos: van aquí, en hojas aparte,
+   membretadas y con pie. `batch(2)` de Jinja las agrupa de dos en dos sin
+   necesidad de paginarlas en Python.
+
+   Solo entran las que traen incluir_en_pdf: las del proceso vienen apagadas
+   por omisión y se quedan en el expediente. #}
+{% if fotos_anexo %}
+  {% for pagina in fotos_anexo|batch(2) %}
+  {# El índice del lote se guarda antes de entrar al bucle interno: dentro,
+     `loop` ya se refiere al de las fotos y el de las páginas queda fuera de
+     alcance. Con esto la numeración es corrida a lo largo de todo el anexo
+     en vez de reiniciarse en cada hoja. #}
+  {% set lote = loop.index0 %}
+  <div class="anexo">
+    <div class="anexo-hd">
+      <div class="anexo-tit">Anexo fotográfico</div>
+      <div class="anexo-sub">
+        {{ folio }} — {{ eq.equipo_unidad or 'Equipo' }}
+        {%- if eq.numero_inventario %} · {{ eq.numero_inventario }}{% endif %}
+      </div>
+    </div>
+    {% for foto in pagina %}
+    <div class="foto-blk">
+      <div class="foto-num">
+        Fotografía {{ lote * 2 + loop.index }} de {{ fotos_anexo|length }}
+      </div>
+      <div class="foto-caja">
+        <img class="foto-img" src="{{ foto.url }}" alt="{{ foto.descripcion or 'Evidencia' }}">
+      </div>
+      <div class="foto-pie">
+        <span class="foto-etapa">{{ foto.etapa }}</span>
+        {% if foto.descripcion %} {{ foto.descripcion }}{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+{% endif %}
+
+</body>
+</html>

@@ -1,0 +1,393 @@
+{% extends 'base.html' %}
+{% block title %}{{ etiqueta }}{% endblock %}
+
+{% block customCSS %}
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   Apertura de un reporte.
+
+   Dos caminos al mismo sitio: llegando desde la ficha de un equipo (con
+   ?equipo=id, ya resuelto) o desde el Centro de Reportes, donde se busca por
+   número de inventario. Este archivo cubre el segundo y confirma el primero.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.nv-wrap { max-width: 640px; margin: 0 auto; }
+
+.nv-head { display: flex; align-items: center; gap: 13px; margin-bottom: 20px; }
+.nv-head-icon {
+  width: 44px; height: 44px; flex: 0 0 44px; border-radius: 11px;
+  background: var(--hospital-primary); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 19px;
+}
+.nv-title { font-size: 1.3rem; font-weight: 700; color: #1f2d3a; margin: 0; }
+.nv-sub   { font-size: .86rem; color: #6b7c8a; margin: 2px 0 0; }
+
+.nv-card {
+  background: #fff; border: 1px solid #e6ecef; border-radius: 14px;
+  padding: 18px; box-shadow: 0 1px 3px rgba(16,32,45,.06);
+}
+.nv-label { display: block; font-size: .74rem; font-weight: 600; color: #6b7c8a;
+            text-transform: uppercase; letter-spacing: .3px; margin-bottom: 5px; }
+
+.nv-buscar-wrap { position: relative; }
+.nv-buscar {
+  width: 100%; min-height: 48px; padding: 12px 14px;
+  border: 1px solid #e6ecef; border-radius: 9px; font-size: 1rem;
+  background: #fbfdfe; color: #1f2d3a;
+}
+.nv-buscar:focus { outline: none; border-color: var(--hospital-primary);
+                   box-shadow: 0 0 0 3px rgba(61,144,174,.13); background: #fff; }
+
+.nv-sugerencias {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 30;
+  background: #fff; border: 1px solid #e6ecef; border-radius: 9px;
+  margin-top: 4px; max-height: 320px; overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(16,32,45,.14); display: none;
+}
+.nv-sugerencias.abierto { display: block; }
+.nv-sug {
+  display: block; width: 100%; text-align: left; border: none; background: none;
+  padding: 11px 13px; border-bottom: 1px solid #f4f7f9; cursor: pointer;
+  min-height: 52px;
+}
+.nv-sug:last-child { border-bottom: none; }
+.nv-sug:hover, .nv-sug.marcado { background: #f0f9fc; }
+.nv-sug-nom { font-weight: 500; color: #1f2d3a; font-size: .93rem; }
+.nv-sug-meta { font-size: .78rem; color: #6b7c8a; margin-top: 2px; }
+.nv-sug-inv { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.nv-sug-vacio { padding: 16px 13px; color: #6b7c8a; font-size: .87rem; text-align: center; }
+
+/* Equipo elegido */
+.nv-elegido {
+  display: none; align-items: center; gap: 13px; margin-top: 14px;
+  padding: 13px; border: 1px solid var(--ble-ok-fg); border-radius: 10px;
+  background: var(--ble-ok-bg);
+}
+.nv-elegido.visible { display: flex; }
+.nv-elegido-img { width: 56px; height: 56px; border-radius: 9px; object-fit: cover;
+                  flex: 0 0 56px; background: #fff; border: 1px solid #d7e3e8; }
+.nv-elegido-ph  { width: 56px; height: 56px; border-radius: 9px; flex: 0 0 56px;
+                  background: #fff; border: 1px solid #d7e3e8; display: flex;
+                  align-items: center; justify-content: center; color: #a8bcc7; }
+.nv-elegido-nom { font-weight: 600; color: #065f46; font-size: .95rem; }
+.nv-elegido-meta{ font-size: .8rem; color: #047857; margin-top: 2px; }
+.nv-quitar { margin-left: auto; background: none; border: none; color: #065f46;
+             font-size: 1.1rem; cursor: pointer; min-width: 44px; min-height: 44px; }
+
+.nv-campos { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.nv-campo  { flex: 1 1 180px; min-width: 0; }
+.nv-select {
+  width: 100%; min-height: 44px; padding: 9px 11px;
+  border: 1px solid #e6ecef; border-radius: 9px; font-size: .9rem; background: #fff;
+}
+
+.nv-acciones { display: flex; gap: 9px; margin-top: 20px; }
+.nv-btn {
+  min-height: 48px; padding: 12px 20px; border-radius: 9px; font-size: .93rem;
+  font-weight: 600; cursor: pointer; border: 1px solid #e6ecef; background: #fff;
+  color: #1f2d3a; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+.nv-btn-primary { background: var(--hospital-primary); border-color: var(--hospital-primary); color: #fff; flex: 1; }
+.nv-btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+.nv-btn-primary:hover:not(:disabled) { color: #fff; opacity: .93; }
+
+.nv-hint { font-size: .82rem; color: #6b7c8a; margin-top: 9px; }
+
+/* ── Expedientes sin terminar ────────────────────────────────
+   Van ARRIBA del formulario, no debajo: quien llega aquí después de salirse
+   del módulo de captura viene a retomar, no a abrir otro, y si el aviso queda
+   al pie ya presionó "Abrir expediente" antes de verlo. */
+.nv-abiertos {
+  border: 1px solid var(--ble-warn-line); border-radius: 14px;
+  background: var(--ble-warn-bg); padding: 15px; margin-bottom: 16px;
+}
+.nv-abiertos-tit {
+  font-size: .92rem; font-weight: 700; color: var(--ble-warn-fg);
+  display: flex; align-items: center; gap: 8px; margin: 0 0 3px;
+}
+.nv-abiertos-sub { font-size: .82rem; color: var(--ble-warn-fg);
+                   opacity: .85; margin: 0 0 11px; }
+.nv-abierto {
+  display: flex; align-items: center; gap: 11px; background: #fff;
+  border: 1px solid #f0e0c0; border-radius: 10px; padding: 11px 12px;
+  text-decoration: none; margin-bottom: 8px; min-height: 60px;
+}
+.nv-abierto:last-child { margin-bottom: 0; }
+.nv-abierto:hover { border-color: var(--ble-warn-line); }
+.nv-abierto-info { min-width: 0; flex: 1; }
+.nv-abierto-folio { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                    font-weight: 700; color: #1f2d3a; font-size: .9rem; }
+.nv-abierto-meta { font-size: .79rem; color: #6b7c8a; margin-top: 2px;
+                   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nv-abierto-ir {
+  flex: 0 0 auto; background: var(--hospital-primary); color: #fff;
+  border-radius: 8px; padding: 9px 14px; font-size: .84rem; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+
+@media (max-width: 768px) {
+  .nv-title { font-size: 1.12rem; }
+  .nv-campo { flex: 1 1 100%; }
+  .nv-acciones { flex-direction: column-reverse; }
+  .nv-btn { width: 100%; }
+  .nv-abierto-ir span { display: none; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="nv-wrap">
+
+  <div class="nv-head">
+    <div class="nv-head-icon">
+      <i class="fas fa-{{ {'correctivo': 'wrench', 'tecnovigilancia': 'triangle-exclamation'}
+                          .get(tipo, 'screwdriver-wrench') }}"></i>
+    </div>
+    <div>
+      <h1 class="nv-title">Abrir {{ etiqueta|lower }}</h1>
+      <p class="nv-sub">Elige el equipo para abrir el expediente</p>
+    </div>
+  </div>
+
+  {# ── Lo que quedó a medias ─────────────────────────────── #}
+  {# Con equipo resuelto se listan sus expedientes abiertos de cualquier tipo
+     —saber que trae un correctivo en curso importa antes de abrirle un
+     preventivo—, pero solo los del MISMO tipo son los que el POST reusa. #}
+  {% set mismo_tipo = abiertos|selectattr('tipo', 'equalto', tipo)|list if abiertos else [] %}
+  {% if abiertos %}
+  <div class="nv-abiertos">
+    <p class="nv-abiertos-tit">
+      <i class="fas fa-circle-exclamation"></i>
+      {% if equipo and mismo_tipo %}
+        Ya existe un expediente de {{ etiqueta|lower }} sin cerrar
+      {% elif equipo %}
+        Este equipo tiene trabajo en curso
+      {% else %}
+        Tienes trabajo sin terminar
+      {% endif %}
+    </p>
+    <p class="nv-abiertos-sub">
+      {% if equipo and mismo_tipo %}
+        Continúalo en vez de abrir otro: «Abrir expediente» te llevará a este
+        mismo, salvo que marques abajo que quieres uno nuevo.
+      {% elif equipo %}
+        Revísalo antes de abrir otro expediente.
+      {% else %}
+        Retoma la captura donde la dejaste. Se guarda todo conforme se escribe.
+      {% endif %}
+    </p>
+    {% for r in abiertos %}
+    <a class="nv-abierto" href="{{ url_for('reportes.editar', reporte_id=r.id) }}">
+      <div class="nv-abierto-info">
+        <div class="nv-abierto-folio">{{ r.folio }}</div>
+        <div class="nv-abierto-meta">
+          {{ etiq_tipo.get(r.tipo, r.tipo) }}
+          {%- if not equipo and r.equipo_unidad %} · {{ r.equipo_unidad }}{% endif -%}
+          {%- if not equipo and r.numero_inventario %} ({{ r.numero_inventario }}){% endif -%}
+          {%- if r.fecha_apertura %} · abierto el {{ r.fecha_apertura.strftime('%d/%m/%Y') }}{% endif %}
+        </div>
+      </div>
+      <span class="nv-abierto-ir">
+        <i class="fas fa-pen-to-square"></i> <span>Continuar</span>
+      </span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <form method="POST" class="nv-card" id="nvForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="equipo_id" id="nvEquipoId" value="{{ equipo.id if equipo else '' }}">
+
+    {% if not equipo %}
+    <label class="nv-label" for="nvBuscar">Equipo</label>
+    <div class="nv-buscar-wrap">
+      <input type="search" id="nvBuscar" class="nv-buscar" autocomplete="off"
+             placeholder="Número de inventario, serie o nombre del equipo"
+             aria-label="Buscar equipo" aria-autocomplete="list">
+      <div class="nv-sugerencias" id="nvSugerencias" role="listbox"></div>
+    </div>
+    <p class="nv-hint">
+      Escribe al menos dos caracteres. También puedes llegar aquí desde la ficha
+      del equipo o escaneando su chip NFC.
+    </p>
+    {% endif %}
+
+    {# Con equipo resuelto (desde la ficha o el dashboard) ya viene marcado. #}
+    <div class="nv-elegido {{ 'visible' if equipo }}" id="nvElegido">
+      {% if equipo and equipo.imagen %}
+        <img class="nv-elegido-img" id="nvElegidoImg"
+             src="{{ url_for('static', filename='uploads/' ~ equipo.imagen) }}" alt="">
+      {% else %}
+        <div class="nv-elegido-ph" id="nvElegidoPh"><i class="fas fa-cube"></i></div>
+      {% endif %}
+      <div>
+        <div class="nv-elegido-nom" id="nvElegidoNom">{{ equipo.equipo_unidad if equipo }}</div>
+        <div class="nv-elegido-meta" id="nvElegidoMeta">
+          {%- if equipo -%}
+            {{ equipo.numero_inventario }}
+            {%- if equipo.marca %} · {{ equipo.marca }}{% endif %}
+            {%- if equipo.modelo %} {{ equipo.modelo }}{% endif %}
+          {%- endif -%}
+        </div>
+      </div>
+      {% if not equipo %}
+      <button type="button" class="nv-quitar" id="nvQuitar" aria-label="Quitar equipo">
+        <i class="fas fa-times"></i>
+      </button>
+      {% endif %}
+    </div>
+
+    <div class="nv-campos">
+      {% if tipo == 'preventivo' %}
+      <div class="nv-campo">
+        <label class="nv-label" for="nvTipoServicio">Tipo de servicio</label>
+        <select class="nv-select" name="tipo_servicio" id="nvTipoServicio">
+          <option value="preventivo">Preventivo</option>
+          <option value="predictivo">Predictivo</option>
+        </select>
+      </div>
+      {% endif %}
+      <div class="nv-campo">
+        <label class="nv-label" for="nvArea">Área donde se realiza</label>
+        <select class="nv-select" name="area_id" id="nvArea">
+          <option value="">La del equipo</option>
+          {% for area in catalogos.areas %}
+            <option value="{{ area.id }}">{{ area.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="nv-campo">
+        <label class="nv-label" for="nvTecnico">Técnico</label>
+        <select class="nv-select" name="tecnico_id" id="nvTecnico">
+          <option value="">Sin asignar</option>
+          {% for tecnico in catalogos.tecnicos %}
+            <option value="{{ tecnico.id }}">{{ tecnico.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    {% if mismo_tipo %}
+    <label class="nv-hint" style="display:flex;align-items:center;gap:8px;cursor:pointer;
+                                  margin-top:14px">
+      <input type="checkbox" name="forzar" value="1">
+      Abrir un expediente nuevo de todos modos (gasta un folio)
+    </label>
+    {% endif %}
+
+    <div class="nv-acciones">
+      <a class="nv-btn" href="{{ url_for('reportes.centro') }}">Cancelar</a>
+      <button type="submit" class="nv-btn nv-btn-primary" id="nvAbrir"
+              {{ 'disabled' if not equipo }}>
+        <i class="fas fa-folder-plus"></i> Abrir expediente
+      </button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+
+  const campo   = document.getElementById('nvBuscar');
+  if (!campo) return;                        // el equipo ya venía resuelto
+
+  const lista   = document.getElementById('nvSugerencias');
+  const oculto  = document.getElementById('nvEquipoId');
+  const elegido = document.getElementById('nvElegido');
+  const abrir   = document.getElementById('nvAbrir');
+  const quitar  = document.getElementById('nvQuitar');
+
+  let temporizador, marcado = -1, resultados = [];
+
+  const esc = t => String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  function pintar(items) {
+    resultados = items;
+    marcado = -1;
+    if (!items.length) {
+      lista.innerHTML = '<div class="nv-sug-vacio">Sin coincidencias</div>';
+      lista.classList.add('abierto');
+      return;
+    }
+    lista.innerHTML = items.map((eq, i) => `
+      <button type="button" class="nv-sug" data-i="${i}" role="option">
+        <div class="nv-sug-nom">${esc(eq.equipo_unidad)}</div>
+        <div class="nv-sug-meta">
+          <span class="nv-sug-inv">${esc(eq.numero_inventario)}</span>
+          ${eq.marca ? ' · ' + esc(eq.marca) : ''}
+          ${eq.modelo ? ' ' + esc(eq.modelo) : ''}
+          ${eq.area ? ' · ' + esc(eq.area) : ''}
+        </div>
+      </button>`).join('');
+    lista.classList.add('abierto');
+    lista.querySelectorAll('.nv-sug').forEach(b => {
+      b.addEventListener('click', () => elegir(resultados[+b.dataset.i]));
+    });
+  }
+
+  function elegir(eq) {
+    oculto.value = eq.id;
+    document.getElementById('nvElegidoNom').textContent = eq.equipo_unidad || '';
+    document.getElementById('nvElegidoMeta').textContent =
+      [eq.numero_inventario, eq.marca, eq.modelo].filter(Boolean).join(' · ');
+    elegido.classList.add('visible');
+    abrir.disabled = false;
+    lista.classList.remove('abierto');
+    campo.value = '';
+  }
+
+  campo.addEventListener('input', () => {
+    clearTimeout(temporizador);
+    const termino = campo.value.trim();
+    if (termino.length < 2) { lista.classList.remove('abierto'); return; }
+    // Se espera un poco: sin esto cada tecla dispara una consulta.
+    temporizador = setTimeout(() => {
+      fetch('{{ url_for("reportes.api_equipo") }}?q=' + encodeURIComponent(termino))
+        .then(r => r.json())
+        .then(pintar)
+        .catch(() => lista.classList.remove('abierto'));
+    }, 300);
+  });
+
+  // Teclado: en escritorio se navega la lista sin soltar el teclado.
+  campo.addEventListener('keydown', e => {
+    const opciones = lista.querySelectorAll('.nv-sug');
+    if (!opciones.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      marcado += (e.key === 'ArrowDown' ? 1 : -1);
+      if (marcado < 0) marcado = opciones.length - 1;
+      if (marcado >= opciones.length) marcado = 0;
+      opciones.forEach((o, i) => o.classList.toggle('marcado', i === marcado));
+      opciones[marcado].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter' && marcado >= 0) {
+      e.preventDefault();
+      elegir(resultados[marcado]);
+    } else if (e.key === 'Escape') {
+      lista.classList.remove('abierto');
+    }
+  });
+
+  if (quitar) {
+    quitar.addEventListener('click', () => {
+      oculto.value = '';
+      elegido.classList.remove('visible');
+      abrir.disabled = true;
+      campo.focus();
+    });
+  }
+
+  document.addEventListener('click', e => {
+    if (!lista.contains(e.target) && e.target !== campo) {
+      lista.classList.remove('abierto');
+    }
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,79 @@
+{# ══════════════════════════════════════════════════════════════
+   Macros del pad de firma.
+
+   Se importan tanto desde el formulario de alta como desde el visor
+   del reporte, para que la captura sea idéntica en los dos sitios:
+
+     {% from 'admin/_firma_pad.html' import firma_pendiente, firma_hecha %}
+
+   Requieren static/css/firma_pad.css y static/Js/firma_pad.js.
+   ══════════════════════════════════════════════════════════════ #}
+
+{% macro firma_pendiente(rol, etiqueta, nombre_prefill='', limite=150) %}
+<div class="firma-bloque" data-firma-rol="{{ rol }}">
+  <div class="firma-rol">
+    <i class="fas fa-pen-nib"></i> {{ etiqueta }}
+  </div>
+
+  <div class="firma-campos">
+    <div>
+      <label class="firma-campo-lbl" for="firma_{{ rol }}_nombre">
+        Nombre de quien firma
+      </label>
+      <input type="text" class="adm-form-control"
+             id="firma_{{ rol }}_nombre" name="firma_{{ rol }}_nombre"
+             maxlength="{{ limite }}" autocomplete="off"
+             value="{{ nombre_prefill }}"
+             placeholder="Nombre completo">
+    </div>
+    <div>
+      <label class="firma-campo-lbl" for="firma_{{ rol }}_cargo">
+        Cargo <span style="font-weight:400;text-transform:none;">(opcional)</span>
+      </label>
+      <input type="text" class="adm-form-control"
+             id="firma_{{ rol }}_cargo" name="firma_{{ rol }}_cargo"
+             maxlength="{{ limite }}" autocomplete="off"
+             placeholder="Ej. Jefe de Enfermería">
+    </div>
+  </div>
+
+  <div class="firma-pad-wrap">
+    <div class="firma-pad" id="pad_{{ rol }}"
+         data-firma-pad data-input="firma_{{ rol }}_img">
+      <canvas></canvas>
+      <span class="firma-pad-hint">Firma aquí con el dedo</span>
+    </div>
+    <div class="firma-acciones">
+      <span class="firma-nota">
+        <i class="fas fa-info-circle me-1"></i>
+        Una vez registrada, la firma ya no se puede cambiar.
+      </span>
+      <button type="button" class="firma-btn-limpiar" data-firma-limpiar>
+        <i class="fas fa-eraser"></i> Limpiar
+      </button>
+    </div>
+  </div>
+
+  <input type="hidden" id="firma_{{ rol }}_img" name="firma_{{ rol }}_img">
+</div>
+{% endmacro %}
+
+
+{% macro firma_hecha(rol, etiqueta, firma) %}
+<div class="firma-bloque">
+  <div class="firma-rol">
+    <i class="fas fa-check-circle" style="color:#16a34a;"></i> {{ etiqueta }}
+  </div>
+  <div class="firma-hecha">
+    <img src="{{ url_for('static', filename='uploads/' ~ firma.imagen) }}"
+         alt="Firma de {{ firma.nombre }}">
+    <div class="firma-hecha-datos">
+      <div class="firma-hecha-nombre">{{ firma.nombre }}</div>
+      <div class="firma-hecha-meta">
+        {%- if firma.cargo %}{{ firma.cargo }} · {% endif -%}
+        Firmado el {{ firma.fecha.strftime('%d/%m/%Y %H:%M') if firma.fecha and firma.fecha is not string else firma.fecha }}
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}

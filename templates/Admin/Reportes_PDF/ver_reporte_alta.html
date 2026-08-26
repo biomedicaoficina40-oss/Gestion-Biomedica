@@ -1,0 +1,366 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ folio }} — Reporte de alta — Hospital Galenia{% endblock %}
+
+{% block customCSS %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/firma_pad.css') }}">
+<style>
+:root {
+  --adm-accent:       #3D90AE;
+  --adm-accent-dark:  #2d6e87;
+  --adm-accent-light: #e8f4f8;
+  --adm-border:       #d6edf5;
+  --adm-text:         #1a2a30;
+  --adm-muted:        #6b8e99;
+  --adm-radius:       14px;
+  --adm-radius-sm:    8px;
+  --adm-shadow-sm:    0 2px 8px rgba(61,144,174,0.08);
+}
+
+.rep-wrap { max-width: 1200px; margin: 0 auto; }
+
+.rep-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--adm-muted); text-decoration: none;
+  font-size: 0.82rem; font-weight: 600; margin-bottom: 1rem;
+}
+.rep-back:hover { color: var(--adm-accent); }
+
+/* ── Cabecera ── */
+.rep-head {
+  background: #fff;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-radius);
+  box-shadow: var(--adm-shadow-sm);
+  padding: 1.1rem 1.35rem;
+  margin-bottom: 1rem;
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 1rem; justify-content: space-between;
+}
+.rep-ident { min-width: 0; }
+.rep-folio {
+  font-family: 'Courier New', monospace;
+  font-size: 1.35rem; font-weight: 700;
+  color: var(--adm-accent-dark); letter-spacing: 1px;
+  word-break: break-all;
+}
+.rep-equipo {
+  font-size: 0.92rem; font-weight: 600; color: var(--adm-text);
+  margin-top: 2px;
+}
+.rep-meta { font-size: 0.76rem; color: var(--adm-muted); margin-top: 3px; }
+
+/* ── Botones ── */
+.rep-tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.rep-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 15px;
+  border-radius: var(--adm-radius-sm);
+  font-size: 0.82rem; font-weight: 700;
+  text-decoration: none; cursor: pointer;
+  border: 1.5px solid var(--adm-accent);
+  background: #fff; color: var(--adm-accent);
+  transition: all .15s ease;
+}
+.rep-btn:hover { background: var(--adm-accent-light); color: var(--adm-accent-dark); }
+.rep-btn-primary { background: var(--adm-accent); color: #fff; }
+.rep-btn-primary:hover { background: var(--adm-accent-dark); color: #fff; }
+.rep-btn[disabled] { opacity: .6; cursor: wait; }
+
+/* ── Visor ── */
+.rep-viewer {
+  background: #fff;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-radius);
+  box-shadow: var(--adm-shadow-sm);
+  overflow: hidden;
+}
+.rep-viewer iframe {
+  display: block; width: 100%; border: 0;
+  height: calc(100vh - 260px);
+  min-height: 480px;
+}
+.rep-hint {
+  font-size: 0.74rem; color: var(--adm-muted);
+  margin-top: 10px; text-align: center;
+}
+
+/* ── Aviso de expediente regularizado ── */
+.rep-aviso {
+  display: flex; gap: 11px; align-items: flex-start;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #d97706;
+  border-radius: var(--adm-radius-sm);
+  padding: 12px 15px;
+  margin-bottom: 1rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #7c4a03;
+}
+.rep-aviso i { color: #d97706; margin-top: 2px; flex-shrink: 0; }
+.rep-aviso strong { display: block; }
+
+/* ── Panel de firma ── */
+.rep-firmas {
+  background: #fff;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-radius);
+  box-shadow: var(--adm-shadow-sm);
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+.rep-firmas-hd {
+  padding: 10px 16px;
+  background: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.8rem; font-weight: 700; color: #b45309;
+}
+.rep-firmas-hd.ok { background: #f0fdf4; border-bottom-color: #bbf7d0; color: #15803d; }
+.rep-firmas-body { padding: 14px; }
+
+.rep-firma-form + .rep-firma-form { margin-top: 14px; }
+.rep-firma-guardar {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--adm-accent); color: #fff;
+  border: 1.5px solid var(--adm-accent);
+  border-radius: var(--adm-radius-sm);
+  padding: 9px 18px; font-size: 0.82rem; font-weight: 700;
+  cursor: pointer; margin-top: 10px;
+}
+.rep-firma-guardar:hover { background: var(--adm-accent-dark); border-color: var(--adm-accent-dark); }
+.rep-firma-guardar[disabled] { opacity: .6; cursor: wait; }
+.rep-firma-error {
+  display: none; margin-top: 8px;
+  font-size: 0.76rem; color: #dc2626; font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .rep-head { flex-direction: column; align-items: stretch; }
+  .rep-tools .rep-btn { flex: 1; justify-content: center; }
+  .rep-viewer iframe { height: calc(100vh - 300px); min-height: 400px; }
+  .rep-firma-guardar { width: 100%; justify-content: center; }
+}
+</style>
+{% endblock %}
+
+{% from 'admin/_firma_pad.html' import firma_pendiente, firma_hecha %}
+
+{% block body %}
+<div class="rep-wrap">
+
+  <a href="{{ url_for('admin.ver_equipo', id=equipo_id) }}" class="rep-back">
+    <i class="fas fa-arrow-left"></i> Volver al equipo
+  </a>
+
+  <div class="rep-head">
+    <div class="rep-ident">
+      <div class="rep-folio">{{ folio }}</div>
+      <div class="rep-equipo">
+        {% if equipo %}
+          {{ equipo.equipo_unidad }}
+          {%- if equipo.numero_inventario %} · {{ equipo.numero_inventario }}{% endif %}
+        {% else %}
+          Reporte de alta
+        {% endif %}
+      </div>
+      <div class="rep-meta">
+        <i class="fas fa-calendar-alt me-1"></i>
+        Registrado el {{ fecha_txt or '—' }}
+      </div>
+    </div>
+
+    <div class="rep-tools">
+      <a class="rep-btn rep-btn-primary"
+         href="{{ url_for('admin.archivo_reporte_alta', id=equipo_id, descargar=1) }}">
+        <i class="fas fa-download"></i> Descargar PDF
+      </a>
+      {% if puede(ROL_BIOMEDICO) %}
+      <button type="button" class="rep-btn" id="btnRegenerar" onclick="regenerarPdf(this)">
+        <i class="fas fa-sync-alt"></i> Regenerar
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if regularizado %}
+  <div class="rep-aviso">
+    <i class="fas fa-history"></i>
+    <div>
+      <strong>
+        {% if recien_creado %}Expediente generado ahora{% else %}Expediente regularizado{% endif %}
+      </strong>
+      Este equipo ya estaba en el inventario antes del sistema, así que no tenía acta de alta.
+      El expediente <strong>{{ folio }}</strong> se armó con la información que el equipo
+      tiene registrada; lo que falte se completa a mano sobre el impreso o firmando aquí.
+      La fecha del documento es la de regularización, no la de recepción del equipo.
+    </div>
+  </div>
+  {% endif %}
+
+  {# El panel de firma va ARRIBA del visor: en celular el iframe se lleva
+     casi todo el alto y cualquier cosa debajo queda fuera de la vista. #}
+  <div class="rep-firmas">
+    <div class="rep-firmas-hd {{ 'ok' if completo else '' }}">
+      {% if completo %}
+        <i class="fas fa-check-circle"></i> Acta firmada por ambas partes
+      {% else %}
+        <i class="fas fa-pen-nib"></i>
+        Pendiente de firma
+        ({{ pendientes|length }} de {{ 2 }})
+      {% endif %}
+    </div>
+    <div class="rep-firmas-body">
+
+      {# Lo ya firmado, en orden fijo #}
+      {% for rol in ['entrega', 'recibe'] %}
+        {% if firmas.get(rol) %}
+          {{ firma_hecha(rol, etiquetas[rol], firmas[rol]) }}
+        {% endif %}
+      {% endfor %}
+
+      {% if not completo %}
+        {% if puede(ROL_BIOMEDICO) %}
+          {% for rol in pendientes %}
+          <form class="rep-firma-form" data-rol="{{ rol }}"
+                onsubmit="return guardarFirma(event, this)">
+            {{ firma_pendiente(rol, etiquetas[rol]) }}
+            <div class="rep-firma-error" data-error></div>
+            <button type="submit" class="rep-firma-guardar">
+              <i class="fas fa-check"></i> Registrar firma
+            </button>
+          </form>
+          {% endfor %}
+        {% else %}
+          <p class="firma-nota" style="margin:0;">
+            <i class="fas fa-lock me-1"></i>
+            Falta la firma de
+            {% for rol in pendientes %}{{ etiquetas[rol] }}{{ ', ' if not loop.last }}{% endfor %}.
+            Solo un perfil Biomédico o superior puede registrarla.
+          </p>
+        {% endif %}
+      {% endif %}
+
+    </div>
+  </div>
+
+  <div class="rep-viewer">
+    {# Mismo visor pdf.js que ya usan guías, manuales y fichas técnicas:
+       funciona igual en móvil y en escritorio. #}
+    <iframe id="visorPdf"
+            src="{{ url_for('static', filename='pdfjs/web/viewer.html') }}?file={{ url_for('admin.archivo_reporte_alta', id=equipo_id) | urlencode }}"
+            title="{{ folio }}"
+            loading="lazy"></iframe>
+  </div>
+
+  <p class="rep-hint">
+    <i class="fas fa-info-circle me-1"></i>
+    El documento se genera una sola vez, al dar de alta el equipo, y no cambia
+    aunque después se edite la ficha.
+  </p>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='Js/firma_pad.js') }}"></script>
+<script>
+const REP_VIEWER  = "{{ url_for('static', filename='pdfjs/web/viewer.html') }}";
+const REP_ARCHIVO = "{{ url_for('admin.archivo_reporte_alta', id=equipo_id) }}";
+const REP_FIRMAR  = "{{ url_for('admin.firmar_reporte_alta', id=equipo_id) }}";
+/* base.html ya publica el token en <meta name="csrf-token">; se reusa. */
+const CSRF_TOKEN  = document.querySelector('meta[name="csrf-token"]').content;
+
+/* Recarga el visor apuntando al PDF recién rehecho. El parámetro t evita
+   que pdf.js reutilice la versión que tenía en caché. */
+function recargarVisor() {
+  const frame = document.getElementById('visorPdf');
+  frame.src = REP_VIEWER + '?file=' +
+              encodeURIComponent(REP_ARCHIVO + '?t=' + Date.now());
+}
+
+async function guardarFirma(ev, form) {
+  ev.preventDefault();
+
+  const rol    = form.dataset.rol;
+  const pad    = form.querySelector('[data-firma-pad]');
+  const nombre = form.querySelector('#firma_' + rol + '_nombre');
+  const cargo  = form.querySelector('#firma_' + rol + '_cargo');
+  const trazo  = form.querySelector('#firma_' + rol + '_img');
+  const salida = form.querySelector('[data-error]');
+  const btn    = form.querySelector('.rep-firma-guardar');
+
+  const fallar = (msg) => { salida.textContent = msg; salida.style.display = 'block'; };
+  salida.style.display = 'none';
+
+  if (!nombre.value.trim())      return fallar('Escribe el nombre de quien firma.'), false;
+  if (window.FirmaPad.estaVacio(pad)) return fallar('Falta trazar la firma.'), false;
+
+  const original = btn.innerHTML;
+  btn.disabled  = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando…';
+
+  try {
+    const datos = new FormData();
+    datos.append('rol', rol);
+    datos.append('nombre', nombre.value);
+    datos.append('cargo', cargo.value);
+    datos.append('firma', trazo.value);
+    // CSRFProtect está activo en toda la app: sin este token Flask-WTF
+    // rechaza el POST con una página de error en HTML, no con JSON.
+    datos.append('csrf_token', CSRF_TOKEN);
+
+    const resp = await fetch(REP_FIRMAR, {
+      method: 'POST',
+      body: datos,
+      credentials: 'same-origin',
+      headers: { 'X-CSRFToken': CSRF_TOKEN },
+    });
+
+    // La respuesta puede no ser JSON (sesión vencida, error 500 con la
+    // página de depuración de Flask…). Se distingue del fallo de red para
+    // no reportar "no hay conexión" cuando el servidor sí contestó.
+    let json = null;
+    try { json = await resp.json(); } catch (e) { /* respuesta no-JSON */ }
+
+    if (!json) {
+      fallar(resp.status === 400
+        ? 'La sesión expiró. Recarga la página e inténtalo de nuevo.'
+        : `El servidor respondió con un error (${resp.status}).`);
+      return false;
+    }
+    if (!resp.ok || !json.ok) {
+      fallar(json.error || 'No se pudo registrar la firma.');
+      return false;
+    }
+    // El PDF ya se rehizo en el servidor; se recarga la página para que el
+    // panel refleje el estado nuevo (firmada / acta completa).
+    window.location.reload();
+  } catch (e) {
+    fallar('No se pudo conectar con el servidor.');
+  } finally {
+    btn.disabled  = false;
+    btn.innerHTML = original;
+  }
+  return false;
+}
+
+/* Rehace el PDF en el servidor y recarga el visor. */
+async function regenerarPdf(btn) {
+  const original = btn.innerHTML;
+  btn.disabled  = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Regenerando…';
+  try {
+    const resp = await fetch(REP_ARCHIVO + '?regenerar=1', { credentials: 'same-origin' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    recargarVisor();
+  } catch (e) {
+    alert('No se pudo regenerar el PDF. Intenta de nuevo.');
+  } finally {
+    btn.disabled  = false;
+    btn.innerHTML = original;
+  }
+}
+</script>
+{% endblock %}

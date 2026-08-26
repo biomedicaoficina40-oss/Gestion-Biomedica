@@ -1,0 +1,154 @@
+{# ═══════════════════════════════════════════════════════════════════════════
+   Gráficas del dashboard de estadísticas — SVG generado por macro, sin
+   librería. Colores en hexadecimal directo (no variables CSS): así el mismo
+   SVG sirve igual de bien embebido en la pantalla que rasterizado por
+   CairoSVG para un PDF, si algún día se necesita exportar el dashboard.
+
+   Un solo matiz para todo lo que es "magnitud" (ranking, costo por período):
+   es la elección segura según la guía de datos — el color no compite por
+   atención con la forma. Categórico (dos o más colores con significado
+   propio) solo donde de verdad hay series distintas que distinguir, con el
+   orden de matices ya validado para daltonismo.
+   ═══════════════════════════════════════════════════════════════════════════ #}
+
+{# Paleta categórica validada (orden fijo, no ciclar). Solo se usan los
+   primeros N que hagan falta — nunca generar un matiz de más. #}
+{% set CAT = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4'] %}
+{% set AZUL = '#2a78d6' %}
+{% set TEXTO = '#1f2d3a' %}
+{% set MUTED = '#6b7c8a' %}
+{% set LINEA = '#eef1f4' %}
+
+
+{% macro pesos_compacto(valor) %}
+{%- if valor is none -%}—
+{%- elif valor >= 1000000 -%}${{ '%.1f'|format(valor / 1000000) }}M
+{%- elif valor >= 1000 -%}${{ '%.1f'|format(valor / 1000) }}K
+{%- else -%}${{ '{:,.0f}'.format(valor) }}
+{%- endif -%}
+{% endmacro %}
+
+
+{% macro barras_horizontales(items, campo_valor, campo_etiqueta, formato='numero', color=None, alto_barra=20) %}
+{# Ranking / magnitud: costo por equipo, causas de demora, tipos de falla,
+   equipos reincidentes. Una sola serie → un solo matiz, sin leyenda (el
+   título de la tarjeta ya dice qué se mide). #}
+{% set color = color or AZUL %}
+{% set maximo = (items|map(attribute=campo_valor)|max) if items else 1 %}
+{% set maximo = maximo if maximo > 0 else 1 %}
+{% set ancho_total = 480 %}
+{% set ancho_etq = 150 %}
+{% set ancho_barras = ancho_total - ancho_etq - 60 %}
+{% set alto_fila = alto_barra + 10 %}
+{% set alto_svg = (items|length * alto_fila) + 4 %}
+<svg viewBox="0 0 {{ ancho_total }} {{ alto_svg }}" width="100%" style="max-width:{{ ancho_total }}px"
+     xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gráfica de barras">
+  {% for item in items %}
+  {% set y = loop.index0 * alto_fila %}
+  {% set valor = item[campo_valor] %}
+  {% set largo = ((valor / maximo) * ancho_barras)|round|int if maximo else 0 %}
+  {% set largo = [largo, 3]|max %}
+  <text x="0" y="{{ y + alto_barra - 6 }}" font-size="11" fill="{{ TEXTO }}"
+        font-family="Arial, sans-serif">{{ item[campo_etiqueta]|truncate(22) }}
+    {%- if item[campo_etiqueta]|length > 22 -%}
+    <title>{{ item[campo_etiqueta] }}</title>
+    {%- endif -%}
+  </text>
+  <rect x="{{ ancho_etq }}" y="{{ y }}" width="{{ ancho_barras }}" height="{{ alto_barra }}"
+        rx="4" fill="{{ LINEA }}"></rect>
+  <rect x="{{ ancho_etq }}" y="{{ y }}" width="{{ largo }}" height="{{ alto_barra }}"
+        rx="4" fill="{{ color }}"></rect>
+  <text x="{{ ancho_etq + ancho_barras + 8 }}" y="{{ y + alto_barra - 6 }}" font-size="11"
+        fill="{{ TEXTO }}" font-weight="600" font-family="Arial, sans-serif">
+    {%- if formato == 'pesos' -%}{{ pesos_compacto(valor) }}
+    {%- else -%}{{ valor|int }}{%- endif -%}
+  </text>
+  {% endfor %}
+  {% if not items %}
+  <text x="{{ ancho_total // 2 }}" y="16" font-size="11" fill="{{ MUTED }}"
+        text-anchor="middle" font-family="Arial, sans-serif">Sin datos en este período</text>
+  {% endif %}
+</svg>
+{% endmacro %}
+
+
+{% macro columnas_periodo(serie, campo_valor, color=None, formato='pesos') %}
+{# Tendencia en el tiempo: costo por período. Una sola serie, un solo matiz. #}
+{% set color = color or AZUL %}
+{% set maximo = (serie|map(attribute=campo_valor)|max) if serie else 1 %}
+{% set maximo = maximo if maximo > 0 else 1 %}
+{% set ancho_total = 560 %}
+{% set alto_total = 180 %}
+{% set alto_barras = 130 %}
+{% set n = serie|length if serie else 1 %}
+{% set ancho_col = (ancho_total / n) if n else ancho_total %}
+{% set ancho_barra = [ancho_col - 10, 24]|min %}
+<svg viewBox="0 0 {{ ancho_total }} {{ alto_total }}" width="100%" style="max-width:{{ ancho_total }}px"
+     xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gráfica de columnas por período">
+  <line x1="0" y1="{{ alto_barras }}" x2="{{ ancho_total }}" y2="{{ alto_barras }}"
+        stroke="{{ LINEA }}" stroke-width="1"></line>
+  {% for punto in serie %}
+  {% set valor = punto[campo_valor] %}
+  {% set x = loop.index0 * ancho_col + (ancho_col - ancho_barra) / 2 %}
+  {% set alto = ((valor / maximo) * (alto_barras - 18))|round|int if maximo else 0 %}
+  {% set alto = alto if valor > 0 else 0 %}
+  {% if alto > 0 %}
+  <rect x="{{ x }}" y="{{ alto_barras - alto }}" width="{{ ancho_barra }}" height="{{ alto }}"
+        rx="4" fill="{{ color }}"></rect>
+  {% if loop.last or loop.index0 == (serie|length - 1) %}
+  <text x="{{ x + ancho_barra / 2 }}" y="{{ alto_barras - alto - 6 }}" font-size="10"
+        fill="{{ TEXTO }}" font-weight="600" text-anchor="middle" font-family="Arial, sans-serif">
+    {%- if formato == 'pesos' -%}{{ pesos_compacto(valor) }}{%- else -%}{{ valor|int }}{%- endif -%}
+  </text>
+  {% endif %}
+  {% endif %}
+  <text x="{{ x + ancho_barra / 2 }}" y="{{ alto_barras + 14 }}" font-size="9" fill="{{ MUTED }}"
+        text-anchor="middle" font-family="Arial, sans-serif">{{ punto.etiqueta }}</text>
+  {% endfor %}
+</svg>
+{% endmacro %}
+
+
+{% macro columnas_apiladas(serie, capas, maximo, alto_total=180) %}
+{# Parte-del-todo en el tiempo: preventivo vs correctivo, o cualquier
+   comparación de 2–3 categorías por período. `capas` es una lista de
+   (campo, etiqueta) en el orden en que se apilan (abajo primero). `maximo`
+   —el total apilado más alto de toda la serie— se calcula en la ruta: sumar
+   dinámicamente por atributo dentro de Jinja es más frágil que hacerlo en
+   Python, y aquí la plantilla solo debe pintar. #}
+{% set colores = CAT %}
+{% set maximo = maximo if maximo and maximo > 0 else 1 %}
+{% set ancho_total = 560 %}
+{% set alto_barras = 130 %}
+{% set n = serie|length if serie else 1 %}
+{% set ancho_col = (ancho_total / n) if n else ancho_total %}
+{% set ancho_barra = [ancho_col - 10, 24]|min %}
+<svg viewBox="0 0 {{ ancho_total }} {{ alto_total }}" width="100%" style="max-width:{{ ancho_total }}px"
+     xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gráfica de columnas apiladas por período">
+  <line x1="0" y1="{{ alto_barras }}" x2="{{ ancho_total }}" y2="{{ alto_barras }}"
+        stroke="{{ LINEA }}" stroke-width="1"></line>
+  {% for punto in serie %}
+  {% set x = loop.index0 * ancho_col + (ancho_col - ancho_barra) / 2 %}
+  {% set ns = namespace(y_base=0) %}
+  {% for campo, etiqueta in capas %}
+    {% set valor = punto[campo] %}
+    {% set alto = ((valor / maximo) * (alto_barras - 4))|round|int if maximo else 0 %}
+    {% if alto > 0 %}
+    <rect x="{{ x }}" y="{{ alto_barras - ns.y_base - alto }}" width="{{ ancho_barra }}"
+          height="{{ [alto - 2, 1]|max }}" fill="{{ colores[loop.index0 % colores|length] }}"></rect>
+    {% endif %}
+    {% set ns.y_base = ns.y_base + alto %}
+  {% endfor %}
+  <text x="{{ x + ancho_barra / 2 }}" y="{{ alto_barras + 14 }}" font-size="9" fill="{{ MUTED }}"
+        text-anchor="middle" font-family="Arial, sans-serif">{{ punto.etiqueta }}</text>
+  {% endfor %}
+</svg>
+<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;justify-content:center">
+  {% for campo, etiqueta in capas %}
+  <span style="display:inline-flex;align-items:center;gap:5px;font-size:.78rem;color:{{ TEXTO }}">
+    <span style="width:9px;height:9px;border-radius:2px;background:{{ colores[loop.index0 % colores|length] }};display:inline-block"></span>
+    {{ etiqueta }}
+  </span>
+  {% endfor %}
+</div>
+{% endmacro %}

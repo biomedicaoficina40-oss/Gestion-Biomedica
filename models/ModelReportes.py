@@ -1,5 +1,7 @@
+import ast
 import json
 from datetime import datetime
+from decimal import Decimal
 
 
 class ModelReportes:
@@ -8,18 +10,28 @@ class ModelReportes:
 
     TIPOS_VALIDOS = ('alta', 'baja', 'mantenimiento', 'entrada', 'salida')
 
+    # Serie aparte para las actas retroactivas: equipos que ya estaban en el
+    # inventario antes del sistema y nunca tuvieron alta. Son 'alta' para la
+    # BD (el CHECK de la tabla solo admite los cinco tipos), pero se
+    # distinguen por el folio para que no se confundan con una recepción
+    # real ocurrida ese día.
+    PREFIJO_REGULARIZACION = 'RPT-REG-'
+
     # ─────────────────────────────────────────────────────────
     #  FOLIO
     # ─────────────────────────────────────────────────────────
 
     @classmethod
-    def generar_folio(cls, db, tipo):
+    def generar_folio(cls, db, tipo, prefijo=None):
         """
         Genera el siguiente folio para un tipo dado.
         Formato: RPT-ALTA-00001, RPT-BAJA-00001, etc.
+
+        `prefijo` permite una serie propia sin cambiar el tipo, que es como
+        se numeran las regularizaciones (RPT-REG-00001).
         """
         try:
-            prefijo_folio = f"RPT-{tipo.upper()}-"
+            prefijo_folio = prefijo or f"RPT-{tipo.upper()}-"
             cursor = db.cursor()
             cursor.execute(
                 f"SELECT folio FROM {cls.TABLE} "
@@ -48,12 +60,13 @@ class ModelReportes:
 
     @classmethod
     def crear_reporte(cls, db, tipo, equipo_id, usuario_id,
-                      datos_equipo, archivo_pdf=None):
+                      datos_equipo, archivo_pdf=None, prefijo_folio=None):
         """
         Inserta un reporte nuevo.
 
-        datos_equipo = dict con snapshot del equipo en ese momento.
-        archivo_pdf  = ruta relativa al PDF, None si aún no se genera.
+        datos_equipo  = dict con snapshot del equipo en ese momento.
+        archivo_pdf   = ruta relativa al PDF, None si aún no se genera.
+        prefijo_folio = serie propia del folio (ver PREFIJO_REGULARIZACION).
 
         Devuelve (ok: bool, reporte_id: int | None, folio: str | None)
         """
@@ -62,7 +75,7 @@ class ModelReportes:
             return False, None, None
 
         try:
-            folio = cls.generar_folio(db, tipo)
+            folio = cls.generar_folio(db, tipo, prefijo_folio)
             if not folio:
                 return False, None, None
 
@@ -143,7 +156,7 @@ class ModelReportes:
             rows    = cursor.fetchall()
             columns = [col[0] for col in cursor.description]
             cursor.close()
-            return [dict(zip(columns, row)) for row in rows]
+            return [cls._hidratar(dict(zip(columns, row))) for row in rows]
 
         except Exception as e:
             print(f"Error get_por_equipo [{equipo_id}]: {e}")
@@ -165,11 +178,7 @@ class ModelReportes:
                 return None
             columns = [col[0] for col in cursor.description]
             cursor.close()
-            reporte = dict(zip(columns, row))
-            # Deserializar el JSON
-            if reporte.get('datos_json'):
-                reporte['datos'] = json.loads(reporte['datos_json'])
-            return reporte
+            return cls._hidratar(dict(zip(columns, row)))
         except Exception as e:
             print(f"Error get_by_id reporte [{reporte_id}]: {e}")
             return None
@@ -178,18 +187,64 @@ class ModelReportes:
     #  HELPERS
     # ─────────────────────────────────────────────────────────
 
+    @classmethod
+    def _hidratar(cls, reporte):
+        """
+        Deja el reporte listo para el template: agrega la clave 'datos' con el
+        JSON ya deserializado y los accesorios siempre como lista de dicts.
+        """
+        datos = {}
+        if reporte.get('datos_json'):
+            try:
+                datos = json.loads(reporte['datos_json'])
+            except (ValueError, TypeError) as e:
+                print(f"Error al leer datos_json del reporte {reporte.get('id')}: {e}")
+                datos = {}
+        datos['accesorios'] = cls.normalizar_lista(datos.get('accesorios'))
+        reporte['datos'] = datos
+        return reporte
+
+    @classmethod
+    def _serializar_datos(cls, datos):
+        """
+        Convierte fechas y otros tipos no serializables a algo que JSON acepte,
+        SIN aplanar la estructura: los dicts y listas se recorren.
+
+        Aplanarlos con str() era lo que rompía la lista de accesorios — se
+        guardaba como el texto "[{'descripcion': ...}]" y el template la
+        recorría carácter por carácter, así que nunca imprimía nada.
+        """
+        if datos is None or isinstance(datos, (bool, int, float, str)):
+            return datos
+        if isinstance(datos, dict):
+            return {str(k): cls._serializar_datos(v) for k, v in datos.items()}
+        if isinstance(datos, (list, tuple, set)):
+            return [cls._serializar_datos(v) for v in datos]
+        if isinstance(datos, Decimal):
+            return float(datos)
+        if hasattr(datos, 'strftime'):
+            return datos.strftime('%Y-%m-%d')
+        if isinstance(datos, (bytes, bytearray)):
+            return datos.decode('utf-8', errors='replace')
+        return str(datos)
+
     @staticmethod
-    def _serializar_datos(datos):
+    def normalizar_lista(valor):
         """
-        Convierte fechas y otros tipos no serializables a string
-        para poder guardarlos en JSON.
+        Devuelve siempre una lista de dicts.
+
+        Los reportes creados antes de arreglar el serializador tienen los
+        accesorios guardados como el repr de una lista de Python. Se intenta
+        recuperarlos; si no se puede, se tratan como lista vacía en vez de
+        reventar el PDF.
         """
-        resultado = {}
-        for k, v in datos.items():
-            if hasattr(v, 'strftime'):
-                resultado[k] = v.strftime('%Y-%m-%d')
-            elif v is None:
-                resultado[k] = None
-            else:
-                resultado[k] = str(v) if not isinstance(v, (int, float, bool, str)) else v
-        return resultado
+        if isinstance(valor, list):
+            return [v for v in valor if isinstance(v, dict)]
+        if isinstance(valor, str) and valor.strip():
+            try:
+                recuperado = ast.literal_eval(valor)
+            except (ValueError, SyntaxError):
+                return []
+            if isinstance(recuperado, list):
+                return [v for v in recuperado if isinstance(v, dict)]
+        return []

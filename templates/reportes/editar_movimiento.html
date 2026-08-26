@@ -1,0 +1,1080 @@
+{% extends 'base.html' %}
+{% block title %}{{ reporte.folio }} · Captura{% endblock %}
+
+{% block customCSS %}
+<link rel="stylesheet" href="{{ estatico('css/firma_pad.css') }}">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   Módulo de captura de una entrada o salida.
+
+   Mismo sistema visual y las mismas reglas que editar.html (una sola hoja,
+   obligatorio abierto, opcional plegado, nada recarga la página): es la
+   misma pantalla adaptada a lo que de verdad cambia en un movimiento —uno o
+   varios equipos en vez de uno solo, sin refacciones ni resultado, firmas
+   independientes entre sí en vez de un par fijo.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --ed-border: #e6ecef;
+  --ed-text:   #1f2d3a;
+  --ed-muted:  #6b7c8a;
+  --ed-radius: 13px;
+}
+
+.ed-wrap { max-width: 900px; margin: 0 auto; padding-bottom: 96px; }
+
+/* ── Cabecera ───────────────────────────────────────────── */
+.ed-head {
+  background: #fff; border: 1px solid var(--ed-border); border-radius: var(--ed-radius);
+  padding: 14px 16px; margin-bottom: 14px;
+}
+.ed-head-top { display: flex; justify-content: space-between; align-items: flex-start;
+               gap: 10px; flex-wrap: wrap; }
+.ed-folio { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 1.08rem; font-weight: 700; color: var(--ed-text); }
+.ed-equipo { font-size: .9rem; color: var(--ed-text); margin-top: 3px; }
+.ed-equipo-meta { font-size: .79rem; color: var(--ed-muted); margin-top: 1px; }
+.ed-inv { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.ed-badge { padding: 4px 11px; border-radius: 20px; font-size: .75rem; font-weight: 600;
+            background: #dbeafe; color: #1e40af; white-space: nowrap; }
+.ed-badge-borrador { background: var(--ble-warn-bg); color: var(--ble-warn-fg); }
+
+.ed-head-tools { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 11px; }
+.ed-mini {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 38px; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid var(--ed-border); background: #fff; color: var(--ed-muted);
+  font-size: .8rem; text-decoration: none; cursor: pointer;
+}
+.ed-mini:hover { border-color: var(--hospital-primary); color: var(--hospital-primary); }
+.ed-mini-riesgo:hover { border-color: #dc2626; color: #dc2626; }
+
+.ed-servicio { margin-top: 12px; border-top: 1px solid #f1f5f7; padding-top: 11px; }
+.ed-servicio > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center;
+  gap: 8px; flex-wrap: wrap; font-size: .83rem; color: var(--ed-text);
+  min-height: 38px;
+}
+.ed-servicio > summary::-webkit-details-marker { display: none; }
+.ed-servicio-dato { color: var(--ed-muted); }
+.ed-servicio-dato b { color: var(--ed-text); font-weight: 600; }
+.ed-servicio-cambiar { margin-left: auto; color: var(--hospital-primary);
+                       font-size: .8rem; font-weight: 600; white-space: nowrap; }
+.ed-servicio[open] > summary .ed-servicio-cambiar::after { content: ' ▲'; }
+.ed-servicio:not([open]) > summary .ed-servicio-cambiar::after { content: ' ▼'; }
+.ed-servicio-campos { padding-top: 12px; }
+
+.ed-card {
+  background: #fff; border: 1px solid var(--ed-border); border-radius: var(--ed-radius);
+  padding: 16px; margin-bottom: 14px;
+}
+.ed-card-tit {
+  font-size: .96rem; font-weight: 700; color: var(--ed-text); margin: 0 0 14px;
+  display: flex; align-items: center; gap: 9px;
+}
+.ed-paso {
+  width: 24px; height: 24px; flex: 0 0 24px; border-radius: 50%;
+  background: var(--hospital-primary); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: .78rem; font-weight: 700;
+}
+.ed-card-tit small { font-weight: 400; color: var(--ed-muted); font-size: .78rem; }
+
+.ed-fila { display: flex; gap: 12px; flex-wrap: wrap; }
+.ed-col  { flex: 1 1 200px; min-width: 0; }
+.ed-grupo { margin-bottom: 14px; }
+.ed-grupo:last-child { margin-bottom: 0; }
+.ed-label { display: block; font-size: .74rem; font-weight: 600; color: var(--ed-muted);
+            text-transform: uppercase; letter-spacing: .3px; margin-bottom: 5px; }
+.ed-req::after { content: ' *'; color: #dc2626; }
+.ed-input, .ed-select, .ed-area {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--ed-border);
+  border-radius: 9px; font-size: .93rem; color: var(--ed-text);
+  background: #fbfdfe; font-family: inherit; min-height: 44px;
+}
+.ed-area { min-height: 110px; resize: vertical; line-height: 1.5; }
+.ed-input:focus, .ed-select:focus, .ed-area:focus {
+  outline: none; border-color: var(--hospital-primary); background: #fff;
+  box-shadow: 0 0 0 3px rgba(61,144,174,.12);
+}
+.ed-ayuda { font-size: .78rem; color: var(--ed-muted); margin: 6px 0 0; }
+
+/* ── Lista de equipos ───────────────────────────────────── */
+.ed-eq-buscar-wrap { position: relative; margin-bottom: 12px; }
+.ed-sugerencias {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 30;
+  background: #fff; border: 1px solid var(--ed-border); border-radius: 9px;
+  margin-top: 4px; max-height: 300px; overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(16,32,45,.14); display: none;
+}
+.ed-sugerencias.abierto { display: block; }
+.ed-sug {
+  display: block; width: 100%; text-align: left; border: none; background: none;
+  padding: 11px 13px; border-bottom: 1px solid #f4f7f9; cursor: pointer; min-height: 52px;
+}
+.ed-sug:last-child { border-bottom: none; }
+.ed-sug:hover { background: #f0f9fc; }
+.ed-sug-nom { font-weight: 500; color: var(--ed-text); font-size: .93rem; }
+.ed-sug-meta { font-size: .78rem; color: var(--ed-muted); margin-top: 2px; }
+.ed-sug-vacio { padding: 16px 13px; color: var(--ed-muted); font-size: .87rem; text-align: center; }
+
+.ed-eqrow {
+  display: flex; align-items: center; gap: 12px; padding: 11px 13px;
+  border: 1px solid var(--ed-border); border-radius: 10px; margin-bottom: 8px;
+}
+.ed-eqrow:last-child { margin-bottom: 0; }
+.ed-eqrow-ph { width: 40px; height: 40px; border-radius: 8px; flex: 0 0 40px;
+               background: #f1f5f7; display: flex; align-items: center;
+               justify-content: center; color: #a8bcc7; }
+.ed-eqrow-img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover;
+                flex: 0 0 40px; border: 1px solid var(--ed-border); }
+.ed-eqrow-nom { font-weight: 600; color: var(--ed-text); font-size: .9rem; }
+.ed-eqrow-meta { font-size: .78rem; color: var(--ed-muted); margin-top: 1px; }
+.ed-eqrow-quitar { margin-left: auto; background: none; border: none; color: #b91c1c;
+                   cursor: pointer; min-width: 44px; min-height: 44px; }
+
+.ed-frases { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.ed-frase {
+  border: 1px solid var(--ed-border); background: #fff; color: var(--ed-text);
+  border-radius: 20px; padding: 8px 13px; font-size: .81rem; cursor: pointer;
+  min-height: 38px; display: inline-flex; align-items: center; gap: 6px;
+}
+.ed-frase:hover { border-color: var(--hospital-primary); color: var(--hospital-primary); }
+.ed-frase.activo { background: var(--hospital-primary); border-color: var(--hospital-primary);
+                   color: #fff; }
+.ed-frase.activo::before { content: '\f00c'; font-family: 'Font Awesome 6 Free';
+                           font-weight: 900; font-size: .72rem; }
+
+.ed-etapa-tit { font-size: .8rem; font-weight: 600; color: var(--ed-text);
+                margin-bottom: 8px; }
+.ed-fotos { display: flex; flex-wrap: wrap; gap: 10px; }
+.ed-foto { width: 140px; }
+.ed-foto img {
+  width: 140px; height: 105px; object-fit: cover; border-radius: 9px;
+  border: 1px solid var(--ed-border); display: block; background: #f1f5f7;
+}
+.ed-foto-pie {
+  width: 100%; margin-top: 5px; padding: 5px 7px; font-size: .74rem;
+  border: 1px solid var(--ed-border); border-radius: 6px; color: var(--ed-text);
+}
+.ed-foto-acc { display: flex; align-items: center; justify-content: flex-end;
+               gap: 6px; margin-top: 4px; font-size: .72rem; color: var(--ed-muted); }
+.ed-foto-borrar { background: none; border: none; color: #b91c1c; cursor: pointer;
+                  padding: 4px 6px; font-size: .82rem; }
+.ed-dropzone {
+  width: 140px; height: 105px; border: 2px dashed #cbd9e0; border-radius: 9px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 5px; color: var(--ed-muted); font-size: .78rem; cursor: pointer;
+  background: #fbfdfe;
+}
+.ed-dropzone:hover { border-color: var(--hospital-primary); color: var(--hospital-primary); }
+.ed-dropzone i { font-size: 1.25rem; }
+.ed-dropzone input { display: none; }
+.ed-dropzone-chica {
+  width: 140px; height: auto; padding: 7px; border-style: solid; border-width: 1px;
+  flex-direction: row; font-size: .74rem; margin-top: 6px;
+}
+
+.ed-plegable {
+  background: #fff; border: 1px solid var(--ed-border); border-radius: var(--ed-radius);
+  margin-bottom: 14px; overflow: hidden;
+}
+.ed-plegable > summary {
+  list-style: none; cursor: pointer; padding: 14px 16px; min-height: 52px;
+  display: flex; align-items: center; gap: 9px;
+  font-size: .93rem; font-weight: 600; color: var(--ed-text);
+}
+.ed-plegable > summary::-webkit-details-marker { display: none; }
+.ed-plegable > summary i.ed-ico { color: var(--hospital-primary); width: 18px; }
+.ed-plegable > summary::after {
+  content: '▼'; margin-left: auto; font-size: .68rem; color: var(--ed-muted);
+}
+.ed-plegable[open] > summary::after { content: '▲'; }
+.ed-plegable[open] > summary { border-bottom: 1px solid var(--ed-border); }
+.ed-cuenta {
+  background: #eef4f7; color: var(--ed-muted); border-radius: 20px;
+  padding: 1px 9px; font-size: .74rem; font-weight: 600;
+}
+.ed-cuenta:empty { display: none; }
+.ed-plegable-body { padding: 16px; }
+
+.ed-nota { padding: 10px 0; border-bottom: 1px solid #f4f7f9; }
+.ed-nota:last-child { border-bottom: none; }
+.ed-nota-hd { display: flex; gap: 9px; align-items: baseline; flex-wrap: wrap;
+              font-size: .75rem; color: var(--ed-muted); margin-bottom: 3px; }
+.ed-nota-autor { font-weight: 600; color: var(--ed-text); }
+.ed-nota-txt { font-size: .88rem; color: var(--ed-text); line-height: 1.5;
+               white-space: pre-line; word-wrap: break-word; }
+.ed-chip { background: #eef4f7; border-radius: 20px; padding: 1px 8px; font-size: .68rem; }
+.ed-vacio { text-align: center; color: var(--ed-muted); font-size: .85rem; padding: 16px 0; }
+
+.ed-firma-bloque {
+  border: 1px solid var(--ed-border); border-radius: 11px; padding: 14px;
+  margin-bottom: 12px;
+}
+.ed-firma-bloque:last-child { margin-bottom: 0; }
+.ed-firma-hecha { background: var(--ble-ok-bg); border-color: var(--ble-ok-fg); }
+.ed-firma-tit { display: flex; align-items: center; justify-content: space-between;
+                gap: 9px; font-size: .87rem; font-weight: 600; color: var(--ed-text);
+                margin-bottom: 11px; }
+.ed-firma-tit small { font-weight: 400; color: var(--ed-muted); font-size: .78rem; }
+.ed-firma-ok { color: var(--ble-ok-fg); font-size: .8rem; font-weight: 600; }
+.ed-firma-img { max-width: 240px; max-height: 90px; display: block; margin-bottom: 7px; }
+
+.ed-barra {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  background: #fff; border-top: 1px solid var(--ed-border);
+  padding: 10px 16px; display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap; box-shadow: 0 -2px 12px rgba(16,32,45,.07);
+}
+.ed-barra-txt { flex: 1 1 220px; font-size: .8rem; color: var(--ed-muted);
+                display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.ed-pendiente {
+  background: var(--ble-warn-bg); color: var(--ble-warn-fg); border: none;
+  border-radius: 20px; padding: 5px 11px; font-size: .76rem; font-weight: 600;
+  cursor: pointer; min-height: 32px;
+}
+.ed-pendiente:hover { filter: brightness(.96); }
+.ed-listo { color: var(--ble-ok-fg); font-weight: 600; }
+.ed-btn {
+  min-height: 46px; padding: 11px 20px; border-radius: 9px; font-size: .9rem;
+  font-weight: 600; cursor: pointer; border: none; text-decoration: none;
+  background: var(--hospital-primary); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+.ed-btn:hover:not(:disabled) { color: #fff; opacity: .93; }
+.ed-btn:disabled { opacity: .45; cursor: not-allowed; }
+.ed-btn-sec { background: #fff; color: var(--ed-text); border: 1px solid var(--ed-border); }
+.ed-btn-sec:hover { color: var(--ed-text); }
+
+.ed-guardado {
+  position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%);
+  background: #1f2d3a; color: #fff; padding: 9px 17px; border-radius: 20px;
+  font-size: .82rem; opacity: 0; pointer-events: none; transition: opacity .2s;
+  z-index: 50; max-width: 90vw; text-align: center;
+}
+.ed-guardado.visible { opacity: .95; }
+.ed-guardado.error { background: #b91c1c; }
+
+.ed-destacado { animation: edPulso 1.4s ease-out 2; }
+@keyframes edPulso {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+  30%      { box-shadow: 0 0 0 4px rgba(245,158,11,.45); }
+}
+
+@media (max-width: 768px) {
+  .ed-wrap { padding-bottom: 108px; }
+  .ed-card, .ed-plegable-body { padding: 14px; }
+  .ed-col { flex: 1 1 100%; }
+  .ed-foto, .ed-dropzone, .ed-dropzone-chica { width: calc(50% - 5px); }
+  .ed-foto img { width: 100%; }
+  .ed-barra { padding: 9px 12px; }
+  .ed-btn { flex: 1 1 auto; padding: 11px 14px; }
+  .ed-servicio-cambiar { margin-left: 0; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+{% set n_fotos = adjuntos.foto_estado|length %}
+{% set n_arch  = adjuntos.documento|length + adjuntos.requisicion|length %}
+{% set primero = equipos[0] if equipos else None %}
+
+<div class="ed-wrap" data-reporte="{{ reporte.id }}">
+
+  {# ── Cabecera ─────────────────────────────────────────── #}
+  <div class="ed-head">
+    <div class="ed-head-top">
+      <div>
+        <div class="ed-folio">{{ reporte.folio }}</div>
+        {% if primero %}
+        <div class="ed-equipo">
+          {{ primero.equipo_unidad }}{% if equipos|length > 1 %} y {{ equipos|length - 1 }} más{% endif %}
+        </div>
+        <div class="ed-equipo-meta">
+          <span class="ed-inv">{{ primero.numero_inventario }}</span>
+          {% if primero.marca %} · {{ primero.marca }}{% endif %}
+        </div>
+        {% endif %}
+      </div>
+      <span class="ed-badge {{ 'ed-badge-borrador' if reporte.estado == 'borrador' }}">
+        {{ 'Borrador' if reporte.estado == 'borrador' else 'En proceso' }}
+      </span>
+    </div>
+
+    <div class="ed-head-tools">
+      <a class="ed-mini" href="{{ url_for('reportes.archivo', reporte_id=reporte.id) }}"
+         target="_blank">
+        <i class="far fa-file-pdf"></i> Vista previa
+      </a>
+      {% if equipos|length == 1 %}
+      <a class="ed-mini" href="{{ url_for('admin.ver_recursos', id=primero.id) }}" target="_blank">
+        <i class="fas fa-book"></i> Manual de servicio
+      </a>
+      <a class="ed-mini" href="{{ url_for('admin.ver_equipo', id=primero.id) }}" target="_blank">
+        <i class="fas fa-cube"></i> Ficha del equipo
+      </a>
+      {% endif %}
+      <button type="button" class="ed-mini ed-mini-riesgo" id="edCancelar">
+        <i class="fas fa-ban"></i> Cancelar expediente
+      </button>
+    </div>
+
+    <details class="ed-servicio">
+      <summary>
+        <span class="ed-servicio-dato"><b>{{ etiq_sentido.get(reporte.tipo, reporte.tipo) }}</b></span>
+        <span class="ed-servicio-dato">·
+          <b id="edResFecha">{{ reporte.fecha_inicio.strftime('%d/%m/%Y') if reporte.fecha_inicio else 'sin fecha' }}</b>
+        </span>
+        <span class="ed-servicio-dato">·
+          <b id="edResArea">{{ catalogos.areas|selectattr('id', 'equalto', reporte.area_id)|map(attribute='nombre')|first|default('sin área') }}</b>
+        </span>
+        <span class="ed-servicio-dato">·
+          <b id="edResTecnico">{{ catalogos.tecnicos|selectattr('id', 'equalto', reporte.tecnico_id)|map(attribute='nombre')|first|default('sin técnico') }}</b>
+        </span>
+        <span class="ed-servicio-cambiar">Cambiar</span>
+      </summary>
+      <div class="ed-servicio-campos">
+        <div class="ed-fila">
+          <div class="ed-col">
+            <label class="ed-label" for="edFechaInicio">Fecha</label>
+            <input type="date" class="ed-input" id="edFechaInicio" name="fecha_inicio"
+                   value="{{ reporte.fecha_inicio.strftime('%Y-%m-%d') if reporte.fecha_inicio }}"
+                   data-auto data-resumen="edResFecha">
+          </div>
+          <div class="ed-col">
+            <label class="ed-label" for="edArea">Área</label>
+            <select class="ed-select" id="edArea" name="area_id" data-auto data-resumen="edResArea">
+              <option value="">Sin especificar</option>
+              {% for area in catalogos.areas %}
+                <option value="{{ area.id }}" {{ 'selected' if reporte.area_id == area.id }}>{{ area.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="ed-fila" style="margin-top:12px">
+          <div class="ed-col">
+            <label class="ed-label" for="edTecnico">Técnico</label>
+            <select class="ed-select" id="edTecnico" name="tecnico_id" data-auto data-resumen="edResTecnico">
+              <option value="">Sin asignar</option>
+              {% for tecnico in catalogos.tecnicos %}
+                <option value="{{ tecnico.id }}" {{ 'selected' if reporte.tecnico_id == tecnico.id }}>{{ tecnico.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  {# ══ 1 · EQUIPOS ════════════════════════════════════════ #}
+  <section class="ed-card" id="s-equipos">
+    <h2 class="ed-card-tit">
+      <span class="ed-paso">1</span> Equipos
+      <small>{{ equipos|length }}</small>
+    </h2>
+
+    <div class="ed-eq-buscar-wrap">
+      <input type="search" id="edEqBuscar" class="ed-input" autocomplete="off"
+             placeholder="Número de inventario, serie o nombre del equipo"
+             aria-label="Buscar equipo para agregar">
+      <div class="ed-sugerencias" id="edEqSugerencias" role="listbox"></div>
+    </div>
+    <p class="ed-ayuda" style="margin:0 0 12px">
+      Generalmente es uno solo; si el movimiento es de un lote, sigue
+      agregando equipos.
+    </p>
+
+    <div id="edListaEquipos">
+      {% for eq in equipos %}
+      <div class="ed-eqrow" data-equipo="{{ eq.id }}">
+        {% if eq.imagen %}
+        <img class="ed-eqrow-img" src="{{ url_for('static', filename='uploads/' ~ eq.imagen) }}" alt="">
+        {% else %}
+        <div class="ed-eqrow-ph"><i class="fas fa-cube"></i></div>
+        {% endif %}
+        <div>
+          <div class="ed-eqrow-nom">{{ eq.equipo_unidad }}</div>
+          <div class="ed-eqrow-meta">
+            {{ eq.numero_inventario }}{% if eq.marca %} · {{ eq.marca }}{% endif %}
+          </div>
+        </div>
+        <button type="button" class="ed-eqrow-quitar" data-quitar-equipo="{{ eq.id }}"
+                aria-label="Quitar equipo del movimiento">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="ed-vacio" id="edSinEquipos" {{ 'style=display:none' if equipos }}>
+      Sin equipos agregados todavía.
+    </div>
+  </section>
+
+  {# ══ 2 · MOTIVO Y DETALLE ═══════════════════════════════ #}
+  <section class="ed-card" id="s-motivo">
+    <h2 class="ed-card-tit">
+      <span class="ed-paso">2</span> Motivo y detalle
+    </h2>
+
+    <div class="ed-grupo">
+      <label class="ed-label ed-req" for="edMotivo">Motivo</label>
+      <textarea class="ed-area" id="edMotivo" name="motivo" data-auto
+                placeholder="Por qué {{ 'entra' if reporte.tipo == 'entrada' else 'sale' }} el equipo…"
+                >{{ detalle.motivo or '' }}</textarea>
+
+      {% set frases = ['Mantenimiento correctivo externo', 'Mantenimiento preventivo externo',
+                       'Calibración', 'Préstamo entre áreas', 'Reparación con proveedor',
+                       'Regresa de servicio externo'] %}
+      <div class="ed-frases">
+        {% for frase in frases %}
+        <button type="button" class="ed-frase" data-frase="{{ frase }}">{{ frase }}</button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="ed-grupo">
+      <label class="ed-label" for="edAccesorios">Accesorios</label>
+      <textarea class="ed-area" id="edAccesorios" name="accesorios" data-auto
+                style="min-height:80px"
+                placeholder="Con qué accesorios {{ 'entra' if reporte.tipo == 'entrada' else 'sale' }} el equipo…"
+                >{{ detalle.accesorios or '' }}</textarea>
+    </div>
+
+    <div class="ed-fila">
+      <div class="ed-col">
+        <label class="ed-label" for="edProveedor">Proveedor</label>
+        <select class="ed-select" id="edProveedor" name="proveedor_id" data-auto>
+          <option value="">Sin especificar</option>
+          {% for prov in catalogos.proveedores %}
+            <option value="{{ prov.id }}" {{ 'selected' if detalle.proveedor_id == prov.id }}>{{ prov.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if reporte.tipo == 'salida' %}
+      <div class="ed-col">
+        <label class="ed-label" for="edDestino">Destino externo</label>
+        <input type="text" class="ed-input" id="edDestino" name="destino_externo" data-auto
+               maxlength="200" value="{{ detalle.destino_externo or '' }}"
+               placeholder="A dónde sale">
+      </div>
+      {% endif %}
+    </div>
+
+    {% if reporte.tipo == 'salida' %}
+    <div class="ed-grupo" style="margin-top:14px">
+      <label class="ed-label" for="edRetornoPrevisto">Retorno previsto</label>
+      <input type="date" class="ed-input" id="edRetornoPrevisto" name="fecha_retorno_prevista"
+             data-auto value="{{ detalle.fecha_retorno_prevista.strftime('%Y-%m-%d') if detalle.fecha_retorno_prevista }}">
+    </div>
+    {% endif %}
+
+    {% if reporte.tipo == 'entrada' %}
+    <div class="ed-grupo" style="margin-top:14px">
+      <label class="ed-label" for="edPadre">¿Cierra una salida abierta?</label>
+      <select class="ed-select" id="edPadre" name="movimiento_padre_id" data-auto>
+        <option value="">No aplica</option>
+        {% for s in salidas_abiertas %}
+          <option value="{{ s.id }}" {{ 'selected' if detalle.movimiento_padre_id == s.id }}>
+            {{ s.folio }}{% if s.motivo %} — {{ s.motivo[:40] }}{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <p class="ed-ayuda">
+        Si esta entrada es el regreso de un equipo que salió, elígela aquí:
+        deja de aparecer como "fuera del hospital" en el momento en que
+        guardes.
+      </p>
+    </div>
+    {% endif %}
+  </section>
+
+  {# ══ 3 · EVIDENCIA ══════════════════════════════════════ #}
+  <section class="ed-card" id="s-fotos">
+    <h2 class="ed-card-tit">
+      <span class="ed-paso">3</span> Evidencia fotográfica
+      <small id="edCuentaFotos">{{ n_fotos if n_fotos else '' }}</small>
+    </h2>
+    <div class="ed-etapa-tit">
+      Estado {{ 'al ingreso' if reporte.tipo == 'entrada' else 'al retirarse' }}
+    </div>
+    <div class="ed-fotos" data-galeria="foto_estado">
+      {% for foto in adjuntos.foto_estado %}
+      <figure class="ed-foto" data-adjunto="{{ foto.id }}">
+        <a href="{{ url_for('static', filename='uploads/' ~ foto.archivo) }}" target="_blank">
+          <img src="{{ url_for('static', filename='uploads/' ~ (foto.archivo_thumb or foto.archivo)) }}"
+               alt="{{ foto.descripcion or 'Estado del equipo' }}" loading="lazy">
+        </a>
+        <input type="text" class="ed-foto-pie" value="{{ foto.descripcion or '' }}"
+               placeholder="Descripción…" maxlength="300" data-pie="{{ foto.id }}">
+        <div class="ed-foto-acc">
+          <button type="button" class="ed-foto-borrar" data-borrar-adjunto="{{ foto.id }}"
+                  aria-label="Eliminar foto"><i class="fas fa-trash"></i></button>
+        </div>
+      </figure>
+      {% endfor %}
+      <label class="ed-dropzone">
+        <i class="fas fa-camera"></i>
+        <span>Tomar foto</span>
+        <input type="file" accept="image/*" capture="environment" multiple data-subir="foto_estado">
+      </label>
+    </div>
+    <label class="ed-dropzone ed-dropzone-chica">
+      <i class="fas fa-images"></i>
+      <span>Elegir de la galería</span>
+      <input type="file" accept="image/*" multiple data-subir="foto_estado">
+    </label>
+  </section>
+
+  {# ══ NOTAS (opcional) ═══════════════════════════════════ #}
+  <details class="ed-plegable" id="s-notas" {{ 'open' if notas }}>
+    <summary>
+      <i class="far fa-comment-dots ed-ico"></i>
+      Anotaciones internas
+      <span class="ed-cuenta" id="edCuentaNotas">{{ notas|length if notas else '' }}</span>
+    </summary>
+    <div class="ed-plegable-body">
+      <div id="edListaNotas">
+        {% for nota in notas %}
+        <div class="ed-nota" data-nota="{{ nota.id }}">
+          <div class="ed-nota-hd">
+            <span class="ed-nota-autor">{{ nota.autor }}</span>
+            <span>{{ nota.fecha.strftime('%d/%m/%Y %H:%M') if nota.fecha }}</span>
+            {% if nota.incluir_en_pdf %}<span class="ed-chip">Se imprime</span>{% endif %}
+          </div>
+          <div class="ed-nota-txt">{{ nota.texto }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="ed-vacio" id="edSinNotas" {{ 'style=display:none' if notas }}>
+        Sin anotaciones todavía.
+      </div>
+      <div style="margin-top:16px">
+        <label class="ed-label" for="edNotaTexto">Nueva anotación</label>
+        <textarea class="ed-area" id="edNotaTexto" style="min-height:80px"
+                  placeholder="Detalles del movimiento…"></textarea>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:9px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;font-size:.84rem;cursor:pointer">
+            <input type="checkbox" id="edNotaPdf"> Incluir en el PDF
+          </label>
+          <button type="button" class="ed-btn" id="edAgregarNota" style="margin-left:auto">
+            <i class="fas fa-plus"></i> Agregar
+          </button>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  {# ══ ARCHIVOS (opcional) ════════════════════════════════ #}
+  <details class="ed-plegable" id="s-archivos" {{ 'open' if n_arch }}>
+    <summary>
+      <i class="fas fa-paperclip ed-ico"></i>
+      Archivos de respaldo
+      <span class="ed-cuenta" id="edCuentaArchivos">{{ n_arch if n_arch else '' }}</span>
+    </summary>
+    <div class="ed-plegable-body">
+      <div class="ed-fotos" data-galeria="documento">
+        {% for archivo in adjuntos.documento + adjuntos.requisicion %}
+        <div class="ed-foto" data-adjunto="{{ archivo.id }}">
+          <a class="ed-mini" style="width:100%"
+             href="{{ url_for('static', filename='uploads/' ~ archivo.archivo) }}" target="_blank">
+            <i class="far fa-file"></i>
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+              {{ archivo.nombre_original or 'Archivo' }}
+            </span>
+          </a>
+          <div class="ed-foto-acc">
+            <button type="button" class="ed-foto-borrar" data-borrar-adjunto="{{ archivo.id }}"
+                    aria-label="Eliminar archivo"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+        {% endfor %}
+        <label class="ed-dropzone">
+          <i class="fas fa-file-arrow-up"></i>
+          <span>Subir archivo</span>
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" data-subir="requisicion">
+        </label>
+      </div>
+    </div>
+  </details>
+
+  {# ══ 4 · FIRMAS ═════════════════════════════════════════ #}
+  <section class="ed-card" id="s-firmas">
+    <h2 class="ed-card-tit">
+      <span class="ed-paso">4</span> Firmas
+      <small>El biomédico es obligatorio; responsable de área y proveedor son independientes.</small>
+    </h2>
+
+    {% set roles = [('biomedico', 'Ingeniería Biomédica', false),
+                    ('responsable_area', 'Responsable del área', true),
+                    ('proveedor', 'Proveedor', true)] %}
+    {% for rol, etiqueta, opcional in roles %}
+      {% set firma = firmas.get(rol) %}
+      <div class="ed-firma-bloque {{ 'ed-firma-hecha' if firma }}"
+           id="firma-{{ rol }}" data-firma-rol="{{ rol }}" data-etiqueta="{{ etiqueta }}">
+        <div class="ed-firma-tit">
+          <span>{{ etiqueta }}{% if opcional %} <small>(opcional)</small>{% endif %}</span>
+          {% if firma %}
+            <span class="ed-firma-ok"><i class="fas fa-check-circle"></i> Firmado</span>
+          {% endif %}
+        </div>
+        {% if firma %}
+          <img class="ed-firma-img" src="{{ url_for('static', filename='uploads/' ~ firma.imagen) }}" alt="Firma">
+          <div style="font-size:.87rem;font-weight:600">{{ firma.nombre }}</div>
+          <div style="font-size:.77rem;color:var(--ed-muted)">
+            {% if firma.cargo %}{{ firma.cargo }} · {% endif %}
+            {{ firma.fecha.strftime('%d/%m/%Y %H:%M') if firma.fecha }}
+          </div>
+        {% else %}
+          <div class="ed-fila">
+            <div class="ed-col">
+              <label class="ed-label" for="nom-{{ rol }}">Nombre</label>
+              <input type="text" class="ed-input" id="nom-{{ rol }}" maxlength="150" data-firma-nombre="{{ rol }}">
+            </div>
+            <div class="ed-col">
+              <label class="ed-label" for="car-{{ rol }}">Cargo</label>
+              <input type="text" class="ed-input" id="car-{{ rol }}" maxlength="150" data-firma-cargo="{{ rol }}">
+            </div>
+          </div>
+          <div class="firma-pad" data-firma-pad data-input="img-{{ rol }}">
+            <canvas></canvas>
+            <div class="firma-pad-hint">Firma aquí</div>
+          </div>
+          <input type="hidden" id="img-{{ rol }}">
+          <div style="display:flex;gap:8px;margin-top:9px">
+            <button type="button" class="ed-mini" data-firma-limpiar>
+              <i class="fas fa-eraser"></i> Limpiar
+            </button>
+            <button type="button" class="ed-btn" data-firma-guardar="{{ rol }}" style="margin-left:auto">
+              <i class="fas fa-check"></i> Guardar firma
+            </button>
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </section>
+
+</div>
+
+<div class="ed-barra">
+  <div class="ed-barra-txt" id="edPendientes"></div>
+  <a class="ed-btn ed-btn-sec" href="{{ url_for('reportes.centro', estado='abiertos') }}">Salir</a>
+  <button type="button" class="ed-btn" id="edLiberar" {{ 'disabled' if pendientes }}>
+    <i class="fas fa-lock"></i> Liberar
+  </button>
+</div>
+
+<div class="ed-guardado" id="edAviso"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ estatico('Js/firma_pad.js') }}"></script>
+<script>
+(function () {
+  'use strict';
+
+  const wrap  = document.querySelector('.ed-wrap');
+  const rid   = wrap.dataset.reporte;
+  const token = document.querySelector('meta[name="csrf-token"]').content;
+  const aviso = document.getElementById('edAviso');
+
+  const esc = t => String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  function enviar(url, datos) {
+    const cuerpo = datos instanceof FormData ? datos : new FormData();
+    if (!(datos instanceof FormData)) {
+      Object.entries(datos || {}).forEach(([k, v]) => {
+        if (v !== null && v !== undefined) cuerpo.append(k, v);
+      });
+    }
+    cuerpo.append('csrf_token', token);
+    return fetch(url, { method: 'POST', body: cuerpo, headers: { 'X-CSRFToken': token } })
+      .then(async r => {
+        const texto = await r.text();
+        try { return { ok: r.ok, datos: JSON.parse(texto) }; }
+        catch { return { ok: false, datos: { mensaje: 'Tu sesión expiró. Vuelve a entrar.' } }; }
+      });
+  }
+
+  let temporizadorAviso;
+  function decir(mensaje, esError) {
+    aviso.textContent = mensaje;
+    aviso.classList.toggle('error', !!esError);
+    aviso.classList.add('visible');
+    clearTimeout(temporizadorAviso);
+    temporizadorAviso = setTimeout(() => aviso.classList.remove('visible'), 2200);
+  }
+
+  function contar(id, n) {
+    const nodo = document.getElementById(id);
+    if (nodo) nodo.textContent = n > 0 ? n : '';
+  }
+
+  const barra   = document.getElementById('edPendientes');
+  const liberar = document.getElementById('edLiberar');
+
+  function pintarPendientes(lista) {
+    const faltan = lista || [];
+    barra.innerHTML = '';
+    if (!faltan.length) {
+      const ok = document.createElement('span');
+      ok.className = 'ed-listo';
+      ok.textContent = 'Listo para liberar.';
+      barra.appendChild(ok);
+      liberar.disabled = false;
+      return;
+    }
+    faltan.forEach(p => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'ed-pendiente';
+      chip.textContent = p.texto || p;
+      if (p.ancla) {
+        chip.addEventListener('click', () => {
+          const destino = document.getElementById(p.ancla);
+          if (!destino) return;
+          const plegable = destino.closest('details');
+          if (plegable) plegable.open = true;
+          destino.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          destino.classList.add('ed-destacado');
+          setTimeout(() => destino.classList.remove('ed-destacado'), 3000);
+          if (destino.focus) destino.focus({ preventScroll: true });
+        });
+      }
+      barra.appendChild(chip);
+    });
+    liberar.disabled = true;
+  }
+
+  pintarPendientes({{ pendientes|tojson }});
+
+  // ── Guardado automático ─────────────────────────────────
+  let temporizadorGuardado;
+  function guardarCampo(campo) {
+    const datos = {};
+    datos[campo.name] = campo.value;
+    return enviar('{{ url_for("reportes.guardar", reporte_id=reporte.id) }}', datos)
+      .then(({ ok, datos }) => {
+        if (ok) { decir('Guardado'); if (datos.pendientes) pintarPendientes(datos.pendientes); }
+        else decir(datos.mensaje || 'No se pudo guardar', true);
+        return ok;
+      });
+  }
+
+  function refrescarResumen(campo) {
+    const destino = campo.dataset.resumen && document.getElementById(campo.dataset.resumen);
+    if (!destino) return;
+    if (campo.tagName === 'SELECT') {
+      const opcion = campo.options[campo.selectedIndex];
+      destino.textContent = (campo.value && opcion) ? opcion.textContent.trim() : '—';
+    } else if (campo.type === 'date') {
+      const partes = campo.value.split('-');
+      destino.textContent = partes.length === 3
+        ? partes[2] + '/' + partes[1] + '/' + partes[0] : 'sin fecha';
+    }
+  }
+
+  document.querySelectorAll('[data-auto]').forEach(campo => {
+    const inmediato = campo.tagName === 'SELECT' || campo.type === 'date';
+    campo.addEventListener(inmediato ? 'change' : 'input', () => {
+      refrescarResumen(campo);
+      clearTimeout(temporizadorGuardado);
+      if (inmediato) { guardarCampo(campo); return; }
+      temporizadorGuardado = setTimeout(() => guardarCampo(campo), 900);
+    });
+    if (!inmediato) {
+      campo.addEventListener('blur', () => { clearTimeout(temporizadorGuardado); guardarCampo(campo); });
+    }
+  });
+
+  // ── Frases rápidas ──────────────────────────────────────
+  const motivo = document.getElementById('edMotivo');
+  function renglones() { return motivo.value.split('\n'); }
+  function tieneFrase(frase) { return renglones().some(l => l.trim() === '· ' + frase); }
+  function sincronizarFrases() {
+    document.querySelectorAll('[data-frase]').forEach(b => b.classList.toggle('activo', tieneFrase(b.dataset.frase)));
+  }
+  document.querySelectorAll('[data-frase]').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const frase = boton.dataset.frase;
+      if (tieneFrase(frase)) {
+        motivo.value = renglones().filter(l => l.trim() !== '· ' + frase).join('\n').replace(/\n{3,}/g, '\n\n');
+      } else {
+        const actual = motivo.value.replace(/\s+$/, '');
+        motivo.value = (actual ? actual + '\n' : '') + '· ' + frase;
+      }
+      sincronizarFrases();
+      clearTimeout(temporizadorGuardado);
+      guardarCampo(motivo);
+    });
+  });
+  motivo.addEventListener('input', sincronizarFrases);
+  sincronizarFrases();
+
+  // ── Equipos ──────────────────────────────────────────────
+  const eqBuscar = document.getElementById('edEqBuscar');
+  const eqLista  = document.getElementById('edEqSugerencias');
+  const eqListaEquipos = document.getElementById('edListaEquipos');
+  const eqSinEquipos   = document.getElementById('edSinEquipos');
+  let eqTemporizador, eqResultados = [];
+
+  function eqYaAgregado(id) { return !!eqListaEquipos.querySelector('[data-equipo="' + id + '"]'); }
+
+  function eqRefrescarContador() {
+    const n = eqListaEquipos.querySelectorAll('[data-equipo]').length;
+    const contadorTitulo = document.querySelector('#s-equipos small');
+    if (contadorTitulo) contadorTitulo.textContent = n;
+    if (eqSinEquipos) eqSinEquipos.style.display = n ? 'none' : '';
+  }
+
+  function eqPintarSugerencias(items) {
+    eqResultados = items;
+    if (!items.length) {
+      eqLista.innerHTML = '<div class="ed-sug-vacio">Sin coincidencias</div>';
+      eqLista.classList.add('abierto');
+      return;
+    }
+    eqLista.innerHTML = items.map((eq, i) => `
+      <button type="button" class="ed-sug" data-i="${i}" role="option"${eqYaAgregado(eq.id) ? ' disabled' : ''}>
+        <div class="ed-sug-nom">${esc(eq.equipo_unidad)}</div>
+        <div class="ed-sug-meta">
+          <span>${esc(eq.numero_inventario)}</span>${eq.marca ? ' · ' + esc(eq.marca) : ''}
+          ${eqYaAgregado(eq.id) ? ' · ya agregado' : ''}
+        </div>
+      </button>`).join('');
+    eqLista.classList.add('abierto');
+    eqLista.querySelectorAll('.ed-sug:not([disabled])').forEach(b => {
+      b.addEventListener('click', () => eqAgregar(eqResultados[+b.dataset.i]));
+    });
+  }
+
+  function eqAgregar(eq) {
+    if (eqYaAgregado(eq.id)) return;
+    enviar('{{ url_for("reportes.agregar_equipo", reporte_id=reporte.id) }}', { equipo_id: eq.id })
+      .then(({ ok, datos }) => {
+        if (!ok) { decir(datos.mensaje || 'No se pudo agregar', true); return; }
+        const fila = document.createElement('div');
+        fila.className = 'ed-eqrow';
+        fila.dataset.equipo = eq.id;
+        fila.innerHTML =
+          '<div class="ed-eqrow-ph"><i class="fas fa-cube"></i></div>' +
+          '<div><div class="ed-eqrow-nom">' + esc(eq.equipo_unidad) + '</div>' +
+          '<div class="ed-eqrow-meta">' + esc(eq.numero_inventario) +
+          (eq.marca ? ' · ' + esc(eq.marca) : '') + '</div></div>' +
+          '<button type="button" class="ed-eqrow-quitar" data-quitar-equipo="' + eq.id + '" ' +
+          'aria-label="Quitar equipo del movimiento"><i class="fas fa-times"></i></button>';
+        eqListaEquipos.appendChild(fila);
+        eqConectarQuitar(fila.querySelector('[data-quitar-equipo]'));
+        eqRefrescarContador();
+        if (datos.pendientes) pintarPendientes(datos.pendientes);
+        eqLista.classList.remove('abierto');
+        eqBuscar.value = '';
+        decir('Equipo agregado');
+      });
+  }
+
+  function eqConectarQuitar(boton) {
+    boton.addEventListener('click', () => {
+      const id = boton.dataset.quitarEquipo;
+      enviar('/reportes/{{ reporte.id }}/equipos/' + id + '/quitar', {})
+        .then(({ ok, datos }) => {
+          if (!ok) { decir(datos.mensaje || 'No se pudo quitar', true); return; }
+          boton.closest('[data-equipo]').remove();
+          eqRefrescarContador();
+          if (datos.pendientes) pintarPendientes(datos.pendientes);
+        });
+    });
+  }
+  eqListaEquipos.querySelectorAll('[data-quitar-equipo]').forEach(eqConectarQuitar);
+
+  eqBuscar.addEventListener('input', () => {
+    clearTimeout(eqTemporizador);
+    const termino = eqBuscar.value.trim();
+    if (termino.length < 2) { eqLista.classList.remove('abierto'); return; }
+    eqTemporizador = setTimeout(() => {
+      fetch('{{ url_for("reportes.api_equipo") }}?q=' + encodeURIComponent(termino))
+        .then(r => r.json()).then(eqPintarSugerencias)
+        .catch(() => eqLista.classList.remove('abierto'));
+    }, 300);
+  });
+  document.addEventListener('click', e => {
+    if (!eqLista.contains(e.target) && e.target !== eqBuscar) eqLista.classList.remove('abierto');
+  });
+
+  // ── Fotos y archivos ────────────────────────────────────
+  function tarjetaFoto(a) {
+    const fig = document.createElement('figure');
+    fig.className = 'ed-foto';
+    fig.dataset.adjunto = a.id;
+    fig.innerHTML =
+      '<a href="' + esc(a.url) + '" target="_blank">' +
+        '<img src="' + esc(a.url_thumb) + '" alt="Foto" loading="lazy"></a>' +
+      '<input type="text" class="ed-foto-pie" value="" placeholder="Descripción…" ' +
+             'maxlength="300" data-pie="' + a.id + '">' +
+      '<div class="ed-foto-acc">' +
+        '<button type="button" class="ed-foto-borrar" data-borrar-adjunto="' + a.id + '" ' +
+                'aria-label="Eliminar foto"><i class="fas fa-trash"></i></button>' +
+      '</div>';
+    return fig;
+  }
+  function tarjetaArchivo(a) {
+    const div = document.createElement('div');
+    div.className = 'ed-foto';
+    div.dataset.adjunto = a.id;
+    div.innerHTML =
+      '<a class="ed-mini" style="width:100%" href="' + esc(a.url) + '" target="_blank">' +
+        '<i class="far fa-file"></i>' +
+        '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+        esc(a.nombre_original || 'Archivo') + '</span></a>' +
+      '<div class="ed-foto-acc">' +
+        '<button type="button" class="ed-foto-borrar" data-borrar-adjunto="' + a.id + '" ' +
+                'aria-label="Eliminar archivo"><i class="fas fa-trash"></i></button>' +
+      '</div>';
+    return div;
+  }
+  function recontarAdjuntos() {
+    const gf = document.querySelector('[data-galeria="foto_estado"]');
+    contar('edCuentaFotos', gf ? gf.querySelectorAll('[data-adjunto]').length : 0);
+    const gd = document.querySelector('[data-galeria="documento"]');
+    contar('edCuentaArchivos', gd ? gd.querySelectorAll('[data-adjunto]').length : 0);
+  }
+  function subirEnSerie(archivos, clase, galeria, i) {
+    i = i || 0;
+    if (i >= archivos.length) { decir('Listo'); return; }
+    const cuerpo = new FormData();
+    cuerpo.append('archivo', archivos[i]);
+    cuerpo.append('clase', clase);
+    decir(archivos.length > 1 ? 'Subiendo ' + (i + 1) + ' de ' + archivos.length + '…' : 'Subiendo…');
+    enviar('{{ url_for("reportes.subir_adjunto", reporte_id=reporte.id) }}', cuerpo)
+      .then(({ ok, datos }) => {
+        if (!ok || !datos.adjunto) { decir(datos.mensaje || 'No se pudo subir', true); return; }
+        const nodo = clase.indexOf('foto') === 0 ? tarjetaFoto(datos.adjunto) : tarjetaArchivo(datos.adjunto);
+        galeria.insertBefore(nodo, galeria.querySelector('.ed-dropzone'));
+        conectarAdjunto(nodo);
+        recontarAdjuntos();
+        subirEnSerie(archivos, clase, galeria, i + 1);
+      });
+  }
+  document.querySelectorAll('[data-subir]').forEach(input => {
+    input.addEventListener('change', () => {
+      if (!input.files.length) return;
+      const clase = input.dataset.subir;
+      const galeria = document.querySelector(
+        '[data-galeria="' + (clase === 'requisicion' ? 'documento' : clase) + '"]');
+      subirEnSerie(Array.from(input.files), clase, galeria);
+      input.value = '';
+    });
+  });
+  function conectarAdjunto(raiz) {
+    raiz.querySelectorAll('[data-pie]').forEach(campo => {
+      campo.addEventListener('blur', () => {
+        enviar('/reportes/adjuntos/' + campo.dataset.pie, { descripcion: campo.value })
+          .then(({ ok }) => decir(ok ? 'Descripción guardada' : 'No se pudo guardar', !ok));
+      });
+    });
+    raiz.querySelectorAll('[data-borrar-adjunto]').forEach(boton => {
+      boton.addEventListener('click', () => {
+        if (!confirm('¿Eliminar este archivo?')) return;
+        enviar('/reportes/adjuntos/' + boton.dataset.borrarAdjunto, { accion: 'eliminar' })
+          .then(({ ok, datos }) => {
+            if (ok) { boton.closest('[data-adjunto]').remove(); recontarAdjuntos(); }
+            else decir(datos.mensaje || 'No se pudo eliminar', true);
+          });
+      });
+    });
+  }
+  document.querySelectorAll('[data-adjunto]').forEach(conectarAdjunto);
+
+  // ── Notas ───────────────────────────────────────────────
+  const btnNota = document.getElementById('edAgregarNota');
+  if (btnNota) {
+    btnNota.addEventListener('click', () => {
+      const texto = document.getElementById('edNotaTexto');
+      if (!texto.value.trim()) { texto.focus(); return; }
+      btnNota.disabled = true;
+      enviar('{{ url_for("reportes.agregar_nota", reporte_id=reporte.id) }}', {
+        texto: texto.value,
+        incluir_en_pdf: document.getElementById('edNotaPdf').checked ? '1' : '0'
+      }).then(({ ok, datos }) => {
+        btnNota.disabled = false;
+        if (!ok || !datos.nota) { decir(datos.mensaje || 'No se pudo guardar', true); return; }
+        const n = datos.nota;
+        const div = document.createElement('div');
+        div.className = 'ed-nota';
+        div.dataset.nota = n.id;
+        div.innerHTML =
+          '<div class="ed-nota-hd"><span class="ed-nota-autor">' + esc(n.autor) + '</span>' +
+          '<span>' + esc(n.fecha) + '</span>' +
+          (n.incluir_en_pdf ? '<span class="ed-chip">Se imprime</span>' : '') +
+          '</div><div class="ed-nota-txt">' + esc(n.texto) + '</div>';
+        document.getElementById('edListaNotas').appendChild(div);
+        document.getElementById('edSinNotas').style.display = 'none';
+        contar('edCuentaNotas', document.querySelectorAll('#edListaNotas [data-nota]').length);
+        texto.value = '';
+        document.getElementById('edNotaPdf').checked = false;
+        decir('Anotación agregada');
+      });
+    });
+  }
+
+  // ── Firmas ──────────────────────────────────────────────
+  document.querySelectorAll('[data-firma-guardar]').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const rol    = boton.dataset.firmaGuardar;
+      const bloque = document.getElementById('firma-' + rol);
+      const nombre = bloque.querySelector('[data-firma-nombre]');
+      const cargo  = bloque.querySelector('[data-firma-cargo]');
+      const trazo  = document.getElementById('img-' + rol);
+
+      if (!nombre.value.trim()) { nombre.focus(); decir('Escribe el nombre', true); return; }
+      if (!trazo.value)         { decir('Falta el trazo de la firma', true); return; }
+
+      boton.disabled = true;
+      enviar('{{ url_for("reportes.firmar", reporte_id=reporte.id) }}', {
+        rol: rol, nombre: nombre.value, cargo: cargo.value, firma: trazo.value
+      }).then(({ ok, datos }) => {
+        if (!ok) { decir(datos.mensaje || 'No se pudo firmar', true); boton.disabled = false; return; }
+        const f = datos.firma || {};
+        bloque.classList.add('ed-firma-hecha');
+        bloque.innerHTML =
+          '<div class="ed-firma-tit"><span>' + esc(bloque.dataset.etiqueta || '') + '</span>' +
+            '<span class="ed-firma-ok"><i class="fas fa-check-circle"></i> Firmado</span></div>' +
+          '<img class="ed-firma-img" src="' + esc(f.url) + '" alt="Firma">' +
+          '<div style="font-size:.87rem;font-weight:600">' + esc(f.nombre) + '</div>' +
+          '<div style="font-size:.77rem;color:var(--ed-muted)">' +
+            (f.cargo ? esc(f.cargo) + ' · ' : '') + esc(f.fecha) + '</div>';
+        if (datos.pendientes) pintarPendientes(datos.pendientes);
+        decir(datos.mensaje || 'Firma guardada');
+      });
+    });
+  });
+
+  // ── Cancelar ────────────────────────────────────────────
+  document.getElementById('edCancelar').addEventListener('click', () => {
+    const motivoCancelar = prompt('Se conserva el folio pero el expediente queda cancelado.\n' +
+                                  'Motivo (opcional):');
+    if (motivoCancelar === null) return;
+    enviar('{{ url_for("reportes.cancelar", reporte_id=reporte.id) }}', { motivo: motivoCancelar })
+      .then(({ ok, datos }) => {
+        if (ok) location.href = '{{ url_for("reportes.centro") }}';
+        else decir(datos.mensaje || 'No se pudo cancelar', true);
+      });
+  });
+
+  // ── Liberar ─────────────────────────────────────────────
+  liberar.addEventListener('click', function () {
+    if (!confirm('Al liberar se genera el PDF y el reporte ya no se podrá editar. ¿Continuar?')) return;
+    this.disabled = true;
+    enviar('{{ url_for("reportes.liberar", reporte_id=reporte.id) }}', {})
+      .then(({ ok, datos }) => {
+        if (ok && datos.url) { location.href = datos.url; return; }
+        if (datos.pendientes) pintarPendientes(datos.pendientes);
+        const detalle = (datos.pendientes || []).map(p => p.texto || p).join(' · ');
+        decir((datos.mensaje || 'No se pudo liberar') + (detalle ? ': ' + detalle : ''), true);
+        this.disabled = false;
+      });
+  });
+})();
+</script>
+{% endblock %}

@@ -1,23 +1,244 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash,current_app
-from flask_login import login_required, current_user
+from flask import (Blueprint, render_template, request, redirect, url_for, flash,
+                   current_app, send_file, jsonify)
+from flask_login import current_user
 from database.db import get_connection
-from datetime import date
+from models.entities.decorators import (
+    requiere_rol, rol_canonico, tiene_rol,
+    ROL_USUARIO, ROL_BIOMEDICO, ROL_ADMIN,
+)
+from datetime import date, datetime
 import os
-import json
-from weasyprint import HTML as WeasyHTML
-from io import BytesIO
 from models.ModelInventario import ModelInventario
 from models.model_recursos import ModelRecursos
 from models.ModelReportes import ModelReportes
+from models.ModelFirmas import ModelFirmas
 from models.ModelUsuarios import ModelUsuarios
+from models.entities.User import User
+from services import reporte_pdf
 
 admin_bp = Blueprint('admin', __name__)
+
+# El motor de PDF y sus utilidades viven en services/reporte_pdf.py desde que
+# dejaron de ser exclusivos del acta de alta: los cinco tipos de reporte nuevos
+# los reusan. Se reexportan con los nombres privados que ya usaba el resto del
+# archivo, para que mover el código no obligara a tocar las rutas.
+_STATIC_DIR   = reporte_pdf.STATIC_DIR
+_UPLOADS_DIR  = reporte_pdf.UPLOADS_DIR
+_REPORTES_DIR = reporte_pdf.REPORTES_DIR
+
+_limitar          = reporte_pdf.limitar
+_fecha_es         = reporte_pdf.fecha_es
+_fecha_larga_es   = reporte_pdf.fecha_larga_es
+_uri_estatica     = reporte_pdf.uri_estatica
+_ruta_pdf_reporte = reporte_pdf.ruta_pdf
+
+
+# Largo máximo de cada campo de captura. Es la única fuente de verdad:
+# el formulario recibe estos números para pintar los `maxlength` y el POST
+# los aplica de nuevo en el servidor. Los campos de identificación usan el
+# largo real de su columna en InventarioEquipos; los de texto libre usan el
+# largo que cabe sin romper el bloque correspondiente del PDF.
+LIMITES = {
+    'equipo_unidad':     200,
+    'marca':             100,
+    'modelo':            150,
+    'numero_serie':      100,
+    'area':              100,
+    'departamento':      100,
+    'propiedad':         100,
+    'numero_inventario':  50,
+    'observaciones':     600,
+    'obs_reporte':       600,
+    'acc_descripcion':    90,
+    'firma_nombre':      150,
+    'firma_cargo':       150,
+}
+MAX_ACCESORIOS = 25
+
+
+# ── Helpers del acta de alta ───────────────────────────────────
+# Lo genérico (fechas, límites, URIs, paginación del PDF) está en
+# services/reporte_pdf.py. Aquí solo queda lo que es propio del alta.
+
+def _asegurar_reporte_alta(db, equipo_id, equipo=None):
+    """
+    Devuelve el reporte de alta del equipo, creándolo si no existe.
+
+    La mayoría del inventario se cargó directo en la base de datos, antes
+    de que existiera este módulo, así que esos equipos nunca tuvieron acta.
+    Para que el botón de "Reporte de alta" sirva en todos, aquí se levanta
+    una **regularización**: un reporte real, con folio de su propia serie
+    (RPT-REG-), cuyo snapshot se arma con lo que hoy tiene el equipo en la
+    BD. Lo que no existe se queda en blanco para llenarse a mano.
+
+    A partir de ese momento se comporta igual que cualquier otra acta: se
+    congela, se firma y ya no cambia.
+
+    Devuelve (reporte | None, creado: bool).
+    """
+    reportes = ModelReportes.get_por_equipo(db, equipo_id, tipo='alta')
+    if reportes:
+        return reportes[0], False
+
+    equipo = equipo or ModelInventario.get_by_id(db, equipo_id)
+    if not equipo:
+        return None, False
+
+    # El snapshot es la ficha tal como está hoy. Los campos que solo existen
+    # en un alta capturada por el sistema (motivo, empresa, accesorios,
+    # observaciones del reporte) van vacíos a propósito.
+    datos = {
+        **equipo,
+        'motivo_ingreso':        None,
+        'empresa_responsable':   None,
+        'accesorios':            [],
+        'observaciones_reporte': None,
+        # Marca el acta como retroactiva: se imprime una leyenda para que
+        # nadie lea la fecha del documento como fecha de recepción.
+        'regularizado':          True,
+    }
+
+    ok, reporte_id, folio = ModelReportes.crear_reporte(
+        db            = db,
+        tipo          = 'alta',
+        equipo_id     = equipo_id,
+        usuario_id    = current_user.IDusuario,
+        datos_equipo  = datos,
+        prefijo_folio = ModelReportes.PREFIJO_REGULARIZACION,
+    )
+    if not ok:
+        return None, False
+
+    current_app.logger.info(
+        f"Reporte de alta regularizado {folio} para el equipo {equipo_id}."
+    )
+    return ModelReportes.get_by_id(db, reporte_id), True
+
+
+def _contexto_reporte(reporte, equipo=None, firmas=None):
+    """
+    Arma el contexto del PDF a partir del SNAPSHOT del reporte.
+
+    El acta se imprime con los datos del día del alta, no con los del
+    equipo hoy; `equipo` solo rellena huecos de reportes viejos cuyo
+    snapshot no traía todos los campos.
+
+    Las firmas son la excepción: no van en el snapshot porque se agregan
+    después, así que llegan aparte y se resuelven al momento de imprimir.
+    """
+    datos = reporte.get('datos') or {}
+    eq = {**(equipo or {}), **datos}
+
+    for campo in ('fecha_adquisicion', 'fecha_fabricacion', 'fecha_fin_garantia'):
+        eq[campo] = _fecha_es(eq.get(campo))
+    eq['accesorios'] = ModelReportes.normalizar_lista(eq.get('accesorios'))
+
+    imagen_url = None
+    if eq.get('imagen'):
+        imagen_url = _uri_estatica('uploads', *str(eq['imagen']).split('/'))
+
+    # Las firmas se pasan ya resueltas: URI del trazo y fecha formateada,
+    # para que la plantilla no tenga que saber de rutas ni de formatos.
+    firmas_ctx = {}
+    for rol, firma in (firmas or {}).items():
+        url = _uri_estatica('uploads', *str(firma.get('imagen') or '').split('/'))
+        if not url:
+            continue
+        firmas_ctx[rol] = {
+            'nombre':    firma.get('nombre'),
+            'cargo':     firma.get('cargo'),
+            'url':       url,
+            'fecha_txt': _fecha_es(firma.get('fecha'), '%d/%m/%Y'),
+        }
+
+    fecha = reporte.get('fecha')
+    # Un acta retroactiva no documenta una recepción: documenta lo que ya
+    # había en el inventario. Los huecos van en blanco para llenarse con
+    # pluma, en vez del guion que se usa cuando el dato sí se capturó y
+    # simplemente no existe.
+    regularizado = bool(eq.get('regularizado'))
+
+    return dict(
+        eq           = eq,
+        folio        = reporte.get('folio'),
+        fecha_txt    = _fecha_larga_es(fecha),
+        anio         = fecha.year if hasattr(fecha, 'year') else None,
+        imagen_url   = imagen_url,
+        logo_url     = _uri_estatica('img', 'Logo-Galenia.png'),
+        firmas       = firmas_ctx,
+        regularizado = regularizado,
+        ph           = '' if regularizado else '—',
+    )
+
+
+def _guardar_firmas_del_form(db, reporte_id):
+    """
+    Registra las firmas que hayan venido en el formulario de alta.
+
+    Las dos son opcionales: un rol sin nombre o sin trazo simplemente se
+    salta y queda pendiente. Una firma que falle no aborta el alta — se
+    deja en el log y el reporte nace pendiente de esa parte.
+
+    Devuelve las firmas ya registradas, listas para el PDF.
+    """
+    for rol in ModelFirmas.ROLES_ALTA:
+        nombre = _limitar(request.form.get(f'firma_{rol}_nombre', ''), LIMITES['firma_nombre'])
+        trazo  = request.form.get(f'firma_{rol}_img', '')
+        if not nombre or not trazo:
+            continue
+        try:
+            imagen_rel = ModelFirmas.guardar_firma_png(trazo)
+            ok, mensaje = ModelFirmas.crear(
+                db,
+                reporte_id = reporte_id,
+                rol        = rol,
+                nombre     = nombre,
+                cargo      = _limitar(request.form.get(f'firma_{rol}_cargo', ''),
+                                      LIMITES['firma_cargo']),
+                imagen_rel = imagen_rel,
+                usuario_id = current_user.IDusuario,
+            )
+            if not ok:
+                ModelInventario.eliminar_archivo_fisico(imagen_rel)
+                current_app.logger.warning(
+                    f"Firma {rol} del reporte {reporte_id} no se registró: {mensaje}"
+                )
+        except Exception as ex:
+            current_app.logger.error(
+                f"Error guardando firma {rol} del reporte {reporte_id}: {ex}"
+            )
+
+    return ModelFirmas.get_por_reporte(db, reporte_id)
+
+
+def _generar_pdf_reporte(db, reporte, equipo=None, firmas=None):
+    """
+    Renderiza el acta de alta, la congela en disco y registra la ruta.
+
+    La maquetacion en si (las cuatro pasadas, el corte equilibrado y el
+    anclado de firmas al pie) vive en services/reporte_pdf.py. Aqui solo
+    queda lo propio del alta: armar su contexto y actualizar el reporte.
+
+    Se llama al dar de alta el equipo y cada vez que se registra una firma.
+    Fuera de eso el PDF solo se lee del disco.
+    """
+    contexto = _contexto_reporte(reporte, equipo, firmas)
+    destino, _digest = reporte_pdf.generar_pdf(
+        'admin/Reportes_PDF/reporte_alta.html',
+        contexto,
+        reporte_pdf.ruta_pdf(reporte['folio']),
+    )
+
+    ModelReportes.actualizar_pdf(
+        db, reporte['id'], f"reportes/{os.path.basename(destino)}"
+    )
+    return destino
 
 
 # ── Gestión de Inventario ──────────────────────────────────────
 
 @admin_bp.route('/inventario')
-@login_required
+@requiere_rol(ROL_USUARIO)
 def ver_inventario():
     q         = request.args.get('q', '').strip()
     depto     = request.args.get('depto', '')
@@ -27,9 +248,13 @@ def ver_inventario():
     sort      = request.args.get('sort', '')
     dir       = request.args.get('dir', 'asc')
     page      = request.args.get('page', 1, type=int)
+    # agrupar=0 desactiva el orden "operativos primero" (activo por defecto)
+    agrupar   = request.args.get('agrupar', '1') != '0'
     per_page  = 15
     db = get_connection()
-    equipos, total = ModelInventario.get_inventario(db, q, depto, estado, marca, propiedad, sort, dir, page, per_page)
+    equipos, total = ModelInventario.get_inventario(db, q, depto, estado, marca, propiedad,
+                                                    sort, dir, page, per_page,
+                                                    agrupar_estado=agrupar)
     stats          = ModelInventario.get_stats(db)
     marcas         = ModelInventario.get_marcas(db)
     departamentos  = ModelInventario.get_departamentos(db)
@@ -41,6 +266,7 @@ def ver_inventario():
         marcas=marcas, departamentos=departamentos, propiedades=propiedades,
         q=q, depto=depto, estado=estado, marca=marca, propiedad=propiedad,
         sort=sort, dir=dir, page=page, per_page=per_page,
+        agrupar=agrupar, agrupar_param=None if agrupar else '0',
         today=date.today()
     )
 
@@ -50,8 +276,42 @@ def ver_inventario():
     return render_template('admin/inventario.html', **ctx)
 
 
+@admin_bp.route('/inventario/nfc')
+@requiere_rol(ROL_USUARIO)
+def panel_nfc():
+    """
+    Panel de control de equipos con chip NFC: checklist de imagen,
+    guía rápida, manual, ficha técnica, capacitación y registro de
+    mantenimiento, con enlaces directos para completar lo que falte.
+    """
+    db      = get_connection()
+    equipos = ModelInventario.get_equipos_nfc(db)
+    db.close()
+
+    # Los equipos con información incompleta suben primero: es un panel
+    # para "alimentar" datos, así lo que falta queda a la vista de inmediato.
+    equipos.sort(key=lambda e: (e['items_completos'], e['numero_inventario']))
+
+    contadores = {
+        'total':            len(equipos),
+        'completos':        sum(1 for e in equipos if e['items_completos'] == e['total_items']),
+        'incompletos':      sum(1 for e in equipos if e['items_completos'] <  e['total_items']),
+        'mant_pendiente':   sum(1 for e in equipos if e['estado_mant'] != 'al_dia'),
+        'sin_imagen':       sum(1 for e in equipos if not e['tiene_imagen']),
+        'sin_guia':         sum(1 for e in equipos if not e['tiene_guia']),
+        'sin_manual':       sum(1 for e in equipos if not e['tiene_manual']),
+        'sin_ficha':        sum(1 for e in equipos if not e['tiene_ficha']),
+        'sin_capacitacion': sum(1 for e in equipos if not e['tiene_capacitacion']),
+    }
+
+    return render_template('admin/panel_nfc.html',
+        equipos=equipos,
+        contadores=contadores,
+    )
+
+
 @admin_bp.route('/inventario/agregar', methods=['GET', 'POST'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def agregar_equipo():
     db = None
     try:
@@ -61,6 +321,7 @@ def agregar_equipo():
             # ── Datos para selects ──────────────────────────────
             departamentos = ModelInventario.get_departamentos(db)
             propiedades   = ModelInventario.get_propiedades(db)
+            areas = ModelInventario.get_areas(db)
 
             # ── Datos para autocomplete client-side ─────────────
             # Una sola consulta, sin peticiones extra desde el browser
@@ -99,50 +360,70 @@ def agregar_equipo():
             return render_template('admin/agregar_equipo.html',
                 departamentos = departamentos,
                 propiedades   = propiedades,
+                areas         = areas,
                 equipos_ac    = equipos_ac,
                 marcas_ac     = marcas_ac,
                 modelos_ac    = modelos_ac,
                 num_eqme      = num_eqme,
                 num_amco      = num_amco,
                 prefijos       = ['EQ-ME', 'AM-CO'],
+                limites        = LIMITES,
+                max_accesorios = MAX_ACCESORIOS,
+                # Quien da de alta suele ser quien entrega: se propone su
+                # nombre, pero sigue siendo editable.
+                firma_entrega_nombre = ' '.join(filter(None, [
+                    current_user.NombreUsuario, current_user.Apellido
+                ])).strip(),
             )
 
         # ── POST ────────────────────────────────────────────────
         # Validar CSRF ya lo maneja Flask-WTF automáticamente
 
         # 1 — Recoger y sanear campos
+        # _limitar recorta al mismo largo que declara el formulario: el
+        # maxlength del HTML no protege de un POST armado a mano.
         prefijo          = request.form.get('prefijo', '').strip()
-        equipo_unidad    = request.form.get('equipo_unidad', '').strip()
-        marca            = request.form.get('marca', '').strip()
-        modelo           = request.form.get('modelo', '').strip()
-        numero_serie     = request.form.get('numero_serie', '').strip()
-        area             = request.form.get('area', '').strip()
+        equipo_unidad    = _limitar(request.form.get('equipo_unidad', ''), LIMITES['equipo_unidad'])
+        marca            = _limitar(request.form.get('marca', ''),         LIMITES['marca'])
+        modelo           = _limitar(request.form.get('modelo', ''),        LIMITES['modelo'])
+        numero_serie     = _limitar(request.form.get('numero_serie', ''),  LIMITES['numero_serie'])
         estado           = request.form.get('estado', '').strip()
-        observaciones    = request.form.get('observaciones', '').strip()
+        observaciones    = _limitar(request.form.get('observaciones', ''), LIMITES['observaciones'])
         # ── Campos solo para el reporte (no van a la BD principal) ──
         motivo_ingreso       = request.form.get('motivo_ingreso', '').strip()
         empresa_responsable  = request.form.get('empresa_responsable', '').strip()
-        obs_reporte          = request.form.get('obs_reporte', '').strip()
+        obs_reporte          = _limitar(request.form.get('obs_reporte', ''), LIMITES['obs_reporte'])
 
         # Accesorios — vienen como listas paralelas del formulario
         acc_desc      = request.form.getlist('acc_descripcion')
         acc_cant      = request.form.getlist('acc_cantidad')
         acc_condicion = request.form.getlist('acc_condicion')
         accesorios = [
-            {'descripcion': d.strip(), 'cantidad': c.strip(), 'condicion': co.strip()}
+            {
+                'descripcion': _limitar(d, LIMITES['acc_descripcion']),
+                'cantidad':    c.strip()[:3],
+                'condicion':   co.strip()[:20],
+            }
             for d, c, co in zip(acc_desc, acc_cant, acc_condicion)
             if d.strip()
-        ]
+        ][:MAX_ACCESORIOS]
 
         # Departamento: si eligió "otro" usar el campo libre
         departamento = request.form.get('departamento', '').strip()
         if departamento == '__otro__':
-            departamento = request.form.get('departamento_nuevo', '').strip()
+            departamento = request.form.get('departamento_nuevo', '')
+        departamento = _limitar(departamento, LIMITES['departamento'])
+
+        area = request.form.get('area', '').strip()
+        if area == '__otro__':
+            area = request.form.get('area_nueva', '')
+        area = _limitar(area, LIMITES['area'])
 
         # Propiedad: igual
         propiedad = request.form.get('propiedad', '').strip()
         if propiedad == '__otro__':
-            propiedad = request.form.get('propiedad_nueva', '').strip()
+            propiedad = request.form.get('propiedad_nueva', '')
+        propiedad = _limitar(propiedad, LIMITES['propiedad'])
 
         # Fechas — pueden venir vacías
         fecha_adquisicion  = request.form.get('fecha_adquisicion')  or None
@@ -151,8 +432,17 @@ def agregar_equipo():
 
         # 2 — Validaciones del lado servidor
         errores = []
-        if prefijo not in ('EQ-ME', 'AM-CO'):
-            errores.append('Prefijo de inventario inválido.')
+        usar_manual = request.form.get('numero_manual_activo') == '1'
+        numero_manual = _limitar(
+            request.form.get('numero_inventario_manual', ''), LIMITES['numero_inventario']
+        )
+
+        if usar_manual:
+            if not numero_manual:
+                errores.append('Escribe el número de inventario personalizado.')
+        else:
+            if prefijo not in ('EQ-ME', 'AM-CO'):
+                errores.append('Prefijo de inventario inválido.')
         if not equipo_unidad:
             errores.append('El nombre del equipo es obligatorio.')
         if not departamento:
@@ -165,21 +455,44 @@ def agregar_equipo():
                 flash(e, 'error')
             return redirect(url_for('admin.agregar_equipo'))
 
-        # 3 — Generar número de inventario
-        numero_inventario = ModelInventario.generar_numero_inventario(db, prefijo)
-        if not numero_inventario:
-            flash('Error al generar el número de inventario.', 'error')
-            return redirect(url_for('admin.agregar_equipo'))
+        # 3 — Número de inventario (automático o manual)
+        if usar_manual:
+            numero_inventario = numero_manual
+            # Verificar que no exista ya
+            cursor = db.cursor()
+            cursor.execute(
+                f"SELECT COUNT(*) FROM {ModelInventario.TABLE} WHERE numero_inventario = ?",
+                (numero_inventario,)
+            )
+            existe = cursor.fetchone()[0]
+            cursor.close()
+            if existe:
+                flash(f'El número {numero_inventario} ya existe en el inventario.', 'error')
+                return redirect(url_for('admin.agregar_equipo'))
+        else:
+            numero_inventario = ModelInventario.generar_numero_inventario(db, prefijo)
+            if not numero_inventario:
+                flash('Error al generar el número de inventario.', 'error')
+                return redirect(url_for('admin.agregar_equipo'))
 
         # 4 — Manejar imagen (opcional)
-        imagen_path = None
-        imagen_file = request.files.get('imagen')
+        # imagen_nueva distingue un archivo recién subido (limpiar si falla la
+        # creación) de uno reutilizado de otro equipo del mismo modelo (nunca
+        # borrar: pertenece también a esos otros equipos).
+        imagen_path  = None
+        imagen_nueva = False
+        imagen_file  = request.files.get('imagen')
         if imagen_file and imagen_file.filename:
             try:
-                imagen_path = ModelInventario.guardar_imagen(imagen_file)
+                imagen_path  = ModelInventario.guardar_imagen(imagen_file)
+                imagen_nueva = True
             except ValueError as e:
                 flash(str(e), 'error')
                 return redirect(url_for('admin.agregar_equipo'))
+        elif modelo:
+            # Sin imagen propia: reutilizar la de otro equipo del mismo
+            # modelo si ya existe, para no forzar a resubirla.
+            imagen_path = ModelInventario.buscar_imagen_por_modelo(db, modelo)
 
         # 5 — Armar datos y crear equipo
         datos = {
@@ -201,13 +514,20 @@ def agregar_equipo():
 
         equipo_id = ModelInventario.crear(db, datos)
         if not equipo_id:
-            # Si falló y ya subimos imagen, limpiarla
-            if imagen_path:
+            # Si falló y la imagen era una subida nueva (no reutilizada
+            # de otro equipo), limpiarla del disco
+            if imagen_path and imagen_nueva:
                 ModelInventario.eliminar_archivo_fisico(imagen_path)
             flash('Error al registrar el equipo. Intenta de nuevo.', 'error')
             return redirect(url_for('admin.agregar_equipo'))
 
-        # 6 — Crear reporte de alta
+        # 6 — Copiar recursos (manuales, fichas, etc.) de otros equipos del
+        # mismo modelo, para no obligar a resubirlos en cada alta.
+        recursos_copiados = 0
+        if modelo:
+            recursos_copiados = ModelRecursos.copiar_recursos_por_modelo(db, modelo, equipo_id)
+
+        # 7 — Crear reporte de alta
         equipo_nuevo = ModelInventario.get_by_id(db, equipo_id)
 
         datos_reporte = {
@@ -230,12 +550,36 @@ def agregar_equipo():
             current_app.logger.warning(
                 f"Equipo {equipo_id} creado pero falló el reporte de alta."
             )
+        else:
+            # 8 — Firmas capturadas en el momento del alta (ambas opcionales).
+            # Lo que no se firme aquí queda pendiente y se cierra después
+            # desde el visor del reporte.
+            firmas_guardadas = _guardar_firmas_del_form(db, reporte_id)
 
-        flash(
-            f'Equipo {numero_inventario} registrado correctamente. '
-            f'{"Folio de alta: " + folio if folio else ""}',
-            'success'
-        )
+            # 9 — Congelar el PDF ahora, con los datos de este momento.
+            # Si falla no se cancela el alta: el reporte queda registrado y
+            # el PDF se genera la primera vez que alguien lo abra.
+            try:
+                reporte = ModelReportes.get_by_id(db, reporte_id)
+                _generar_pdf_reporte(db, reporte, equipo_nuevo, firmas_guardadas)
+            except Exception as ex_pdf:
+                current_app.logger.error(
+                    f"Reporte {folio} creado pero falló el PDF: {ex_pdf}"
+                )
+
+        mensaje = f'Equipo {numero_inventario} registrado correctamente.'
+        reutilizado = []
+        if imagen_path and not imagen_nueva:
+            reutilizado.append('imagen')
+        if recursos_copiados:
+            reutilizado.append(
+                f'{recursos_copiados} recurso{"s" if recursos_copiados != 1 else ""}'
+            )
+        if reutilizado:
+            mensaje += f' Se reutilizó del mismo modelo: {" y ".join(reutilizado)}.'
+        if folio:
+            mensaje += f' Folio de alta: {folio}'
+        flash(mensaje, 'success')
         return redirect(url_for('admin.ver_equipo', id=equipo_id))
 
     except Exception as ex:
@@ -248,52 +592,92 @@ def agregar_equipo():
             db.close()
 
 @admin_bp.route('/inventario/<int:id>/reporte-alta')
-@login_required
-def descargar_reporte_alta(id):
+@requiere_rol(ROL_USUARIO)
+def ver_reporte_alta(id):
+    """
+    Página visor: muestra el PDF en el navegador con pdf.js para poder
+    revisarlo antes de decidir si se descarga.
+    """
     db = None
     try:
         db = get_connection()
 
-        # Buscar el reporte de alta más reciente del equipo
-        reportes = ModelReportes.get_por_equipo(db, id, tipo='alta')
-        if not reportes:
-            flash('No existe reporte de alta para este equipo.', 'error')
+        equipo           = ModelInventario.get_by_id(db, id)
+        reporte, creado  = _asegurar_reporte_alta(db, id, equipo)
+        if not reporte:
+            flash('No se pudo preparar el reporte de alta de este equipo.', 'error')
             return redirect(url_for('admin.ver_equipo', id=id))
 
-        reporte  = reportes[0]  # el más reciente
-        equipo   = ModelInventario.get_by_id(db, id)
+        firmas = ModelFirmas.get_por_reporte(db, reporte['id'])
 
-        # Deserializar JSON
-        import json
-        datos = json.loads(reporte['datos_json']) if reporte.get('datos_json') else {}
-
-        # Renderizar template HTML del reporte
-        html_str = render_template(
-            'admin/Reportes_PDF/reporte_alta.html',
-            equipo   = equipo,
-            reporte  = reporte,
-            datos    = datos,
-            folio    = reporte['folio'],
-            fecha    = reporte['fecha'],
-            static_path = os.path.abspath(
-                os.path.join(os.path.dirname(__file__), '..', 'static')
-            ).replace('\\', '/'),
-        )
-
-        # Generar PDF con WeasyPrint
-        pdf_bytes = WeasyHTML(string=html_str).write_pdf()
-        buffer    = BytesIO(pdf_bytes)
-
-        from flask import send_file
-        return send_file(
-            buffer,
-            as_attachment=True,
-            download_name=f"{reporte['folio']}.pdf",
-            mimetype='application/pdf'
+        return render_template(
+            'admin/Reportes_PDF/ver_reporte_alta.html',
+            equipo       = equipo,
+            equipo_id    = id,
+            reporte      = reporte,
+            folio        = reporte['folio'],
+            fecha_txt    = _fecha_larga_es(reporte.get('fecha')),
+            firmas       = firmas,
+            pendientes   = ModelFirmas.roles_pendientes(firmas),
+            completo     = ModelFirmas.esta_completo(firmas),
+            etiquetas    = ModelFirmas.ETIQUETAS_ROL,
+            # El aviso va en la propia página y no por flash: base.html deja
+            # el bloque de mensajes vacío y cada pantalla pinta los suyos, así
+            # que un flash aquí no se vería y reaparecería en otra pantalla.
+            recien_creado = creado,
+            regularizado  = bool((reporte.get('datos') or {}).get('regularizado')),
         )
 
     except Exception as ex:
-        current_app.logger.error(f"Error generando reporte alta [{id}]: {str(ex)}")
+        current_app.logger.error(f"Error abriendo reporte alta [{id}]: {ex}")
+        flash('Error al abrir el reporte. Intenta de nuevo.', 'error')
+        return redirect(url_for('admin.ver_equipo', id=id))
+
+    finally:
+        if db:
+            db.close()
+
+
+@admin_bp.route('/inventario/<int:id>/reporte-alta/archivo')
+@requiere_rol(ROL_USUARIO)
+def archivo_reporte_alta(id):
+    """
+    Entrega el PDF del reporte de alta.
+
+    Por defecto lo sirve en línea (es lo que consume el iframe del visor).
+    Con ?descargar=1 lo manda como adjunto, y con ?regenerar=1 lo rehace
+    antes de servirlo — esto último solo para Biomédico o superior.
+
+    El PDF se lee del disco; solo se genera si todavía no existe, que es
+    el caso de los reportes creados antes de que se guardara el archivo.
+    """
+    db = None
+    try:
+        db = get_connection()
+
+        equipo          = ModelInventario.get_by_id(db, id)
+        reporte, creado = _asegurar_reporte_alta(db, id, equipo)
+        if not reporte:
+            flash('No se pudo preparar el reporte de alta de este equipo.', 'error')
+            return redirect(url_for('admin.ver_equipo', id=id))
+
+        ruta     = _ruta_pdf_reporte(reporte['folio'])
+        regenera = request.args.get('regenerar') == '1' and tiene_rol(ROL_BIOMEDICO)
+
+        if regenera or creado or not os.path.exists(ruta):
+            firmas = ModelFirmas.get_por_reporte(db, reporte['id'])
+            ruta   = _generar_pdf_reporte(db, reporte, equipo, firmas)
+
+        return send_file(
+            ruta,
+            as_attachment = request.args.get('descargar') == '1',
+            download_name = f"{reporte['folio']}.pdf",
+            mimetype      = 'application/pdf',
+            max_age       = 0,
+        )
+
+    except Exception as ex:
+        current_app.logger.error(f"Error generando reporte alta [{id}]: {ex}")
         flash('Error al generar el PDF. Intenta de nuevo.', 'error')
         return redirect(url_for('admin.ver_equipo', id=id))
 
@@ -301,8 +685,85 @@ def descargar_reporte_alta(id):
         if db:
             db.close()
 
+
+@admin_bp.route('/inventario/<int:id>/reporte-alta/firmar', methods=['POST'])
+@requiere_rol(ROL_BIOMEDICO)
+def firmar_reporte_alta(id):
+    """
+    Registra una de las dos firmas del reporte de alta y rehace el PDF.
+
+    Quien firma en el papel puede no tener cuenta en el sistema: el
+    biomédico con la sesión abierta presta el equipo para que el
+    responsable del área trace su firma. Por eso el permiso es del usuario
+    en sesión y el nombre se captura, no se deduce.
+
+    Responde JSON porque lo llama el visor sin recargar la página.
+    """
+    db = None
+    try:
+        db = get_connection()
+
+        reporte, _ = _asegurar_reporte_alta(db, id)
+        if not reporte:
+            return jsonify({'ok': False, 'error': 'No existe reporte de alta.'}), 404
+
+        rol     = (request.form.get('rol') or '').strip()
+        nombre  = _limitar(request.form.get('nombre', ''), LIMITES['firma_nombre'])
+        cargo   = _limitar(request.form.get('cargo', ''),  LIMITES['firma_cargo'])
+        trazo   = request.form.get('firma', '')
+
+        if rol not in ModelFirmas.ROLES_ALTA:
+            return jsonify({'ok': False, 'error': 'Rol de firma inválido.'}), 400
+        if not nombre:
+            return jsonify({'ok': False, 'error': 'Escribe el nombre de quien firma.'}), 400
+
+        # Antes de guardar el archivo: si ese rol ya está firmado no se
+        # toca nada, ni siquiera el disco.
+        firmas = ModelFirmas.get_por_reporte(db, reporte['id'])
+        if rol in firmas:
+            return jsonify({'ok': False, 'error': 'Esa parte del reporte ya está firmada.'}), 409
+
+        try:
+            imagen_rel = ModelFirmas.guardar_firma_png(trazo)
+        except ValueError as e:
+            return jsonify({'ok': False, 'error': str(e)}), 400
+
+        ok, mensaje = ModelFirmas.crear(
+            db,
+            reporte_id = reporte['id'],
+            rol        = rol,
+            nombre     = nombre,
+            cargo      = cargo,
+            imagen_rel = imagen_rel,
+            usuario_id = current_user.IDusuario,
+        )
+        if not ok:
+            # La fila no entró: el PNG que se acaba de guardar sobra.
+            ModelInventario.eliminar_archivo_fisico(imagen_rel)
+            return jsonify({'ok': False, 'error': mensaje}), 409
+
+        firmas = ModelFirmas.get_por_reporte(db, reporte['id'])
+        equipo = ModelInventario.get_by_id(db, id)
+        _generar_pdf_reporte(db, reporte, equipo, firmas)
+
+        return jsonify({
+            'ok':         True,
+            'completo':   ModelFirmas.esta_completo(firmas),
+            'pendientes': ModelFirmas.roles_pendientes(firmas),
+            'mensaje':    mensaje,
+        })
+
+    except Exception as ex:
+        current_app.logger.error(f"Error firmando reporte alta [{id}]: {ex}")
+        return jsonify({'ok': False, 'error': 'Error al registrar la firma.'}), 500
+
+    finally:
+        if db:
+            db.close()
+
+
 @admin_bp.route('/inventario/<int:id>')
-@login_required
+@requiere_rol(ROL_USUARIO)
 def ver_equipo(id):
     db = get_connection()
     equipo        = ModelInventario.get_by_id(db, id)
@@ -330,7 +791,7 @@ def ver_equipo(id):
 
 
 @admin_bp.route('/inventario/<int:id>/editar', methods=['GET', 'POST'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def editar_equipo(id):
     if request.method == 'GET':
         return redirect(url_for('admin.ver_equipo', id=id))
@@ -348,7 +809,7 @@ def editar_equipo(id):
 
 
 @admin_bp.route('/inventario/<int:id>/eliminar')
-@login_required
+@requiere_rol(ROL_ADMIN)
 def eliminar_equipo(id):
     # TODO: Implementar eliminación
     # 1. Verificar que el equipo existe: ModelEquipos.get_by_id(db, id)
@@ -364,7 +825,7 @@ def eliminar_equipo(id):
 
 
 @admin_bp.route('/inventario/<int:id>/imagen', methods=['POST'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def actualizar_imagen(id):
     imagen_file = request.files.get('imagen')
     if not imagen_file or imagen_file.filename == '':
@@ -401,7 +862,7 @@ def actualizar_imagen(id):
 
 
 @admin_bp.route('/inventario/<int:id>/imagen/eliminar')
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def eliminar_imagen(id):
     # TODO: Implementar eliminación de imagen
     # 1. Obtener equipo: ModelEquipos.get_by_id(db, id)
@@ -416,7 +877,7 @@ def eliminar_imagen(id):
 
 
 @admin_bp.route('/inventario/<int:id>/mantenimientos')
-@login_required
+@requiere_rol(ROL_USUARIO)
 def ver_mantenimientos(id):
     # TODO: Implementar historial de mantenimientos
     # Necesitarás una tabla en BD, ejemplo:
@@ -431,7 +892,7 @@ def ver_mantenimientos(id):
 
 
 @admin_bp.route('/inventario/exportar')
-@login_required
+@requiere_rol(ROL_USUARIO)
 def exportar_inventario():
     # TODO: Implementar exportación a Excel
     # 1. Recoger los mismos filtros que ver_inventario (q, depto, estado, etc.)
@@ -449,7 +910,7 @@ def exportar_inventario():
 
 
 @admin_bp.route('/inventario/importar', methods=['GET', 'POST'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def importar():
     # TODO: Implementar importación desde Excel
     # GET  → mostrar formulario de subida de archivo
@@ -462,7 +923,7 @@ def importar():
 
 
 @admin_bp.route('/inventario/categorias')
-@login_required
+@requiere_rol(ROL_USUARIO)
 def categorias():
     # TODO: Implementar gestión de categorías/tipos de equipo
     # Útil para normalizar los nombres de equipos y evitar duplicados
@@ -475,7 +936,7 @@ def categorias():
 
 
 @admin_bp.route('/inventario/<int:id>/recursos')
-@login_required
+@requiere_rol(ROL_USUARIO)
 def ver_recursos(id):
     db     = get_connection()
     equipo = ModelInventario.get_by_id(db, id)
@@ -486,9 +947,7 @@ def ver_recursos(id):
         return redirect(url_for('admin.ver_inventario'))
 
     recursos  = ModelRecursos.get_recursos_por_equipo(db, id)
-    coinciden = ModelRecursos.contar_equipos_coincidentes(
-        db, equipo['marca'], equipo['modelo']
-    )
+    coinciden = ModelRecursos.contar_equipos_coincidentes(db, equipo['modelo'])
     db.close()
 
     return render_template('admin/recursos_equipo.html',
@@ -502,7 +961,7 @@ def ver_recursos(id):
 
 
 @admin_bp.route('/inventario/<int:id>/recursos/subir', methods=['POST'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def subir_recurso(id):
     db     = get_connection()
     equipo = ModelInventario.get_by_id(db, id)
@@ -568,7 +1027,7 @@ def subir_recurso(id):
 
 
 @admin_bp.route('/inventario/<int:id>/recursos/<int:recurso_id>/eliminar')
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def eliminar_recurso(id, recurso_id):
     db = get_connection()
 
@@ -585,89 +1044,215 @@ def eliminar_recurso(id, recurso_id):
 
     return redirect(url_for('admin.ver_recursos', id=id))
 
+# ═════════════════════════════════════════════════════════════════════════════
+#  GESTIÓN DE USUARIOS — exclusiva del Administrador
+#
+#  El Biomédico opera equipos y localización, pero no administra cuentas: si
+#  pudiera, se podría asignar el rol de Administrador a sí mismo y el resto de
+#  la matriz de permisos dejaría de significar nada.
+# ═════════════════════════════════════════════════════════════════════════════
 
-# ── Gestión de Usuarios ───────────────────────────────────────
-# Pega este bloque en tu admin_bp, después de los imports existentes.
-# Agrega también al tope del archivo:
-#   from models.ModelUsuarios import ModelUsuarios
 
+# ── Listar ────────────────────────────────────────────────────────────────────
 @admin_bp.route('/usuarios')
-@login_required
+@requiere_rol(ROL_ADMIN)
 def ver_usuarios():
     usuarios = ModelUsuarios.get_all()
     return render_template('admin/usuarios.html', usuarios=usuarios)
 
 
+# ── Crear ─────────────────────────────────────────────────────────────────────
 @admin_bp.route('/usuarios/crear', methods=['POST'])
-@login_required
+@requiere_rol(ROL_ADMIN)
 def crear_usuario():
     nombre   = request.form.get('NombreUsuario', '').strip()
     apellido = request.form.get('Apellido', '').strip()
-    email    = request.form.get('Email', '').strip()
+    email    = request.form.get('Email', '').strip().lower()
     password = request.form.get('Password', '').strip()
-    permiso  = request.form.get('Permiso', 'Usuario')
+    permiso  = request.form.get('Permiso', ROL_USUARIO)
 
-    # ── Validaciones básicas ──
-    if not all([nombre, apellido, email, password]):
-        flash('Todos los campos son obligatorios.', 'error')
-        return redirect(url_for('admin.ver_usuarios'))
-
+    # Validaciones de negocio
+    errores = _validar_campos_base(nombre, apellido, email)
+    errores += _validar_rol(permiso)
+    errores += _validar_password(password, obligatoria=True)
     if ModelUsuarios.email_existe(email):
-        flash('Ya existe un usuario con ese email.', 'error')
+        errores.append('Ya existe un usuario registrado con ese email.')
+
+    if errores:
+        for e in errores:
+            flash(e, 'error')
         return redirect(url_for('admin.ver_usuarios'))
 
     try:
         ModelUsuarios.crear(nombre, apellido, email, password, permiso)
-        flash(f'Usuario {nombre} creado correctamente.', 'success')
-    except Exception as e:
-        current_app.logger.error(f'Error al crear usuario: {e}')
-        flash('Error al crear el usuario.', 'error')
+        current_app.logger.info(
+            '[Usuarios] %s creó la cuenta %s con rol %s',
+            current_user.IDusuario, email, permiso
+        )
+        flash(f'Usuario {nombre} {apellido} creado correctamente.', 'success')
+    except ValueError as exc:
+        flash(str(exc), 'error')
+    except Exception as exc:
+        current_app.logger.error('Error al crear usuario: %s', exc)
+        flash('Ocurrió un error al crear el usuario. Intenta nuevamente.', 'error')
 
     return redirect(url_for('admin.ver_usuarios'))
 
 
+# ── Editar ────────────────────────────────────────────────────────────────────
 @admin_bp.route('/usuarios/<int:uid>/editar', methods=['POST'])
-@login_required
+@requiere_rol(ROL_ADMIN)
 def editar_usuario(uid):
     nombre   = request.form.get('NombreUsuario', '').strip()
     apellido = request.form.get('Apellido', '').strip()
-    email    = request.form.get('Email', '').strip()
-    password = request.form.get('Password', '').strip() or None
-    permiso  = request.form.get('Permiso', 'Usuario')
-    estado   = int(request.form.get('Estado', 1))
+    email    = request.form.get('Email', '').strip().lower()
+    password = request.form.get('Password', '').strip() or None   # None = sin cambio
+    permiso  = request.form.get('Permiso', ROL_USUARIO)
+    estado   = 1 if str(request.form.get('Estado', 1)).strip() == '1' else 0
 
-    if not all([nombre, apellido, email]):
-        flash('Nombre, apellido y email son obligatorios.', 'error')
+    # El usuario debe existir
+    actual = ModelUsuarios.get_by_id(uid)
+    if not actual:
+        flash('Usuario no encontrado.', 'error')
         return redirect(url_for('admin.ver_usuarios'))
 
+    # Validaciones de negocio
+    errores = _validar_campos_base(nombre, apellido, email)
+    errores += _validar_rol(permiso)
+    errores += _validar_password(password, obligatoria=False)
+    errores += _validar_salvaguardas(uid, actual, nuevo_permiso=permiso, nuevo_estado=estado)
     if ModelUsuarios.email_existe(email, exclude_uid=uid):
-        flash('Ese email ya está en uso por otro usuario.', 'error')
+        errores.append('Ese email ya está en uso por otro usuario.')
+
+    if errores:
+        for e in errores:
+            flash(e, 'error')
         return redirect(url_for('admin.ver_usuarios'))
 
     try:
         ModelUsuarios.editar(uid, nombre, apellido, email, permiso, estado, password)
-        flash(f'Usuario {nombre} actualizado correctamente.', 'success')
-    except Exception as e:
-        current_app.logger.error(f'Error al editar usuario {uid}: {e}')
-        flash('Error al actualizar el usuario.', 'error')
+        current_app.logger.info(
+            '[Usuarios] %s editó la cuenta %s (rol=%s estado=%s%s)',
+            current_user.IDusuario, uid, permiso, estado,
+            ', contraseña restablecida' if password else ''
+        )
+        flash(f'Usuario {nombre} {apellido} actualizado correctamente.', 'success')
+    except ValueError as exc:
+        flash(str(exc), 'error')
+    except Exception as exc:
+        current_app.logger.error('Error al editar usuario %s: %s', uid, exc)
+        flash('Ocurrió un error al actualizar el usuario. Intenta nuevamente.', 'error')
 
     return redirect(url_for('admin.ver_usuarios'))
 
 
+# ── Toggle Estado (activar / desactivar) ──────────────────────────────────────
 @admin_bp.route('/usuarios/<int:uid>/toggle', methods=['POST'])
-@login_required
+@requiere_rol(ROL_ADMIN)
 def toggle_estado_usuario(uid):
-    try:
-        u = ModelUsuarios.get_by_id(uid)
-        if not u:
-            flash('Usuario no encontrado.', 'error')
+    usuario = ModelUsuarios.get_by_id(uid)
+
+    if not usuario:
+        flash('Usuario no encontrado.', 'error')
+        return redirect(url_for('admin.ver_usuarios'))
+
+    # Solo hay que validar cuando se está desactivando (Estado 1 → 0).
+    if usuario['Estado']:
+        errores = _validar_salvaguardas(
+            uid, usuario,
+            nuevo_permiso=usuario['Permiso'],
+            nuevo_estado=0,
+        )
+        if errores:
+            for e in errores:
+                flash(e, 'error')
             return redirect(url_for('admin.ver_usuarios'))
 
+    try:
         ModelUsuarios.toggle_estado(uid)
-        nuevo = 'desactivado' if u['Estado'] else 'activado'
-        flash(f'Usuario {u["NombreUsuario"]} {nuevo} correctamente.', 'success')
-    except Exception as e:
-        current_app.logger.error(f'Error al cambiar estado del usuario {uid}: {e}')
-        flash('Error al cambiar el estado.', 'error')
+        accion = 'desactivado' if usuario['Estado'] else 'activado'
+        current_app.logger.info(
+            '[Usuarios] %s %s la cuenta %s', current_user.IDusuario, accion, uid
+        )
+        flash(
+            f'Usuario {usuario["NombreUsuario"]} {usuario["Apellido"]} {accion} correctamente.',
+            'success'
+        )
+    except Exception as exc:
+        current_app.logger.error('Error al cambiar estado del usuario %s: %s', uid, exc)
+        flash('Ocurrió un error al cambiar el estado. Intenta nuevamente.', 'error')
 
     return redirect(url_for('admin.ver_usuarios'))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers privados
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _validar_campos_base(nombre, apellido, email):
+    """
+    Valida los campos comunes a crear y editar.
+    Retorna una lista de mensajes de error (vacía si todo está bien).
+    """
+    errores = []
+    if not nombre:
+        errores.append('El nombre es obligatorio.')
+    if not apellido:
+        errores.append('El apellido es obligatorio.')
+    if not email:
+        errores.append('El email es obligatorio.')
+    elif '@' not in email or '.' not in email.split('@')[-1]:
+        errores.append('El email no tiene un formato válido.')
+    return errores
+
+
+def _validar_rol(permiso):
+    """
+    Lista blanca de roles. Antes se aceptaba cualquier cadena que llegara en
+    el formulario y se guardaba tal cual, así que un valor con una errata
+    dejaba la cuenta con un rol inexistente y sin acceso a nada.
+    """
+    if rol_canonico(permiso) is None:
+        return [f'El rol «{permiso}» no es válido.']
+    return []
+
+
+def _validar_password(password, obligatoria):
+    """Aplica la política de contraseñas. Al editar, vacía = sin cambio."""
+    if not password:
+        return ['La contraseña es obligatoria al crear un usuario.'] if obligatoria else []
+    if not User.validar_password(password):
+        return [User.MENSAJE_PASSWORD]
+    return []
+
+
+def _validar_salvaguardas(uid, actual, nuevo_permiso, nuevo_estado):
+    """
+    Evita los dos escenarios en los que el panel de usuarios se puede dejar
+    a sí mismo sin salida:
+
+      1. Un administrador se degrada o se desactiva por error y pierde el
+         acceso al propio panel que necesitaría para revertirlo.
+      2. Se degrada o desactiva al último administrador activo y el sistema
+         queda sin nadie que pueda gestionar cuentas.
+    """
+    errores = []
+    era_admin  = rol_canonico(actual.get('Permiso')) == ROL_ADMIN
+    sigue_admin = rol_canonico(nuevo_permiso) == ROL_ADMIN and nuevo_estado == 1
+
+    if uid == current_user.IDusuario:
+        if rol_canonico(nuevo_permiso) != ROL_ADMIN:
+            errores.append(
+                'No puedes cambiar tu propio rol. Pídeselo a otro administrador.'
+            )
+        if nuevo_estado == 0:
+            errores.append('No puedes desactivar tu propia cuenta.')
+
+    if era_admin and not sigue_admin:
+        if ModelUsuarios.contar_administradores_activos(excluir_uid=uid) == 0:
+            errores.append(
+                'Es el único administrador activo. Asigna ese rol a otra '
+                'cuenta antes de cambiarlo o desactivarlo.'
+            )
+
+    return errores

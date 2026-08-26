@@ -1,166 +1,111 @@
 from .entities.User import User
-import re
-from datetime import datetime
+
+
+# Hash descartable de una contraseña aleatoria. Cuando el correo no existe se
+# verifica contra este valor para que la respuesta tarde lo mismo que un
+# intento con correo válido; sin esto, la diferencia de tiempo permite
+# averiguar qué correos están dados de alta.
+_HASH_SENUELO = User.hash_password('$senuelo-sin-uso$')
+
 
 class ModelUser():
+    """
+    Acceso a `dbo.usuario` para el circuito de autenticación.
+    Recibe siempre la conexión por parámetro: quien la abre, la cierra.
+    """
+
+    # Columnas que se cargan en el objeto de sesión. El hash de la contraseña
+    # se consulta aparte y nunca sale de este módulo.
+    _CAMPOS = """
+        IDusuario,
+        NombreUsuario,
+        Apellido,
+        Email,
+        Permiso,
+        Imagen,
+        FechaCreacion,
+        Estado
+    """
+
+    @staticmethod
+    def _construir(row):
+        return User(
+            IDusuario     = row[0],
+            NombreUsuario = row[1],
+            Apellido      = row[2],
+            email         = row[3],
+            Permiso       = row[4],
+            Imagen        = row[5],
+            FechaCreacion = row[6],
+            Estado        = row[7],
+        )
 
     @classmethod
-    def login(cls, db, user):
+    def login(cls, db, email, password):
+        """
+        Verifica credenciales y devuelve el User autenticado, o None.
+
+        Solo considera cuentas activas (Estado = 1). No distingue entre
+        'correo inexistente' y 'contraseña incorrecta'.
+        """
+        if db is None:
+            raise RuntimeError('Sin conexión a la base de datos')
+
         cursor = None
         try:
             cursor = db.cursor()
-            sql = """
-                SELECT 
-                    u.IDusuario,
-                    u.NombreUsuario,
-                    u.Password,
-                    u.Apellido,
-                    u.Email,
-                    u.Permiso,
-                    u.Imagen,
-                    u.FechaCreacion,
-                    u.Estado
-                FROM dbo.usuario u
-                WHERE u.Email = ? AND u.Estado = 1
-            """
-            cursor.execute(sql, (user.email,))
+            cursor.execute(
+                f"""
+                SELECT {cls._CAMPOS}, Password
+                FROM dbo.usuario
+                WHERE Email = ? AND Estado = 1
+                """,
+                (email,)
+            )
             row = cursor.fetchone()
 
-            if row is not None:
-                if User.check_password(row[2], user.password):
-                    return User(
-                        IDusuario=row[0],
-                        NombreUsuario=row[1],
-                        password=row[2],
-                        Apellido=row[3],
-                        email=row[4],
-                        Permiso=row[5],
-                        Imagen=row[6],
-                        FechaCreacion=row[7],
-                        Estado=row[8]
-                    )
-            return None
+            if row is None:
+                # Gasto deliberado de tiempo para igualar ambos caminos.
+                User.check_password(_HASH_SENUELO, password)
+                return None
 
-        except Exception as ex:
-            print(f"Error en login: {str(ex)}")
-            raise Exception(ex)
+            hash_guardado = row[8]
+            if not User.check_password(hash_guardado, password):
+                return None
+
+            return cls._construir(row)
+
         finally:
             if cursor:
                 cursor.close()
 
     @classmethod
     def get_by_id(cls, db, IDusuario):
+        """
+        Reconstruye el usuario de la sesión en cada request (user_loader).
+
+        Filtra por Estado = 1 a propósito: así, al desactivar una cuenta desde
+        el panel de usuarios, la sesión abierta de esa persona deja de resolver
+        y queda fuera en la siguiente petición, sin esperar a que cierre el
+        navegador.
+        """
+        if db is None:
+            raise RuntimeError('Sin conexión a la base de datos')
+
         cursor = None
         try:
             cursor = db.cursor()
-            sql = """
-                SELECT 
-                    IDusuario,
-                    NombreUsuario,
-                    Password,
-                    Apellido,
-                    Email,
-                    Permiso,
-                    Imagen,
-                    FechaCreacion,
-                    Estado
+            cursor.execute(
+                f"""
+                SELECT {cls._CAMPOS}
                 FROM dbo.usuario
-                WHERE IDusuario = ?
-            """
-            cursor.execute(sql, (IDusuario,))
+                WHERE IDusuario = ? AND Estado = 1
+                """,
+                (IDusuario,)
+            )
             row = cursor.fetchone()
+            return cls._construir(row) if row is not None else None
 
-            if row is not None:
-                return User(
-                    IDusuario=row[0],
-                    NombreUsuario=row[1],
-                    password=row[2],
-                    Apellido=row[3],
-                    email=row[4],
-                    Permiso=row[5],
-                    Imagen=row[6],
-                    FechaCreacion=row[7],
-                    Estado=row[8]
-                )
-            return None
-
-        except Exception as ex:
-            print(f"Error en get_by_id: {str(ex)}")
-            raise Exception(ex)
         finally:
             if cursor:
                 cursor.close()
-
-    @classmethod
-    def check_email_exists(cls, db, email):
-        cursor = None
-        try:
-            cursor = db.cursor()
-            cursor.execute("SELECT COUNT(*) FROM dbo.usuario WHERE Email = ?", (email,))
-            return cursor.fetchone()[0] > 0
-        finally:
-            if cursor:
-                cursor.close()
-
-    @classmethod
-    def check_username_exists(cls, db, nombre):
-        cursor = None
-        try:
-            cursor = db.cursor()
-            cursor.execute("SELECT COUNT(*) FROM dbo.usuario WHERE NombreUsuario = ?", (nombre,))
-            return cursor.fetchone()[0] > 0
-        finally:
-            if cursor:
-                cursor.close()
-
-    @classmethod
-    def register(cls, db, user_data):
-        cursor = None
-        try:
-            # Validaciones
-            if not cls._validate_password(user_data['password']):
-                return False, "La contraseña no cumple requisitos"
-
-            if not cls._validate_email(user_data['email']):
-                return False, "Correo inválido"
-
-            if cls.check_email_exists(db, user_data['email']):
-                return False, "Correo ya registrado"
-
-            if cls.check_username_exists(db, user_data['nombre']):
-                return False, "Usuario ya existe"
-
-            hashed_password = User.hash_password(user_data['password'])
-
-            cursor = db.cursor()
-            sql = """
-                INSERT INTO dbo.usuario
-                    (NombreUsuario, Password, Apellido, Email, Permiso, FechaCreacion, Estado)
-                VALUES (?, ?, ?, ?, 'Visitante', ?, 1)
-            """
-
-            cursor.execute(sql, (
-                user_data['nombre'],
-                hashed_password,
-                user_data['apellido'],
-                user_data['email'],
-                datetime.now()
-            ))
-
-            db.commit()
-            return True, "Usuario registrado correctamente"
-
-        except Exception as ex:
-            db.rollback()
-            return False, f"Error: {str(ex)}"
-        finally:
-            if cursor:
-                cursor.close()
-
-    @staticmethod
-    def _validate_password(password):
-        return bool(re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$', password))
-
-    @staticmethod
-    def _validate_email(email):
-        return bool(re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email))

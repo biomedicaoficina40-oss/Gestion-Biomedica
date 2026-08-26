@@ -1,0 +1,492 @@
+{% extends "base.html" %}
+
+{% block title %}Programa de Mantenimiento — {{ equipo.equipo_unidad }}{% endblock %}
+
+{% block customCSS %}
+<style>
+    /* ── Variables heredadas del sistema ── */
+    :root {
+        --estado-al-dia:       #198754;
+        --estado-proximo:      #fd7e14;
+        --estado-vencido:      #dc3545;
+        --estado-sin-registro: #6c757d;
+        --card-radius:         0.75rem;
+        --card-shadow:         0 2px 12px rgba(0,0,0,0.07);
+    }
+
+    /* ── Breadcrumb ── */
+    .mant-breadcrumb {
+        font-size: 0.82rem;
+        color: #6c757d;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+    }
+    .mant-breadcrumb a {
+        color: var(--hospital-primary);
+        text-decoration: none;
+    }
+    .mant-breadcrumb a:hover { text-decoration: underline; }
+    .mant-breadcrumb i { font-size: 0.65rem; color: #adb5bd; }
+
+    /* ── Header del equipo ── */
+    .equipo-header {
+        background: #fff;
+        border-radius: var(--card-radius);
+        box-shadow: var(--card-shadow);
+        padding: 1.5rem 1.75rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+    }
+    .equipo-header-icon {
+        width: 52px; height: 52px;
+        border-radius: 0.6rem;
+        background: rgba(61,144,174,0.1);
+        color: var(--hospital-primary);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.4rem;
+        flex-shrink: 0;
+    }
+    .equipo-header-info h2 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #212529;
+        margin: 0 0 0.2rem;
+    }
+    .equipo-header-info p {
+        font-size: 0.82rem;
+        color: #6c757d;
+        margin: 0;
+    }
+    .equipo-header-meta {
+        margin-left: auto;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.3rem;
+    }
+    .meta-tag {
+        font-size: 0.75rem;
+        background: rgba(61,144,174,0.08);
+        color: var(--hospital-primary);
+        padding: 0.25rem 0.65rem;
+        border-radius: 999px;
+        white-space: nowrap;
+    }
+
+    /* ── Card de mantenimiento ── */
+    .mant-card {
+        background: #fff;
+        border-radius: var(--card-radius);
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+    }
+    .mant-card-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid rgba(0,0,0,0.06);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .mant-card-header h5 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #212529;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .mant-card-body { padding: 1.5rem; }
+
+    /* ── Badge de estado ── */
+    .estado-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.85rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+    }
+    .estado-al_dia       { background: rgba(25,135,84,0.1);  color: var(--estado-al-dia); }
+    .estado-proximo      { background: rgba(253,126,20,0.1); color: var(--estado-proximo); }
+    .estado-vencido      { background: rgba(220,53,69,0.1);  color: var(--estado-vencido); }
+    .estado-sin_registro { background: rgba(108,117,125,0.1); color: var(--estado-sin-registro); }
+
+    /* ── Grid de datos ── */
+    .mant-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+    .mant-dato {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    .mant-dato-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #adb5bd;
+    }
+    .mant-dato-value {
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: #212529;
+    }
+    .mant-dato-value.fecha-vencida { color: var(--estado-vencido); font-weight: 600; }
+    .mant-dato-value.fecha-proxima { color: var(--estado-proximo); font-weight: 600; }
+
+    /* ── Barra de progreso de tiempo ── */
+    .progreso-wrap {
+        margin-bottom: 1.5rem;
+    }
+    .progreso-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.78rem;
+        color: #6c757d;
+        margin-bottom: 0.4rem;
+    }
+    .progreso-bar-bg {
+        height: 8px;
+        background: #e9ecef;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+    .progreso-bar-fill {
+        height: 100%;
+        border-radius: 999px;
+        transition: width 0.6s ease;
+    }
+
+    /* ── Notas ── */
+    .mant-notas {
+        background: rgba(61,144,174,0.04);
+        border-left: 3px solid var(--hospital-primary);
+        border-radius: 0 0.5rem 0.5rem 0;
+        padding: 0.85rem 1rem;
+        font-size: 0.875rem;
+        color: #495057;
+        line-height: 1.6;
+    }
+
+    /* ── Estado vacío ── */
+    .mant-empty {
+        text-align: center;
+        padding: 3rem 1.5rem;
+        color: #6c757d;
+    }
+    .mant-empty i {
+        font-size: 2.5rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+        display: block;
+    }
+    .mant-empty p {
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+    }
+
+    /* ── Botón de edición ── */
+    .btn-editar-mant {
+        background: var(--hospital-primary);
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        padding: 0.5rem 1.1rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        text-decoration: none;
+        transition: background 0.2s, box-shadow 0.2s;
+    }
+    .btn-editar-mant:hover {
+        background: #2e7a96;
+        color: white;
+        box-shadow: 0 4px 12px rgba(61,144,174,0.3);
+    }
+
+    /* Esta pantalla se abre escaneando el chip, con el teléfono en la mano y
+       de pie junto al equipo: 44px de alto y ancho completo en móvil para
+       poder tocarlo sin apuntar. "Editar" pasa a contorno porque cambia el
+       calendario; "Realizar" documenta el trabajo y es lo que se viene a hacer. */
+    .btn-hacer-mant { min-height: 44px; }
+    .btn-editar-mant:not(.btn-hacer-mant) {
+        background: transparent;
+        color: var(--hospital-primary);
+        border: 1.5px solid var(--hospital-primary);
+        min-height: 44px;
+    }
+    .btn-editar-mant:not(.btn-hacer-mant):hover {
+        background: var(--hospital-primary);
+        color: #fff;
+    }
+    @media (max-width: 576px) {
+        .btn-editar-mant { width: 100%; justify-content: center; }
+    }
+
+    /* ── Botón volver ── */
+    .btn-volver {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.82rem;
+        color: #6c757d;
+        text-decoration: none;
+        padding: 0.4rem 0.75rem;
+        border-radius: 0.4rem;
+        border: 1px solid #dee2e6;
+        background: #fff;
+        transition: all 0.2s;
+    }
+    .btn-volver:hover { color: var(--hospital-primary); border-color: var(--hospital-primary); }
+
+    /* ── Responsive ── */
+    @media (max-width: 576px) {
+        .equipo-header { flex-direction: column; align-items: flex-start; }
+        .equipo-header-meta { align-items: flex-start; margin-left: 0; }
+        .mant-card-header { flex-direction: column; align-items: flex-start; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+
+{# ── Breadcrumb ── #}
+<nav class="mant-breadcrumb">
+    <a href="{{ url_for('equipos.Catalogo') }}"><i class="fas fa-home"></i> Inicio</a>
+    <i class="fas fa-chevron-right"></i>
+    <a href="{{ url_for('equipos.Catalogo') }}">Catálogo</a>
+    <i class="fas fa-chevron-right"></i>
+    <a href="{{ url_for('equipos.DetalleEquipo', numero_inventario=equipo.numero_inventario) }}">
+        {{ equipo.equipo_unidad }}
+    </a>
+    <i class="fas fa-chevron-right"></i>
+    <span>Programa de Mantenimiento</span>
+</nav>
+
+{# ── Flash messages ── #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show mb-3" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+{# ── Header del equipo ── #}
+<div class="equipo-header">
+    <div class="equipo-header-icon">
+        <i class="fas fa-stethoscope"></i>
+    </div>
+    <div class="equipo-header-info">
+        <h2>{{ equipo.equipo_unidad }}</h2>
+        <p>{{ equipo.marca }} {{ equipo.modelo }} &nbsp;·&nbsp; N° Inv: {{ equipo.numero_inventario }}</p>
+    </div>
+    <div class="equipo-header-meta">
+        {% if equipo.departamento %}
+            <span class="meta-tag"><i class="fas fa-hospital-alt me-1"></i>{{ equipo.departamento }}</span>
+        {% endif %}
+        {% if equipo.area %}
+            <span class="meta-tag"><i class="fas fa-map-marker-alt me-1"></i>{{ equipo.area }}</span>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Card principal de mantenimiento ── #}
+<div class="mant-card">
+    <div class="mant-card-header">
+        <h5>
+            <i class="fas fa-calendar-check" style="color: var(--hospital-primary);"></i>
+            Programa de Mantenimiento
+        </h5>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            {# Badge de estado #}
+            {% if mantenimiento %}
+                {% set estado = mantenimiento.estado %}
+                <span class="estado-badge estado-{{ estado }}">
+                    {% if estado == 'al_dia' %}
+                        <i class="fas fa-check-circle"></i> Al día
+                    {% elif estado == 'proximo' %}
+                        <i class="fas fa-exclamation-circle"></i> Próximo a vencer
+                    {% elif estado == 'vencido' %}
+                        <i class="fas fa-times-circle"></i> Vencido
+                    {% else %}
+                        <i class="fas fa-question-circle"></i> Sin registro
+                    {% endif %}
+                </span>
+            {% else %}
+                <span class="estado-badge estado-sin_registro">
+                    <i class="fas fa-question-circle"></i> Sin registro
+                </span>
+            {% endif %}
+
+            {# Botón editar — solo Administrador #}
+            {% if puede_editar %}
+                {# Esta pantalla es la que abre el chip NFC y es PÚBLICA: quien
+                   escanea sin sesión solo ve último y próximo mantenimiento.
+                   Con sesión de Biomédico aparece además el acceso para
+                   levantar el reporte ahí mismo, frente al equipo, que es el
+                   momento en que de verdad sirve. #}
+                <a href="{{ url_for('reportes.nuevo', tipo='preventivo', equipo=equipo.id) }}"
+                   class="btn-editar-mant btn-hacer-mant">
+                    <i class="fas fa-screwdriver-wrench"></i>
+                    Realizar mantenimiento
+                </a>
+                <a href="{{ url_for('mantenimientos.editar_mantenimiento', numero_inventario=equipo.numero_inventario) }}"
+                   class="btn-editar-mant">
+                    <i class="fas fa-pen"></i>
+                    {% if mantenimiento %}Editar{% else %}Registrar{% endif %}
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="mant-card-body">
+
+        {% if mantenimiento %}
+
+            {# ── Grid de datos ── #}
+            <div class="mant-grid">
+                <div class="mant-dato">
+                    <span class="mant-dato-label">Tipo</span>
+                    <span class="mant-dato-value">{{ mantenimiento.tipo_mantenimiento }}</span>
+                </div>
+                <div class="mant-dato">
+                    <span class="mant-dato-label">Frecuencia</span>
+                    <span class="mant-dato-value">
+                        Cada {{ mantenimiento.frecuencia_meses }} meses
+                    </span>
+                </div>
+                <div class="mant-dato">
+                    <span class="mant-dato-label">Último mantenimiento</span>
+                    <span class="mant-dato-value">
+                        {% if mantenimiento.ultimo_mantenimiento %}
+                            {{ mantenimiento.ultimo_mantenimiento.strftime('%d %b %Y') if mantenimiento.ultimo_mantenimiento is not string
+                               else mantenimiento.ultimo_mantenimiento }}
+                        {% else %}
+                            <span style="color:#adb5bd;">No registrado</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="mant-dato">
+                    <span class="mant-dato-label">Próximo mantenimiento</span>
+                    <span class="mant-dato-value
+                        {% if mantenimiento.estado == 'vencido' %} fecha-vencida
+                        {% elif mantenimiento.estado == 'proximo' %} fecha-proxima{% endif %}">
+                        {% if mantenimiento.proximo_mantenimiento %}
+                            {{ mantenimiento.proximo_mantenimiento.strftime('%d %b %Y') if mantenimiento.proximo_mantenimiento is not string
+                               else mantenimiento.proximo_mantenimiento }}
+                            {% if mantenimiento.dias_para_vencer is not none %}
+                                <small style="font-weight:400; font-size:0.78rem; display:block; margin-top:0.15rem;">
+                                    {% if mantenimiento.dias_para_vencer < 0 %}
+                                        Venció hace {{ mantenimiento.dias_para_vencer | abs }} días
+                                    {% elif mantenimiento.dias_para_vencer == 0 %}
+                                        Vence hoy
+                                    {% else %}
+                                        En {{ mantenimiento.dias_para_vencer }} días
+                                    {% endif %}
+                                </small>
+                            {% endif %}
+                        {% else %}
+                            <span style="color:#adb5bd;">No definida</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="mant-dato">
+                    <span class="mant-dato-label">Responsable</span>
+                    <span class="mant-dato-value">
+                        {{ mantenimiento.responsable if mantenimiento.responsable else '—' }}
+                    </span>
+                </div>
+                <div class="mant-dato">
+                    <span class="mant-dato-label">Última actualización</span>
+                    <span class="mant-dato-value" style="font-size:0.85rem; color:#6c757d;">
+                        {{ mantenimiento.actualizado_en.strftime('%d %b %Y') if mantenimiento.actualizado_en is not string
+                           else mantenimiento.actualizado_en }}
+                    </span>
+                </div>
+            </div>
+
+            {# ── Barra de progreso ── #}
+            {% if mantenimiento.ultimo_mantenimiento and mantenimiento.proximo_mantenimiento and mantenimiento.dias_para_vencer is not none %}
+                {% set frecuencia_dias = mantenimiento.frecuencia_meses * 30 %}
+                {% set dias_transcurridos = frecuencia_dias - mantenimiento.dias_para_vencer %}
+                {% set porcentaje = [(dias_transcurridos / frecuencia_dias * 100) | round | int, 0] | max %}
+                {% set porcentaje = [porcentaje, 100] | min %}
+
+                {% if mantenimiento.estado == 'vencido' %}
+                    {% set color_barra = '#dc3545' %}
+                {% elif mantenimiento.estado == 'proximo' %}
+                    {% set color_barra = '#fd7e14' %}
+                {% else %}
+                    {% set color_barra = '#198754' %}
+                {% endif %}
+
+                <div class="progreso-wrap">
+                    <div class="progreso-label">
+                        <span>Último mantenimiento</span>
+                        <span>{{ porcentaje }}% del período transcurrido</span>
+                    </div>
+                    <div class="progreso-bar-bg">
+                        <div class="progreso-bar-fill"
+                             style="width: {{ porcentaje }}%; background: {{ color_barra }};"></div>
+                    </div>
+                </div>
+            {% endif %}
+
+            {# ── Notas ── #}
+            {% if mantenimiento.notas %}
+                <div class="mant-dato-label mb-2">Notas</div>
+                <div class="mant-notas">
+                    {{ mantenimiento.notas }}
+                </div>
+            {% endif %}
+
+        {% else %}
+
+            {# ── Estado vacío ── #}
+            <div class="mant-empty">
+                <i class="fas fa-calendar-times"></i>
+                <p>Este equipo aún no tiene un programa de mantenimiento registrado.</p>
+                {% if puede_editar %}
+                    <a href="{{ url_for('mantenimientos.editar_mantenimiento', numero_inventario=equipo.numero_inventario) }}"
+                       class="btn-editar-mant">
+                        <i class="fas fa-plus"></i> Registrar mantenimiento
+                    </a>
+                {% else %}
+                    <p style="font-size:0.82rem; color:#adb5bd;">Contacta a Ingeniería Biomédica para registrar el programa.</p>
+                {% endif %}
+            </div>
+
+        {% endif %}
+
+    </div>
+</div>
+
+{# ── Botón volver ── #}
+<div class="mt-3">
+    <a href="{{ url_for('equipos.DetalleEquipo', numero_inventario=equipo.numero_inventario) }}"
+       class="btn-volver">
+        <i class="fas fa-arrow-left"></i> Volver al equipo
+    </a>
+</div>
+
+{% endblock %}

@@ -98,6 +98,38 @@
         color: var(--gr-success);
     }
 
+    /* ── Botón módulo interactivo (demo) ── */
+    .gr-interactivo-btn {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        background: linear-gradient(135deg, var(--gr-primary), #2c6c85);
+        border-radius: var(--gr-radius);
+        padding: 1rem 1.3rem;
+        margin-bottom: 1.4rem;
+        text-decoration: none;
+        box-shadow: var(--gr-shadow);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .gr-interactivo-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 28px rgba(61, 144, 174, 0.28);
+        color: white;
+    }
+    .gr-interactivo-icon {
+        width: 46px; height: 46px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.18);
+        color: white;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+    .gr-interactivo-text { flex: 1; display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+    .gr-interactivo-text strong { color: white; font-size: 0.92rem; }
+    .gr-interactivo-text span { color: rgba(255,255,255,0.82); font-size: 0.78rem; }
+    .gr-interactivo-arrow { color: white; opacity: 0.85; flex-shrink: 0; }
+
     /* ── Tabs ── */
     .gr-tabs-bar {
         display: flex;
@@ -574,6 +606,17 @@
             </div>
         </div>
     </div>
+
+    <!-- Módulo interactivo (demo) -->
+    <a href="{{ url_for('equipos.ModuloBombasInfusionMindrayEVP', numero_inventario=equipo.numero_inventario) }}"
+       class="gr-interactivo-btn">
+        <div class="gr-interactivo-icon"><i class="fas fa-laptop-medical"></i></div>
+        <div class="gr-interactivo-text">
+            <strong>Módulo interactivo: Bombas de infusión Mindray BeneFusion eVP</strong>
+            <span>Curso guiado con simulador, evaluación y certificado de avance</span>
+        </div>
+        <i class="fas fa-arrow-right gr-interactivo-arrow"></i>
+    </a>
 
 {% if videos or pdfs %}
 

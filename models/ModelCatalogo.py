@@ -47,8 +47,8 @@ class ModelEquipos:
     @classmethod
     def buscar_equipos(cls, db, query):
         """
-        Búsqueda inteligente multi-palabra.
-        Usado en: BuscarEquipos (vista pública)
+        Búsqueda inteligente multi-palabra. Retorna lista de dicts.
+        Usado en: BuscarEquipos y Autocomplete (vista pública)
         """
         try:
             cursor = db.cursor()
@@ -73,17 +73,32 @@ class ModelEquipos:
                 condiciones.append(f"({' OR '.join(conds)})")
 
             where = ' AND '.join(condiciones) if condiciones else "1=1"
-            sql   = f"SELECT * FROM InventarioEquipos WHERE {where} ORDER BY area"
+            sql   = f"""
+                SELECT numero_inventario, numero_serie, equipo_unidad,
+                       marca, modelo, departamento, estado, imagen
+                FROM InventarioEquipos
+                WHERE {where}
+                ORDER BY equipo_unidad
+            """
 
             cursor.execute(sql, parametros)
-            resultados = cursor.fetchall()
+            rows    = cursor.fetchall()
+            columns = [col[0] for col in cursor.description]
+            resultados = [dict(zip(columns, row)) for row in rows]
 
             # Fallback: OR entre palabras si no hay resultados
             if not resultados and len(palabras) > 1:
                 where = ' OR '.join(condiciones)
-                sql   = f"SELECT * FROM InventarioEquipos WHERE {where} ORDER BY area"
+                sql   = f"""
+                    SELECT numero_inventario, numero_serie, equipo_unidad,
+                           marca, modelo, departamento, estado, imagen
+                    FROM InventarioEquipos
+                    WHERE {where}
+                    ORDER BY equipo_unidad
+                """
                 cursor.execute(sql, parametros)
-                resultados = cursor.fetchall()
+                rows = cursor.fetchall()
+                resultados = [dict(zip(columns, row)) for row in rows]
 
             cursor.close()
             return resultados
@@ -132,3 +147,80 @@ class ModelEquipos:
             print(f"Error toggle_nfc [{numero_inventario}]: {e}")
             db.rollback()
             return None
+        
+    @classmethod
+    def get_categorias(cls, db):
+        """
+        Agrupa equipos por tipo usando keywords.
+        Solo retorna categorías con 2 o más equipos.
+        Usado en: vista inicial del Catálogo.
+        """
+        # Definición de categorías: (label_display, keyword_sql, icono_fa)
+        categorias_def = [
+            ("Bomba de Infusión",           "BOMBA",                    "fa-tint"),
+            ("Cama",                         "CAMA",                     "fa-bed"),
+            ("Monitor",                      "MONITOR",                  "fa-heartbeat"),
+            ("Camilla",                      "CAMILLA",                  "fa-ambulance"),
+            ("Báscula",                      "BASCULA",                  "fa-weight"),
+            ("Desfibrilador",               "DESFIBRILADOR",            "fa-bolt"),
+            ("Máquina de Anestesia",        "ANESTESIA",                "fa-wind"),
+            ("Lámpara Quirúrgica",          "LAMPARA QUIRURGICA",       "fa-lightbulb"),
+            ("Cuna de Calor Radiante",      "CUNA DE CALOR",            "fa-fire"),
+            ("Detector Signos Vitales",     "DETECTOR",                 "fa-stethoscope"),
+            ("Estuche de Diagnóstico",      "ESTUCHE",                  "fa-briefcase-medical"),
+            ("Mesa Quirúrgica",             "MESA QUIRURGICA",          "fa-table"),
+            ("Glucómetro",                  "GLUCOMETRO",               "fa-syringe"),
+            ("Sist. Inyección Contraste",   "INYECCION CONTRASTE",      "fa-project-diagram"),
+            ("Ventilador",                  "VENTILADOR",               "fa-lungs"),
+            ("Doppler",                     "DOPPLER",                  "fa-wave-square"),
+            ("Vaporizador Sevoflurano",     "VAPORIZADOR",              "fa-flask"),
+            ("Aspirador",                   "ASPIRADOR",                "fa-pump-medical"),
+            ("Calentador Térmico",          "CALENTADOR",               "fa-thermometer-half"),
+            ("Cuna Híbrida",               "CUNA HIBRIDA",             "fa-baby"),
+            ("Electrocardiógrafo",         "ELECTROCARDIOGRAFO",       "fa-procedures"),
+            ("Electrocauterio",            "ELECTROCAUTERIO",          "fa-plug"),
+            ("Negatoscopio",               "NEGATOSCOPIO",             "fa-image"),
+            ("Perfusor",                   "PERFUSOR",                 "fa-compress-arrows-alt"),
+            ("Centrifuga",                 "CENTRIFUGA",               "fa-circle-notch"),
+            ("Autoclave",                  "AUTOCLAVE",                "fa-shield-alt"),
+            ("Incubadora",                 "INCUBADORA",               "fa-baby-carriage"),
+            ("Ultrasonido",                "ULTRASONIDO",              "fa-satellite-dish"),
+            ("Tomografía",                 "TOMOGRAFIA",               "fa-x-ray"),
+            ("Tococardiógrafo",           "TOCOCARDIOGRAFO",          "fa-heartbeat"),
+            ("Microscopio",               "MICROSCOPIO",              "fa-microscope"),
+            ("Insuflador",                "INSUFLADOR",               "fa-compress"),
+            ("Generador",                 "GENERADOR",                "fa-bolt"),
+            ("Ligasure",                  "LIGASURE",                 "fa-cut"),
+        ]
+
+        try:
+            cursor   = db.cursor()
+            resultado = []
+
+            for label, keyword, icono in categorias_def:
+                # Normaliza el keyword para la comparación
+                keyword_norm = keyword.lower()
+                # Construye la condición con normalización de acentos
+                condicion = (
+                    f"LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE("
+                    f"equipo_unidad,'á','a'),'é','e'),'í','i'),'ó','o'),'ú','u')) "
+                    f"LIKE ?"
+                )
+                sql = f"SELECT COUNT(*) FROM InventarioEquipos WHERE {condicion}"
+                cursor.execute(sql, (f"%{keyword_norm}%",))
+                count = cursor.fetchone()[0]
+
+                if count >= 2:
+                    resultado.append({
+                        "label":   label,
+                        "keyword": keyword,
+                        "icono":   icono,
+                        "count":   count
+                    })
+
+            cursor.close()
+            return resultado
+
+        except Exception as e:
+            print(f"Error get_categorias: {e}")
+            return []

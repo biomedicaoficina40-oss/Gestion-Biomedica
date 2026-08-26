@@ -108,10 +108,7 @@
     .rssi-weak   { background: #fee2e2; color: #991b1b; }
     .rssi-none   { background: #f3f4f6; color: #9ca3af; }
 
-    /* ══ BADGE ESTADO ══ */
-    .badge-localizado    { background:#d1fae5; color:#065f46; }
-    .badge-sin-senal     { background:#fee2e2; color:#991b1b; }
-    .badge-mantenimiento { background:#fef9c3; color:#854d0e; }
+    /* Los badges de estado viven en base.html — sistema visual del módulo. */
 
     /* ══ CONTADOR RESULTADOS ══ */
     .result-count {
@@ -310,24 +307,38 @@
             </div>`;
     }
 
-    function renderCard(e, q) {
-        const rssi = rssiInfo(e.rssi_max);
-        const href = e.equipo_id
-            ? `/localizacion/equipo/${e.equipo_id}`
-            : '#';
+function renderCard(e, q) {
+        const rssi    = rssiInfo(e.rssi_max);
+        const hrefBLE = e.equipo_id ? `/localizacion/equipo/${e.equipo_id}` : '#';
+        const hrefINV = e.equipo_id ? `/inventario/${e.equipo_id}` : '#';
+        // Sin foto = placeholder CSS. /static/img/no-image.png no existe en
+        // el proyecto, asi que apuntar ahi solo genera un 404 por tarjeta.
+        const media = e.imagen
+            ? `<img src="/static/uploads/${e.imagen}" alt="" loading="lazy"
+                    style="width:44px; height:44px; object-fit:cover;
+                           border-radius:0.4rem; border:1px solid #e9ecef;
+                           flex-shrink:0;">`
+            : `<div class="ble-row-ph"><i class="fas fa-camera"></i></div>`;
 
         return `
         <div class="col-12 col-md-6 col-xl-4">
           <div class="result-card">
 
             <div class="result-card-header">
-              <div style="min-width:0;">
-                <div class="fw-semibold text-truncate" style="font-size:0.95rem;" title="${e.equipo_nombre || ''}">
-                  ${highlight(e.equipo_nombre || 'Sin nombre', q)}
+              <div class="d-flex align-items-center gap-2" style="min-width:0;">
+                ${media}
+                <div style="min-width:0;">
+                  <div class="fw-semibold text-truncate" style="font-size:0.95rem;"
+                       title="${e.equipo_nombre || ''}">
+                    ${highlight(e.equipo_nombre || 'Sin nombre', q)}
+                  </div>
+                  <div style="font-size:0.76rem; color:#6c757d;">
+                    ${highlight(e.modelo || '', q)}
+                  </div>
+                  <code style="font-size:0.72rem; color:#6c757d;">
+                    ${highlight(e.numero_inventario || '—', q)}
+                  </code>
                 </div>
-                <code style="font-size:0.75rem; color:#6c757d;">
-                  ${highlight(e.numero_inventario || '—', q)}
-                </code>
               </div>
               ${badgeEstado(e.estado)}
             </div>
@@ -368,18 +379,29 @@
               </div>
             </div>
 
-            <div class="result-card-footer">
+             <div class="result-card-footer">
               <small class="text-muted" style="font-size:0.73rem;">
                 <i class="fas fa-broadcast-tower me-1"></i>
                 Beacon: ${highlight(e.beacon_nombre || e.mac || '—', q)}
               </small>
-              <a href="${href}"
-                 class="btn btn-sm"
-                 style="background:rgba(61,144,174,0.1); color:var(--hospital-primary);
-                        border-radius:0.4rem; font-size:0.78rem; white-space:nowrap;"
-                 ${!e.equipo_id ? 'tabindex="-1" aria-disabled="true"' : ''}>
-                <i class="fas fa-clock-rotate-left me-1"></i>Ver historial
-              </a>
+              <div class="d-flex gap-1">
+                <a href="${hrefBLE}"
+                   title="Ver historial BLE"
+                   class="btn btn-sm"
+                   style="background:rgba(61,144,174,0.1); color:var(--hospital-primary);
+                          border-radius:0.4rem; font-size:0.78rem; white-space:nowrap;"
+                   ${!e.equipo_id ? 'tabindex="-1" aria-disabled="true"' : ''}>
+                  <i class="fas fa-clock-rotate-left me-1"></i>Historial
+                </a>
+                <a href="${hrefINV}"
+                   title="Ver ficha del equipo"
+                   class="btn btn-sm"
+                   style="background:rgba(16,185,129,0.1); color:#065f46;
+                          border-radius:0.4rem; font-size:0.78rem; white-space:nowrap;"
+                   ${!e.equipo_id ? 'tabindex="-1" aria-disabled="true"' : ''}>
+                  <i class="fas fa-file-medical me-1"></i>Ficha
+                </a>
+              </div>
             </div>
 
           </div>

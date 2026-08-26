@@ -1,0 +1,544 @@
+{% extends './base.html' %}
+
+{% block title %}Panel NFC — Hospital Galenia{% endblock %}
+
+{% block customCSS %}
+<style>
+:root {
+  --nfc-guia:     #0f766e; --nfc-guia-bg:   #ccfbf1;
+  --nfc-manual:   #1d4ed8; --nfc-manual-bg: #dbeafe;
+  --nfc-ficha:    #7c3aed; --nfc-ficha-bg:  #ede9fe;
+  --nfc-cap:      #b45309; --nfc-cap-bg:    #fef3c7;
+  --nfc-img:      #0284c7; --nfc-img-bg:    #e0f2fe;
+  --nfc-off-bg:   #f1f5f9; --nfc-off-fg:    #94a3b8;
+}
+
+/* ── Encabezado ── */
+.nfc-title-wrap { display:flex; align-items:center; gap:0.65rem; margin-bottom:1.25rem; flex-wrap:wrap; }
+.nfc-title-icon {
+  width:42px; height:42px; border-radius:0.55rem;
+  background:rgba(61,144,174,0.1); color:var(--hospital-primary);
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.2rem; flex-shrink:0;
+}
+.nfc-title-wrap h1 { font-size:1.15rem; font-weight:700; color:#212529; margin:0; }
+.nfc-title-wrap p  { font-size:0.78rem; color:#6c757d; margin:0; }
+
+/* ── Tarjetas resumen (filtro rápido) ── */
+.nfc-stats-grid {
+  display:grid; grid-template-columns:repeat(4, 1fr);
+  gap:1rem; margin-bottom:1.25rem;
+}
+.nfc-stat {
+  background:#fff; border-radius:0.75rem;
+  box-shadow:0 2px 10px rgba(0,0,0,0.06);
+  padding:1.1rem 1.25rem; display:flex; flex-direction:column; gap:0.3rem;
+  border:1.5px solid transparent; border-left:4px solid transparent;
+  cursor:pointer; transition:box-shadow 0.2s, transform 0.15s;
+  text-align:left; font-family:inherit;
+}
+.nfc-stat:hover  { box-shadow:0 4px 16px rgba(0,0,0,0.1); transform:translateY(-2px); }
+.nfc-stat.activo { border-color:var(--hospital-primary); box-shadow:0 4px 16px rgba(0,0,0,0.12); }
+.nfc-stat .num   { font-size:1.9rem; font-weight:700; line-height:1; color:#212529; }
+.nfc-stat .lbl   { font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:#6c757d; }
+.nfc-stat .ic    { font-size:1.1rem; margin-bottom:0.2rem; }
+.nfc-stat.total          { border-left-color:var(--hospital-primary); }
+.nfc-stat.total          .ic { color:var(--hospital-primary); }
+.nfc-stat.completos      { border-left-color:#198754; }
+.nfc-stat.completos      .ic { color:#198754; }
+.nfc-stat.incompletos    { border-left-color:#fd7e14; }
+.nfc-stat.incompletos    .ic { color:#fd7e14; }
+.nfc-stat.mant-pendiente { border-left-color:#dc3545; }
+.nfc-stat.mant-pendiente .ic { color:#dc3545; }
+
+/* ── Barra de búsqueda + faltantes ── */
+.nfc-toolbar {
+  background:#fff; border-radius:0.75rem; box-shadow:0 2px 10px rgba(0,0,0,0.06);
+  padding:1rem 1.25rem; margin-bottom:1.25rem;
+}
+.nfc-search-wrap { position:relative; margin-bottom:0.85rem; }
+.nfc-search-wrap i {
+  position:absolute; left:12px; top:50%; transform:translateY(-50%);
+  color:#adb5bd; font-size:13px; pointer-events:none;
+}
+.nfc-search-input {
+  width:100%; padding:9px 12px 9px 34px;
+  border:1.5px solid #dee2e6; border-radius:0.5rem;
+  font-size:0.875rem; outline:none; transition:border-color 0.2s;
+}
+.nfc-search-input:focus { border-color:var(--hospital-primary); box-shadow:0 0 0 3px rgba(61,144,174,0.15); }
+
+.nfc-faltantes-row { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; }
+.nfc-faltantes-label { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#adb5bd; margin-right:2px; }
+.nfc-pill-falta {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:5px 12px; border-radius:20px;
+  font-size:0.78rem; font-weight:600; cursor:pointer;
+  border:1.5px solid #e9ecef; background:#fff; color:#6c757d;
+  transition:all 0.15s;
+}
+.nfc-pill-falta:hover  { border-color:#ced4da; }
+.nfc-pill-falta.activo { background:#1a2a30; border-color:#1a2a30; color:#fff; }
+.nfc-pill-falta .n     { opacity:0.7; font-weight:400; }
+
+#nfcClearFilters {
+  display:none; align-items:center; gap:5px;
+  font-size:0.78rem; color:var(--hospital-primary); font-weight:600;
+  cursor:pointer; background:none; border:none; padding:5px 4px; margin-left:auto;
+}
+#nfcClearFilters.show { display:inline-flex; }
+
+/* ── Checklist de recursos (chips circulares) ── */
+.nfc-checklist { display:flex; gap:5px; flex-wrap:wrap; }
+.nfc-chip {
+  width:26px; height:26px; border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:11px; flex-shrink:0; cursor:default; position:relative;
+  background:var(--nfc-off-bg); color:var(--nfc-off-fg);
+}
+.nfc-chip.on { background:var(--chip-bg); color:var(--chip-fg); }
+.nfc-chip::after {
+  content:attr(data-tip);
+  position:absolute; bottom:calc(100% + 5px); left:50%; transform:translateX(-50%);
+  background:#1a2a30; color:#fff; font-size:10px; white-space:nowrap;
+  padding:3px 8px; border-radius:5px; pointer-events:none; opacity:0;
+  transition:opacity 0.15s; z-index:200;
+}
+.nfc-chip:hover::after { opacity:1; }
+
+/* ── Badge mantenimiento (mismos colores que el dashboard de mantenimientos) ── */
+.estado-badge {
+  display:inline-flex; align-items:center; gap:0.35rem;
+  padding:0.28rem 0.7rem; border-radius:999px;
+  font-size:0.75rem; font-weight:600; white-space:nowrap;
+}
+.estado-al_dia       { background:rgba(25,135,84,0.1);   color:#198754; }
+.estado-proximo      { background:rgba(253,126,20,0.1);  color:#fd7e14; }
+.estado-vencido      { background:rgba(220,53,69,0.1);   color:#dc3545; }
+.estado-sin_registro { background:rgba(108,117,125,0.1); color:#6c757d; }
+
+/* ── Completitud ── */
+.nfc-completitud {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:38px; padding:3px 8px; border-radius:8px;
+  font-size:0.78rem; font-weight:700; font-variant-numeric:tabular-nums;
+}
+.nfc-completitud.full { background:#dcfce7; color:#166534; }
+.nfc-completitud.mid  { background:#fef9c3; color:#854d0e; }
+.nfc-completitud.low  { background:#fee2e2; color:#991b1b; }
+
+/* ── Botón acción ── */
+.btn-accion {
+  background:transparent; color:var(--hospital-primary);
+  border:1.5px solid var(--hospital-primary); border-radius:0.4rem;
+  padding:0.3rem 0.7rem; font-size:0.78rem; font-weight:500;
+  display:inline-flex; align-items:center; gap:0.35rem;
+  text-decoration:none; white-space:nowrap; transition:all 0.2s;
+}
+.btn-accion:hover { background:var(--hospital-primary); color:#fff; }
+.btn-accion.outline-dark { color:#495057; border-color:#ced4da; }
+.btn-accion.outline-dark:hover { background:#495057; color:#fff; }
+
+/* ── Tabla ── */
+.tabla-card { background:#fff; border-radius:0.75rem; box-shadow:0 2px 10px rgba(0,0,0,0.06); overflow:hidden; }
+.tabla-card-header {
+  padding:0.9rem 1.25rem; border-bottom:1px solid rgba(0,0,0,0.06);
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;
+}
+.tabla-card-header h5 { font-size:0.92rem; font-weight:600; color:#212529; margin:0; display:flex; align-items:center; gap:0.5rem; }
+.tabla-card-header h5 i { color:var(--hospital-primary); }
+.tabla-total-badge { font-size:0.78rem; background:rgba(61,144,174,0.1); color:var(--hospital-primary); padding:0.25rem 0.65rem; border-radius:999px; font-weight:600; }
+
+.tabla-responsive-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+table.nfc-table { width:100%; border-collapse:collapse; font-size:0.85rem; min-width:920px; }
+table.nfc-table thead th {
+  padding:0.7rem 1rem; text-align:left; font-size:0.72rem; font-weight:700;
+  text-transform:uppercase; letter-spacing:0.06em; color:#6c757d;
+  background:#f8f9fa; border-bottom:1px solid #e9ecef; white-space:nowrap;
+}
+table.nfc-table tbody td { padding:0.75rem 1rem; border-bottom:1px solid #f1f3f5; vertical-align:middle; color:#212529; border-left:4px solid transparent; }
+table.nfc-table tbody td:first-child { border-left-width:4px; }
+table.nfc-table tbody tr:last-child td { border-bottom:none; }
+table.nfc-table tbody tr:hover { background:rgba(61,144,174,0.03); }
+table.nfc-table tbody tr.completo   td:first-child { border-left-color:#198754; }
+table.nfc-table tbody tr.mant-mal   td:first-child { border-left-color:#dc3545; }
+table.nfc-table tbody tr.incompleto td:first-child { border-left-color:#fd7e14; }
+
+.equipo-nombre-link { font-weight:600; color:#212529; text-decoration:none; display:block; }
+.equipo-nombre-link:hover { color:var(--hospital-primary); text-decoration:underline; }
+.equipo-sub { font-size:0.75rem; color:#adb5bd; }
+
+.tabla-empty { text-align:center; padding:3.5rem 1rem; color:#6c757d; }
+.tabla-empty i { font-size:2.5rem; color:#dee2e6; display:block; margin-bottom:0.85rem; }
+.tabla-empty p { font-size:0.88rem; margin:0 0 1rem; }
+
+/* ── Cards móvil ── */
+.nfc-mobile-cards { display:none; }
+.nfc-card {
+  background:#fff; border-radius:0.65rem; box-shadow:0 1px 8px rgba(0,0,0,0.07);
+  padding:1rem; margin-bottom:0.75rem; border-left:4px solid #dee2e6;
+}
+.nfc-card.completo   { border-left-color:#198754; }
+.nfc-card.mant-mal    { border-left-color:#dc3545; }
+.nfc-card.incompleto { border-left-color:#fd7e14; }
+.nfc-card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.65rem; gap:0.5rem; }
+.nfc-card-nombre { font-size:0.9rem; font-weight:600; color:#212529; flex:1; min-width:0; text-decoration:none; }
+.nfc-card-nombre:hover { color:var(--hospital-primary); }
+.nfc-card-sub { font-size:0.75rem; color:#adb5bd; margin-top:1px; }
+.nfc-card-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:0.6rem; gap:0.5rem; }
+.nfc-card-footer { display:flex; gap:0.5rem; margin-top:0.5rem; }
+.nfc-card-footer .btn-accion { flex:1; justify-content:center; }
+
+@media (max-width:991.98px) { .nfc-stats-grid { grid-template-columns:repeat(2, 1fr); } }
+@media (max-width:767px) {
+  .tabla-card .tabla-responsive-wrap { display:none; }
+  .tabla-card-header { display:none; }
+  .nfc-mobile-cards { display:block; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+
+<div class="nfc-title-wrap">
+  <div class="nfc-title-icon"><i class="fas fa-microchip"></i></div>
+  <div>
+    <h1>Panel NFC</h1>
+    <p>Estado de la información disponible por equipo con chip — Hospital Galenia</p>
+  </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show mb-3" role="alert">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+{% if equipos %}
+
+{# ── Tarjetas resumen / filtro rápido ── #}
+<div class="nfc-stats-grid">
+  <button type="button" class="nfc-stat total" data-modo="total">
+    <i class="fas fa-microchip ic"></i>
+    <span class="num">{{ contadores.total }}</span>
+    <span class="lbl">Con chip NFC</span>
+  </button>
+  <button type="button" class="nfc-stat completos" data-modo="completos">
+    <i class="fas fa-check-circle ic"></i>
+    <span class="num">{{ contadores.completos }}</span>
+    <span class="lbl">Información completa</span>
+  </button>
+  <button type="button" class="nfc-stat incompletos" data-modo="incompletos">
+    <i class="fas fa-exclamation-circle ic"></i>
+    <span class="num">{{ contadores.incompletos }}</span>
+    <span class="lbl">Con datos faltantes</span>
+  </button>
+  <button type="button" class="nfc-stat mant-pendiente" data-modo="mant_pendiente">
+    <i class="fas fa-wrench ic"></i>
+    <span class="num">{{ contadores.mant_pendiente }}</span>
+    <span class="lbl">Mantenimiento pendiente</span>
+  </button>
+</div>
+
+{# ── Búsqueda + faltantes ── #}
+<div class="nfc-toolbar">
+  <div class="nfc-search-wrap">
+    <i class="fas fa-search"></i>
+    <input type="text" class="nfc-search-input" id="nfcSearch"
+           placeholder="Buscar por equipo, marca, modelo, inventario o departamento…"
+           autocomplete="off">
+  </div>
+  <div class="nfc-faltantes-row">
+    <span class="nfc-faltantes-label">Sin:</span>
+    <button type="button" class="nfc-pill-falta" data-falta="imagen">
+      <i class="fas fa-image"></i> Imagen <span class="n">({{ contadores.sin_imagen }})</span>
+    </button>
+    <button type="button" class="nfc-pill-falta" data-falta="guia">
+      <i class="fas fa-bolt"></i> Guía rápida <span class="n">({{ contadores.sin_guia }})</span>
+    </button>
+    <button type="button" class="nfc-pill-falta" data-falta="manual">
+      <i class="fas fa-book"></i> Manual <span class="n">({{ contadores.sin_manual }})</span>
+    </button>
+    <button type="button" class="nfc-pill-falta" data-falta="ficha">
+      <i class="fas fa-file-alt"></i> Ficha técnica <span class="n">({{ contadores.sin_ficha }})</span>
+    </button>
+    <button type="button" class="nfc-pill-falta" data-falta="capacitacion">
+      <i class="fas fa-graduation-cap"></i> Capacitación <span class="n">({{ contadores.sin_capacitacion }})</span>
+    </button>
+    <button type="button" id="nfcClearFilters"><i class="fas fa-times"></i> Limpiar filtros</button>
+  </div>
+</div>
+
+{# ══════════════════════════════════════════
+   TABLA — desktop / tablet
+════════════════════════════════════════════ #}
+<div class="tabla-card">
+  <div class="tabla-card-header">
+    <h5><i class="fas fa-table"></i> Equipos con NFC</h5>
+    <span class="tabla-total-badge"><span id="nfcVisibleCount">{{ equipos | length }}</span> de {{ equipos | length }}</span>
+  </div>
+
+  <div class="tabla-responsive-wrap">
+    <table class="nfc-table">
+      <thead>
+        <tr>
+          <th>Equipo</th>
+          <th>Departamento</th>
+          <th>Recursos</th>
+          <th>Mantenimiento</th>
+          <th>Completitud</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in equipos %}
+        {% set fila_clase = 'completo' if e.items_completos == e.total_items
+                        else ('mant-mal' if e.estado_mant == 'vencido' else 'incompleto') %}
+        <tr class="{{ fila_clase }}" data-nfc-item
+            data-search="{{ (e.equipo_unidad ~ ' ' ~ e.marca ~ ' ' ~ e.modelo ~ ' ' ~ e.numero_inventario ~ ' ' ~ e.departamento) | lower }}"
+            data-completo="{{ '1' if e.items_completos == e.total_items else '0' }}"
+            data-mant="{{ e.estado_mant }}"
+            data-imagen="{{ '1' if e.tiene_imagen else '0' }}"
+            data-guia="{{ '1' if e.tiene_guia else '0' }}"
+            data-manual="{{ '1' if e.tiene_manual else '0' }}"
+            data-ficha="{{ '1' if e.tiene_ficha else '0' }}"
+            data-capacitacion="{{ '1' if e.tiene_capacitacion else '0' }}">
+
+          <td>
+            <a href="{{ url_for('admin.ver_equipo', id=e.id) }}" class="equipo-nombre-link">{{ e.equipo_unidad }}</a>
+            <span class="equipo-sub">{{ e.marca }} {{ e.modelo }} · N° {{ e.numero_inventario }}</span>
+          </td>
+
+          <td style="color:#6c757d;font-size:0.82rem;">{{ e.departamento or '—' }}</td>
+
+          <td>
+            <div class="nfc-checklist">
+              <span class="nfc-chip {{ 'on' if e.tiene_imagen }}"
+                    style="--chip-bg:var(--nfc-img-bg);--chip-fg:var(--nfc-img);"
+                    data-tip="Imagen: {{ 'disponible' if e.tiene_imagen else 'falta' }}">
+                <i class="fas fa-image"></i>
+              </span>
+              <span class="nfc-chip {{ 'on' if e.tiene_guia }}"
+                    style="--chip-bg:var(--nfc-guia-bg);--chip-fg:var(--nfc-guia);"
+                    data-tip="Guía rápida: {{ 'disponible' if e.tiene_guia else 'falta' }}">
+                <i class="fas fa-bolt"></i>
+              </span>
+              <span class="nfc-chip {{ 'on' if e.tiene_manual }}"
+                    style="--chip-bg:var(--nfc-manual-bg);--chip-fg:var(--nfc-manual);"
+                    data-tip="Manual: {{ 'disponible' if e.tiene_manual else 'falta' }}">
+                <i class="fas fa-book"></i>
+              </span>
+              <span class="nfc-chip {{ 'on' if e.tiene_ficha }}"
+                    style="--chip-bg:var(--nfc-ficha-bg);--chip-fg:var(--nfc-ficha);"
+                    data-tip="Ficha técnica: {{ 'disponible' if e.tiene_ficha else 'falta' }}">
+                <i class="fas fa-file-alt"></i>
+              </span>
+              <span class="nfc-chip {{ 'on' if e.tiene_capacitacion }}"
+                    style="--chip-bg:var(--nfc-cap-bg);--chip-fg:var(--nfc-cap);"
+                    data-tip="Capacitación: {{ 'disponible' if e.tiene_capacitacion else 'falta' }}">
+                <i class="fas fa-graduation-cap"></i>
+              </span>
+            </div>
+          </td>
+
+          <td>
+            <span class="estado-badge estado-{{ e.estado_mant }}">
+              {% if e.estado_mant == 'al_dia' %}<i class="fas fa-check-circle"></i> Al día
+              {% elif e.estado_mant == 'proximo' %}<i class="fas fa-exclamation-circle"></i> Próximo
+              {% elif e.estado_mant == 'vencido' %}<i class="fas fa-times-circle"></i> Vencido
+              {% else %}<i class="fas fa-question-circle"></i> Sin registro{% endif %}
+            </span>
+          </td>
+
+          <td>
+            {% set pct = (e.items_completos / e.total_items * 100) | round | int %}
+            <span class="nfc-completitud {{ 'full' if pct == 100 else ('mid' if pct >= 50 else 'low') }}">
+              {{ e.items_completos }}/{{ e.total_items }}
+            </span>
+          </td>
+
+          <td>
+            <div class="d-flex gap-2">
+              <a href="{{ url_for('admin.ver_recursos', id=e.id) }}" class="btn-accion" title="Subir o ver recursos">
+                <i class="fas fa-folder-open"></i> Recursos
+              </a>
+              <a href="{{ url_for('mantenimientos.editar_mantenimiento', numero_inventario=e.numero_inventario) }}"
+                 class="btn-accion outline-dark" title="Registrar o editar mantenimiento">
+                <i class="fas fa-wrench"></i> {{ 'Registrar' if e.estado_mant == 'sin_registro' else 'Editar' }}
+              </a>
+              {# Punto de interconexión del plan: encaja con el checklist de
+                 completitud que este panel ya tiene — "¿qué le ha pasado?"
+                 junto a "¿qué le falta?". #}
+              <a href="{{ url_for('reportes.expediente', equipo_id=e.id) }}"
+                 class="btn-accion outline-dark" title="Historial de reportes del equipo">
+                <i class="fas fa-timeline"></i> Expediente
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tabla-empty" id="nfcEmptyState" style="display:none;">
+    <i class="fas fa-filter"></i>
+    <p>Ningún equipo coincide con los filtros aplicados.</p>
+  </div>
+</div>
+
+{# ══════════════════════════════════════════
+   CARDS — móvil (< 768px)
+════════════════════════════════════════════ #}
+<div class="nfc-mobile-cards">
+  {% for e in equipos %}
+  {% set fila_clase = 'completo' if e.items_completos == e.total_items
+                  else ('mant-mal' if e.estado_mant == 'vencido' else 'incompleto') %}
+  <div class="nfc-card {{ fila_clase }}" data-nfc-item
+       data-search="{{ (e.equipo_unidad ~ ' ' ~ e.marca ~ ' ' ~ e.modelo ~ ' ' ~ e.numero_inventario ~ ' ' ~ e.departamento) | lower }}"
+       data-completo="{{ '1' if e.items_completos == e.total_items else '0' }}"
+       data-mant="{{ e.estado_mant }}"
+       data-imagen="{{ '1' if e.tiene_imagen else '0' }}"
+       data-guia="{{ '1' if e.tiene_guia else '0' }}"
+       data-manual="{{ '1' if e.tiene_manual else '0' }}"
+       data-ficha="{{ '1' if e.tiene_ficha else '0' }}"
+       data-capacitacion="{{ '1' if e.tiene_capacitacion else '0' }}">
+
+    <div class="nfc-card-header">
+      <div>
+        <a href="{{ url_for('admin.ver_equipo', id=e.id) }}" class="nfc-card-nombre">{{ e.equipo_unidad }}</a>
+        <div class="nfc-card-sub">{{ e.marca }} {{ e.modelo }} · N° {{ e.numero_inventario }}</div>
+        <div class="nfc-card-sub">{{ e.departamento or '—' }}</div>
+      </div>
+      {% set pct = (e.items_completos / e.total_items * 100) | round | int %}
+      <span class="nfc-completitud {{ 'full' if pct == 100 else ('mid' if pct >= 50 else 'low') }}">
+        {{ e.items_completos }}/{{ e.total_items }}
+      </span>
+    </div>
+
+    <div class="nfc-card-row">
+      <div class="nfc-checklist">
+        <span class="nfc-chip {{ 'on' if e.tiene_imagen }}" style="--chip-bg:var(--nfc-img-bg);--chip-fg:var(--nfc-img);" data-tip="Imagen"><i class="fas fa-image"></i></span>
+        <span class="nfc-chip {{ 'on' if e.tiene_guia }}" style="--chip-bg:var(--nfc-guia-bg);--chip-fg:var(--nfc-guia);" data-tip="Guía rápida"><i class="fas fa-bolt"></i></span>
+        <span class="nfc-chip {{ 'on' if e.tiene_manual }}" style="--chip-bg:var(--nfc-manual-bg);--chip-fg:var(--nfc-manual);" data-tip="Manual"><i class="fas fa-book"></i></span>
+        <span class="nfc-chip {{ 'on' if e.tiene_ficha }}" style="--chip-bg:var(--nfc-ficha-bg);--chip-fg:var(--nfc-ficha);" data-tip="Ficha técnica"><i class="fas fa-file-alt"></i></span>
+        <span class="nfc-chip {{ 'on' if e.tiene_capacitacion }}" style="--chip-bg:var(--nfc-cap-bg);--chip-fg:var(--nfc-cap);" data-tip="Capacitación"><i class="fas fa-graduation-cap"></i></span>
+      </div>
+      <span class="estado-badge estado-{{ e.estado_mant }}">
+        {% if e.estado_mant == 'al_dia' %}<i class="fas fa-check-circle"></i> Al día
+        {% elif e.estado_mant == 'proximo' %}<i class="fas fa-exclamation-circle"></i> Próximo
+        {% elif e.estado_mant == 'vencido' %}<i class="fas fa-times-circle"></i> Vencido
+        {% else %}<i class="fas fa-question-circle"></i> Sin reg.{% endif %}
+      </span>
+    </div>
+
+    <div class="nfc-card-footer">
+      <a href="{{ url_for('admin.ver_recursos', id=e.id) }}" class="btn-accion">
+        <i class="fas fa-folder-open"></i> Recursos
+      </a>
+      <a href="{{ url_for('mantenimientos.editar_mantenimiento', numero_inventario=e.numero_inventario) }}" class="btn-accion outline-dark">
+        <i class="fas fa-wrench"></i> {{ 'Registrar' if e.estado_mant == 'sin_registro' else 'Editar' }}
+      </a>
+      <a href="{{ url_for('reportes.expediente', equipo_id=e.id) }}" class="btn-accion outline-dark">
+        <i class="fas fa-timeline"></i> Expediente
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="tabla-card">
+  <div class="tabla-empty">
+    <i class="fas fa-microchip"></i>
+    <p>Todavía no hay equipos con chip NFC registrado.</p>
+    <a href="{{ url_for('equipos.Catalogo') }}" class="btn-accion" style="display:inline-flex;">
+      <i class="fas fa-search"></i> Ir a Consultar Equipos para activar un chip
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const items          = Array.from(document.querySelectorAll('[data-nfc-item]'));
+  const searchInput     = document.getElementById('nfcSearch');
+  const statBtns        = document.querySelectorAll('.nfc-stat[data-modo]');
+  const faltantePills   = document.querySelectorAll('.nfc-pill-falta[data-falta]');
+  const visibleCount    = document.getElementById('nfcVisibleCount');
+  const emptyState      = document.getElementById('nfcEmptyState');
+  const clearBtn        = document.getElementById('nfcClearFilters');
+
+  if (!items.length) return;
+
+  let modo = 'total';
+  const faltantesActivos = new Set();
+
+  function hayFiltrosActivos() {
+    return modo !== 'total' || faltantesActivos.size > 0 || (searchInput.value || '').trim() !== '';
+  }
+
+  function actualizarUI() {
+    statBtns.forEach(b => b.classList.toggle('activo', b.dataset.modo === modo));
+    faltantePills.forEach(p => p.classList.toggle('activo', faltantesActivos.has(p.dataset.falta)));
+    clearBtn.classList.toggle('show', hayFiltrosActivos());
+  }
+
+  function aplicar() {
+    const q = (searchInput.value || '').toLowerCase().trim();
+    let visibles = 0;
+
+    items.forEach(el => {
+      let ok = true;
+      if (q && !el.dataset.search.includes(q)) ok = false;
+      if (ok && modo === 'completos'      && el.dataset.completo !== '1') ok = false;
+      if (ok && modo === 'incompletos'    && el.dataset.completo === '1') ok = false;
+      if (ok && modo === 'mant_pendiente' && el.dataset.mant === 'al_dia') ok = false;
+      if (ok) {
+        for (const f of faltantesActivos) {
+          if (el.dataset[f] === '1') { ok = false; break; }
+        }
+      }
+      el.style.display = ok ? '' : 'none';
+      // Cada equipo existe dos veces en el DOM (fila de tabla + tarjeta
+      // móvil): contar solo la fila para no duplicar el total visible.
+      if (ok && el.tagName === 'TR') visibles++;
+    });
+
+    if (visibleCount) visibleCount.textContent = visibles;
+    if (emptyState)   emptyState.style.display = visibles === 0 ? 'block' : 'none';
+    actualizarUI();
+  }
+
+  searchInput.addEventListener('input', aplicar);
+
+  statBtns.forEach(b => b.addEventListener('click', () => {
+    modo = (modo === b.dataset.modo) ? 'total' : b.dataset.modo;
+    aplicar();
+  }));
+
+  faltantePills.forEach(p => p.addEventListener('click', () => {
+    const f = p.dataset.falta;
+    if (faltantesActivos.has(f)) faltantesActivos.delete(f); else faltantesActivos.add(f);
+    aplicar();
+  }));
+
+  clearBtn.addEventListener('click', () => {
+    modo = 'total';
+    faltantesActivos.clear();
+    searchInput.value = '';
+    aplicar();
+  });
+
+  aplicar();
+})();
+</script>
+{% endblock %}

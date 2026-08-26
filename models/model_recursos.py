@@ -22,7 +22,7 @@ class ModelRecursos:
         'excel':  ['.xlsx', '.xls'],
         'word':   ['.docx', '.doc'],
         'link':   [],        # no tiene archivo físico
-        'otro':   ['.zip', '.rar', '.pptx', '.svg']
+        'otro':   []
     }
 
     CATEGORIAS_VALIDAS = [
@@ -98,9 +98,9 @@ class ModelRecursos:
             return []
 
     @classmethod
-    def contar_equipos_coincidentes(cls, db, marca, modelo):
+    def contar_equipos_coincidentes(cls, db, modelo):
         """
-        Cuántos equipos comparten marca + modelo.
+        Cuántos equipos comparten modelo.
         Se usa en el formulario para mostrar el aviso antes de subir.
         Ej: 'Este recurso se vinculará a 8 equipos BeneFusion EVP'
         """
@@ -109,8 +109,8 @@ class ModelRecursos:
             cursor.execute(f"""
                 SELECT COUNT(*)
                 FROM {cls.TABLE_INVENTARIO}
-                WHERE marca = ? AND modelo = ?
-            """, (marca, modelo))
+                WHERE modelo = ?
+            """, (modelo,))
             total = cursor.fetchone()[0]
             cursor.close()
             return total
@@ -147,7 +147,7 @@ class ModelRecursos:
     def crear_recurso(cls, db, datos, equipo_origen_id):
         """
         Inserta el recurso y lo vincula automáticamente a todos
-        los equipos que coincidan en marca + modelo del equipo origen.
+        los equipos que coincidan en modelo con el equipo origen.
 
         datos = {
             'nombre':      str,
@@ -163,16 +163,16 @@ class ModelRecursos:
         try:
             cursor = db.cursor()
 
-            # 1 — Obtener marca y modelo del equipo origen
+            # 1 — Obtener modelo del equipo origen
             cursor.execute(f"""
-                SELECT marca, modelo
+                SELECT modelo
                 FROM {cls.TABLE_INVENTARIO}
                 WHERE id = ?
             """, (equipo_origen_id,))
             row = cursor.fetchone()
             if not row:
                 return False, None, 0
-            marca, modelo = row
+            modelo = row[0]
 
             # 2 — Insertar en Recursos
             cursor.execute(f"""
@@ -190,12 +190,16 @@ class ModelRecursos:
             ))
             recurso_id = cursor.fetchone()[0]
 
-            # 3 — Buscar todos los equipos con misma marca + modelo
-            cursor.execute(f"""
-                SELECT id FROM {cls.TABLE_INVENTARIO}
-                WHERE marca = ? AND modelo = ?
-            """, (marca, modelo))
-            equipos = [r[0] for r in cursor.fetchall()]
+            # 3 — Buscar todos los equipos con el mismo modelo
+            # (sin modelo, el recurso solo queda vinculado al equipo origen)
+            if modelo and modelo.strip():
+                cursor.execute(f"""
+                    SELECT id FROM {cls.TABLE_INVENTARIO}
+                    WHERE modelo = ?
+                """, (modelo,))
+                equipos = [r[0] for r in cursor.fetchall()]
+            else:
+                equipos = [equipo_origen_id]
 
             # 4 — Insertar en EquipoRecursos por cada equipo encontrado
             for eq_id in equipos:
@@ -212,6 +216,43 @@ class ModelRecursos:
             print(f"Error crear_recurso: {e}")
             db.rollback()
             return False, None, 0
+
+    @classmethod
+    def copiar_recursos_por_modelo(cls, db, modelo, equipo_nuevo_id):
+        """
+        Vincula al equipo recién creado todos los recursos que ya tienen
+        los equipos existentes con el mismo modelo. No duplica archivos:
+        solo agrega filas en EquipoRecursos apuntando a los recursos
+        (con su 'archivo' compartido) que ya existían para ese modelo.
+
+        Se usa al dar de alta un equipo nuevo, para no obligar a resubir
+        manuales/fichas que ya se cargaron para otro equipo del mismo modelo.
+
+        Devuelve la cantidad de recursos vinculados.
+        """
+        if not modelo or not modelo.strip():
+            return 0
+        try:
+            cursor = db.cursor()
+            cursor.execute(f"""
+                INSERT INTO {cls.TABLE_EQUIPO_REC} (equipo_id, recurso_id)
+                SELECT DISTINCT ?, er.recurso_id
+                FROM {cls.TABLE_EQUIPO_REC} er
+                INNER JOIN {cls.TABLE_INVENTARIO} i ON i.id = er.equipo_id
+                WHERE i.modelo = ? AND i.id <> ?
+                  AND NOT EXISTS (
+                      SELECT 1 FROM {cls.TABLE_EQUIPO_REC} ya
+                      WHERE ya.equipo_id = ? AND ya.recurso_id = er.recurso_id
+                  )
+            """, (equipo_nuevo_id, modelo, equipo_nuevo_id, equipo_nuevo_id))
+            total = cursor.rowcount or 0
+            db.commit()
+            cursor.close()
+            return total
+        except Exception as e:
+            print(f"Error copiar_recursos_por_modelo [{modelo}]: {e}")
+            db.rollback()
+            return 0
 
     @classmethod
     def eliminar_recurso(cls, db, recurso_id):
@@ -261,7 +302,7 @@ class ModelRecursos:
         if not archivo_file:
             raise ValueError("No se proporcionó ningún archivo")
 
-        # Validar extensión contra el tipo declarado
+        # REEMPLAZAR POR — misma lógica, pero con una lista negra de extensiones peligrosas
         ext = os.path.splitext(archivo_file.filename)[1].lower()
         permitidas = cls.TIPOS_PERMITIDOS.get(tipo, [])
         if permitidas and ext not in permitidas:
@@ -270,12 +311,18 @@ class ModelRecursos:
                 f"Permitidas: {', '.join(permitidas)}"
             )
 
+        # Bloquear ejecutables peligrosos independientemente del tipo
+        EXTENSIONES_BLOQUEADAS = {'.exe', '.bat', '.sh', '.ps1', '.cmd', '.msi', '.dll', '.py', '.js', '.php'}
+        if ext in EXTENSIONES_BLOQUEADAS:
+            raise ValueError(f"Extensión '{ext}' no permitida por seguridad")
+
         # Validar tamaño (máx 20MB para PDFs y videos)
         archivo_file.seek(0, 2)
         size = archivo_file.tell()
         archivo_file.seek(0)
-        if size > 100 * 1024 * 1024:
-            raise ValueError("El archivo excede 100MB")
+        MAX_MB = 300
+        if size > MAX_MB * 1024 * 1024:
+            raise ValueError(f"El archivo excede {MAX_MB}MB")
 
         # Nombre único
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')

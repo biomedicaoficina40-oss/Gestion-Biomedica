@@ -1,0 +1,35 @@
+{% extends 'reportes/pdf/_base_pdf.html' %}
+{% import 'reportes/pdf/_macros.html' as m %}
+
+{% block titulo_doc %}Reporte de Tecnovigilancia{% endblock %}
+
+{% block cuerpo %}
+{% set ns = namespace(blq=0) %}
+
+<table class="meta-row">
+  <tr>
+    <td style="width:25%">
+      <div class="meta-lbl">Fecha del evento</div>
+      <div class="meta-val">{{ fecha_evento_txt or ph }}</div>
+    </td>
+    <td style="width:25%">
+      <div class="meta-lbl">Fecha de detección</div>
+      <div class="meta-val">{{ fecha_deteccion_txt or ph }}</div>
+    </td>
+    <td style="width:25%">
+      <div class="meta-lbl">Clasificación</div>
+      <div class="meta-val">{{ clasificacion_txt or ph }}</div>
+    </td>
+    <td style="width:25%">
+      <div class="meta-lbl">Área</div>
+      <div class="meta-val">{{ area_nombre or eq.area or ph }}</div>
+    </td>
+  </tr>
+</table>
+
+{{ m.identificacion_equipo(ns, corte_en, eq, ph) }}
+{{ m.texto_largo(ns, corte_en, 'Descripción detallada de lo ocurrido', descripcion, relleno) }}
+{{ m.texto_largo(ns, corte_en, 'Personas involucradas', involucrados, relleno) }}
+{{ m.texto_largo(ns, corte_en, 'Acciones inmediatas tomadas', acciones_inmediatas, relleno) }}
+{{ m.notas(ns, corte_en, notas_pdf) }}
+{% endblock %}

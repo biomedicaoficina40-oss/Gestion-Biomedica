@@ -1,0 +1,74 @@
+{% extends 'reportes/pdf/_base_pdf.html' %}
+{% import 'reportes/pdf/_macros.html' as m %}
+
+{% block titulo_doc %}Reporte de {{ sentido_txt or 'Movimiento' }} de Equipo{% endblock %}
+
+{% block cuerpo %}
+{% set ns = namespace(blq=0) %}
+
+<table class="meta-row">
+  <tr>
+    <td style="width:34%">
+      <div class="meta-lbl">Fecha</div>
+      <div class="meta-val">{{ fecha_txt or ph }}</div>
+    </td>
+    <td style="width:33%">
+      <div class="meta-lbl">Movimiento</div>
+      <div class="meta-val">{{ sentido_txt or ph }}</div>
+    </td>
+    <td style="width:33%">
+      <div class="meta-lbl">Área</div>
+      <div class="meta-val">{{ area_nombre or ph }}</div>
+    </td>
+  </tr>
+</table>
+
+{% if padre_folio %}
+{% set ns.blq = ns.blq + 1 %}
+<div class="section blq {{ 'corte-antes' if corte_en == ns.blq }}">
+  <div class="f-box" style="font-weight:600">
+    Cierra la salida {{ padre_folio }}
+  </div>
+</div>
+{% endif %}
+
+{{ m.equipos_movimiento(ns, corte_en, equipos, ph) }}
+{{ m.texto_largo(ns, corte_en, 'Motivo', motivo, relleno) }}
+{{ m.texto_largo(ns, corte_en, 'Accesorios', accesorios, relleno) }}
+
+{# ── Destino y retorno — solo si hay algo que mostrar, no por el sentido:
+   una entrada que trae accesorios de un proveedor externo también puede
+   traer estos datos. ── #}
+{% if destino_externo or proveedor_nombre or fecha_retorno_prevista_txt or fecha_retorno_real_txt %}
+{% set ns.blq = ns.blq + 1 %}
+<div class="section blq {{ 'corte-antes' if corte_en == ns.blq }}">
+  <div class="sec-hd">Destino y retorno</div>
+  <table class="campos">
+    <tr>
+      <td style="width:50%">
+        <div class="f-lbl">Destino / origen externo</div>
+        <div class="f-box">{{ destino_externo or ph }}</div>
+      </td>
+      <td style="width:50%" class="last">
+        <div class="f-lbl">Proveedor</div>
+        <div class="f-box">{{ proveedor_nombre or ph }}</div>
+      </td>
+    </tr>
+    {% if fecha_retorno_prevista_txt or fecha_retorno_real_txt %}
+    <tr>
+      <td style="width:50%">
+        <div class="f-lbl">Retorno previsto</div>
+        <div class="f-box">{{ fecha_retorno_prevista_txt or ph }}</div>
+      </td>
+      <td style="width:50%" class="last">
+        <div class="f-lbl">Retorno real</div>
+        <div class="f-box">{{ fecha_retorno_real_txt or ph }}</div>
+      </td>
+    </tr>
+    {% endif %}
+  </table>
+</div>
+{% endif %}
+
+{{ m.notas(ns, corte_en, notas_pdf) }}
+{% endblock %}

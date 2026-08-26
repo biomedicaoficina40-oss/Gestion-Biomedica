@@ -1,19 +1,63 @@
-# Python
+# ─────────────────────────────────────────────────────────
+#  Python
+# ─────────────────────────────────────────────────────────
 __pycache__/
 *.pyc
+*.pyo
 
-# Entorno virtual
+# ─────────────────────────────────────────────────────────
+#  Entorno virtual
+# ─────────────────────────────────────────────────────────
 env/
 venv/
 
-# Archivos subidos (usuarios / sistema)
+# ─────────────────────────────────────────────────────────
+#  Contenido subido por usuarios y binarios grandes
+#  Se respalda aparte: esto es un repositorio de CÓDIGO.
+# ─────────────────────────────────────────────────────────
+# 4.7 MB — fotos de reportes, firmas, PDF congelados
 static/uploads/
+# 62 MB — manuales, guías rápidas, fichas técnicas
 static/Recursos/
+# 32 MB — pruebaweb.glb del visor 3D
+static/models3d/
 
-# Archivos pesados
+# ─────────────────────────────────────────────────────────
+#  Artefactos pesados de librerías vendorizadas (pdf.js)
+# ─────────────────────────────────────────────────────────
+# Sourcemaps: solo sirven para depurar la librería, jamás en producción.
+# Son 10.6 MB, casi la mitad de todo lo rastreado.
+*.map
+# PDF de demostración que pdf.js trae de ejemplo (1 MB, no lo usa nadie).
+static/pdfjs/web/compressed.tracemonkey-pldi-09.pdf
+
+# ─────────────────────────────────────────────────────────
+#  Documentos e imágenes
+# ─────────────────────────────────────────────────────────
 *.pdf
 *.jpg
+*.jpeg
 *.png
+*.gif
+*.mp4
+*.zip
 
-# VSCode
+# EXCEPCIÓN: static/img/ sí va en el repo. Son el logo del hospital y las
+# imágenes del membrete que WeasyPrint incrusta en el acta de alta; sin ellas
+# el PDF sale roto. Sin esta excepción, agregar un logo nuevo lo ignoraría en
+# silencio y producción se desplegaría sin él.
+!static/img/
+!static/img/**
+
+# EXCEPCIÓN: los íconos del visor de PDF (svg/gif pequeños, ~78 KB en total).
+!static/pdfjs/**/*.svg
+!static/pdfjs/**/*.gif
+
+# ─────────────────────────────────────────────────────────
+#  Editor y herramientas
+# ─────────────────────────────────────────────────────────
 .vscode/
+
+# Skills de Claude: junction a "Claude work/skills" (los archivos viven fuera
+# del repo; versionar el junction no sirve de nada).
+.claude/skills

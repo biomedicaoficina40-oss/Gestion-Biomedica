@@ -1,0 +1,142 @@
+/* ══════════════════════════════════════════════════════════════
+   Pad de firma — estilos compartidos por el formulario de alta y
+   el visor del reporte. Va en archivo aparte porque lo usan dos
+   plantillas; el JS que lo acompaña es static/Js/firma_pad.js.
+   ══════════════════════════════════════════════════════════════ */
+
+.firma-bloque {
+  border: 1px solid var(--adm-border, #d6edf5);
+  border-radius: var(--adm-radius-sm, 8px);
+  padding: 14px;
+  background: #fff;
+}
+.firma-bloque + .firma-bloque { margin-top: 14px; }
+
+.firma-rol {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--adm-accent, #3D90AE);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.firma-campos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.firma-campo-lbl {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--adm-muted, #6b8e99);
+  margin-bottom: 4px;
+}
+
+/* ── El lienzo ── */
+.firma-pad-wrap { position: relative; }
+
+.firma-pad {
+  position: relative;
+  border: 1.5px dashed var(--adm-border, #d6edf5);
+  border-radius: var(--adm-radius-sm, 8px);
+  background: #fbfdfe;
+  overflow: hidden;
+  transition: border-color .15s ease, background .15s ease;
+}
+.firma-pad.firmado {
+  border-style: solid;
+  border-color: var(--adm-accent, #3D90AE);
+  background: #fff;
+}
+
+.firma-pad canvas {
+  display: block;
+  width: 100%;
+  height: 150px;
+  /* Clave en celular: sin esto, arrastrar el dedo hace scroll de la
+     página en vez de dibujar. */
+  touch-action: none;
+  cursor: crosshair;
+}
+
+/* Línea guía y leyenda; se ocultan al primer trazo */
+.firma-pad::after {
+  content: "";
+  position: absolute;
+  left: 12%; right: 12%; bottom: 34px;
+  border-bottom: 1px solid #cbd5e1;
+  pointer-events: none;
+}
+.firma-pad-hint {
+  position: absolute;
+  left: 0; right: 0; bottom: 12px;
+  text-align: center;
+  font-size: 0.72rem;
+  color: #9ca3af;
+  pointer-events: none;
+}
+.firma-pad.firmado::after,
+.firma-pad.firmado .firma-pad-hint { display: none; }
+
+.firma-acciones {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.firma-nota { font-size: 0.7rem; color: var(--adm-muted, #6b8e99); }
+
+.firma-btn-limpiar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  color: var(--adm-muted, #6b8e99);
+  border: 1px solid var(--adm-border, #d6edf5);
+  border-radius: var(--adm-radius-sm, 8px);
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.firma-btn-limpiar:hover { background: #f8fbfc; color: #dc2626; border-color: #fca5a5; }
+
+/* ── Estado ya firmado ── */
+.firma-hecha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  border-radius: var(--adm-radius-sm, 8px);
+  padding: 12px 14px;
+}
+.firma-hecha img {
+  height: 48px;
+  max-width: 160px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid #d1fae5;
+  border-radius: 4px;
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+.firma-hecha-datos { min-width: 0; }
+.firma-hecha-nombre { font-size: 0.85rem; font-weight: 700; color: #14532d; }
+.firma-hecha-meta   { font-size: 0.7rem;  color: #4d7c56; margin-top: 2px; }
+
+@media (max-width: 640px) {
+  .firma-campos { grid-template-columns: 1fr; }
+  .firma-acciones { flex-direction: column-reverse; align-items: stretch; }
+  .firma-acciones .firma-btn-limpiar { justify-content: center; }
+  .firma-nota { text-align: center; }
+  .firma-hecha { flex-direction: column; align-items: flex-start; }
+}

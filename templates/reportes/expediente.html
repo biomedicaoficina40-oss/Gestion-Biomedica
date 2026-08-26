@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}{{ equipo.equipo_unidad }} · Expediente{% endblock %}
+
+{% block customCSS %}
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   Expediente del equipo — línea de vida.
+
+   Responde una pregunta que el Centro de Reportes filtrado por número de
+   inventario ya contestaba, pero sin el hilo cronológico entre tipos: "¿qué
+   le ha pasado a este equipo?" en una sola lista, del más nuevo al más viejo,
+   sin importar si fue un preventivo, una salida o un evento de
+   tecnovigilancia.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.exp-wrap { max-width: 760px; margin: 0 auto; }
+
+.exp-head {
+  background: #fff; border: 1px solid #e6ecef; border-radius: 14px;
+  padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(16,32,45,.06);
+  display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+}
+.exp-img { width: 64px; height: 64px; border-radius: 10px; object-fit: cover;
+          flex: 0 0 64px; background: #f1f5f7; border: 1px solid #e6ecef; }
+.exp-ph  { width: 64px; height: 64px; border-radius: 10px; flex: 0 0 64px;
+          background: #f1f5f7; display: flex; align-items: center; justify-content: center;
+          color: #a8bcc7; font-size: 1.4rem; }
+.exp-nombre { font-size: 1.1rem; font-weight: 700; color: #1f2d3a; }
+.exp-meta { font-size: .84rem; color: #6b7c8a; margin-top: 2px; }
+.exp-inv { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.exp-ficha { margin-left: auto; }
+
+.exp-linea { position: relative; padding-left: 22px; }
+.exp-linea::before {
+  content: ''; position: absolute; left: 7px; top: 6px; bottom: 6px;
+  width: 2px; background: #e6ecef;
+}
+.exp-item { position: relative; margin-bottom: 12px; }
+.exp-item::before {
+  content: ''; position: absolute; left: -22px; top: 16px;
+  width: 11px; height: 11px; border-radius: 50%; background: #fff;
+  border: 2px solid var(--hospital-primary);
+}
+.exp-card {
+  background: #fff; border: 1px solid #e6ecef; border-left: 3px solid var(--hospital-primary);
+  border-radius: 11px; padding: 12px 14px; text-decoration: none; display: block;
+}
+.exp-card:hover { border-color: var(--hospital-primary); }
+.exp-card-hd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.exp-folio { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-weight: 700; color: #1f2d3a; font-size: .92rem; }
+.exp-tipo { font-size: .74rem; font-weight: 600; padding: 2px 9px; border-radius: 20px; }
+.exp-tipo-preventivo      { background: #e0f2fe; color: #075985; }
+.exp-tipo-correctivo      { background: #fef3c7; color: #92400e; }
+.exp-tipo-alta            { background: #dcfce7; color: #166534; }
+.exp-tipo-baja            { background: #fee2e2; color: #991b1b; }
+.exp-tipo-entrada,
+.exp-tipo-salida          { background: #ede9fe; color: #5b21b6; }
+.exp-tipo-tecnovigilancia { background: #ffe4e6; color: #9f1239; }
+.exp-estado {
+  margin-left: auto; font-size: .72rem; font-weight: 600; color: #6b7c8a;
+  white-space: nowrap;
+}
+.exp-estado-liberado   { color: var(--ble-ok-fg); }
+.exp-estado-borrador,
+.exp-estado-en_proceso { color: var(--ble-warn-fg); }
+.exp-card-meta { font-size: .8rem; color: #6b7c8a; margin-top: 5px; }
+.exp-card-costo { font-weight: 600; color: #1f2d3a; }
+.exp-vacio { text-align: center; color: #6b7c8a; padding: 40px 0; }
+
+@media (max-width: 768px) {
+  .exp-ficha { width: 100%; margin-left: 0; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="exp-wrap">
+
+  <div class="exp-head">
+    {% if equipo.imagen %}
+      <img class="exp-img" src="{{ url_for('static', filename='uploads/' ~ equipo.imagen) }}" alt="">
+    {% else %}
+      <div class="exp-ph"><i class="fas fa-cube"></i></div>
+    {% endif %}
+    <div>
+      <div class="exp-nombre">{{ equipo.equipo_unidad }}</div>
+      <div class="exp-meta">
+        <span class="exp-inv">{{ equipo.numero_inventario }}</span>
+        {% if equipo.marca %} · {{ equipo.marca }}{% endif %}
+        {% if equipo.modelo %} {{ equipo.modelo }}{% endif %}
+        · {{ reportes|length }} reporte{{ 's' if reportes|length != 1 }}
+      </div>
+    </div>
+    <a class="ed-mini exp-ficha" style="display:inline-flex;align-items:center;gap:6px;
+       min-height:38px;padding:8px 12px;border-radius:8px;border:1px solid #e6ecef;
+       color:#6b7c8a;text-decoration:none;font-size:.8rem"
+       href="{{ url_for('admin.ver_equipo', id=equipo.id) }}">
+      <i class="fas fa-cube"></i> Ficha del equipo
+    </a>
+  </div>
+
+  {% if reportes %}
+  <div class="exp-linea">
+    {% for r in reportes %}
+    <div class="exp-item">
+      <a class="exp-card exp-tipo-{{ r.tipo }}"
+         href="{{ url_for('reportes.ver', reporte_id=r.id) }}">
+        <div class="exp-card-hd">
+          <span class="exp-folio">{{ r.folio }}</span>
+          <span class="exp-tipo exp-tipo-{{ r.tipo }}">{{ etiq_tipo.get(r.tipo, r.tipo) }}</span>
+          <span class="exp-estado exp-estado-{{ r.estado }}">{{ etiq_est.get(r.estado, r.estado) }}</span>
+        </div>
+        <div class="exp-card-meta">
+          {{ (r.fecha_liberacion or r.fecha).strftime('%d/%m/%Y') if (r.fecha_liberacion or r.fecha) }}
+          {%- if r.area_nombre %} · {{ r.area_nombre }}{% endif %}
+          {%- if r.tecnico_nombre %} · {{ r.tecnico_nombre }}{% endif %}
+          {%- if ver_costos and r.costo %} · <span class="exp-card-costo">${{ '{:,.2f}'.format(r.costo) }}</span>{% endif %}
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="exp-vacio">Este equipo todavía no tiene reportes.</div>
+  {% endif %}
+
+</div>
+{% endblock %}

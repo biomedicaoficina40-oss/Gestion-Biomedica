@@ -2034,7 +2034,7 @@ class EditorToolbar {
     }
     const beforeElement = this.#buttons.querySelector(beforeSelector);
     if (!beforeElement) {
-      return;
+      return; 
     }
     if (name === "comment") {
       this.addComment(tool, beforeElement);

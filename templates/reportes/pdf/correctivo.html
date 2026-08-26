@@ -1,0 +1,70 @@
+{% extends 'reportes/pdf/_base_pdf.html' %}
+{% import 'reportes/pdf/_macros.html' as m %}
+
+{% block titulo_doc %}Reporte de Mantenimiento Correctivo{% endblock %}
+
+{% block cuerpo %}
+{# Mismo mecanismo de conteo de bloques que preventivo.html — ver el comentario
+   ahí. Lo único propio de este tipo es la sección de diagnóstico y tiempo de
+   atención, justo después de identificar el equipo: es lo primero que se
+   quiere leer en un antecedente ("qué falló y cuánto tardamos"), antes de qué
+   se hizo para resolverlo. #}
+{% set ns = namespace(blq=0) %}
+
+<table class="meta-row">
+  <tr>
+    <td style="width:34%">
+      <div class="meta-lbl">Fecha del servicio</div>
+      <div class="meta-val">{{ fecha_txt or ph }}</div>
+    </td>
+    <td style="width:33%">
+      <div class="meta-lbl">Tipo de servicio</div>
+      <div class="meta-val">Correctivo</div>
+    </td>
+    <td style="width:33%">
+      <div class="meta-lbl">Área</div>
+      <div class="meta-val">{{ area_nombre or eq.area or ph }}</div>
+    </td>
+  </tr>
+</table>
+
+{{ m.identificacion_equipo(ns, corte_en, eq, ph) }}
+
+{# ── Diagnóstico y tiempo de atención ──
+   Se imprime si hay algo que mostrar, no porque el tipo sea correctivo: un
+   predictivo que alguna vez registrara una falla también calificaría. #}
+{% if fecha_falla_txt or tipo_falla_nombre or causa_demora_nombre or horas_paro_txt %}
+{% set ns.blq = ns.blq + 1 %}
+<div class="section blq {{ 'corte-antes' if corte_en == ns.blq }}">
+  <div class="sec-hd">Diagnóstico y tiempo de atención</div>
+  <table class="campos">
+    <tr>
+      <td style="width:50%">
+        <div class="f-lbl">Fecha y hora de la falla</div>
+        <div class="f-box">{{ fecha_falla_txt or ph }}</div>
+      </td>
+      <td style="width:50%" class="last">
+        <div class="f-lbl">Tipo de falla</div>
+        <div class="f-box">{{ tipo_falla_nombre or ph }}</div>
+      </td>
+    </tr>
+    <tr>
+      <td style="width:50%">
+        <div class="f-lbl">Causa de la demora</div>
+        <div class="f-box">{{ causa_demora_nombre or ph }}</div>
+      </td>
+      <td style="width:50%" class="last">
+        <div class="f-lbl">Tiempo de paro</div>
+        <div class="f-box" style="font-weight:600">{{ horas_paro_txt or ph }}</div>
+      </td>
+    </tr>
+  </table>
+</div>
+{% endif %}
+
+{{ m.texto_largo(ns, corte_en, 'Descripción del trabajo realizado', descripcion_trabajo, relleno) }}
+{{ m.refacciones(ns, corte_en, lineas, ver_costos, totales) }}
+{{ m.texto_largo(ns, corte_en, 'Observaciones', observaciones, relleno) }}
+{{ m.notas(ns, corte_en, notas_pdf) }}
+{{ m.resultado(ns, corte_en, resultado_txt) }}
+{% endblock %}

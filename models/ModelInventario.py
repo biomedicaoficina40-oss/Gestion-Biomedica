@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 from PIL import Image
 from werkzeug.utils import secure_filename
+import io
 
 class ModelInventario:
     """
@@ -18,6 +19,17 @@ class ModelInventario:
         numero_serie, numero_inventario, fecha_fabricacion,
         propiedad, estado, fecha_adquisicion, fecha_fin_garantia,
         departamento, imagen, observaciones
+    """
+
+    # Prioridad de estado: Operativo primero, Fuera de Servicio al final.
+    # Cualquier estado desconocido/vacío cae después de los tres conocidos.
+    ORDEN_ESTADO = """
+        CASE estado
+            WHEN 'Operativo'         THEN 0
+            WHEN 'Mantenimiento'     THEN 1
+            WHEN 'Fuera de Servicio' THEN 2
+            ELSE 3
+        END
     """
 
     # ─────────────────────────────────────────────────────────
@@ -58,9 +70,15 @@ class ModelInventario:
     @classmethod
     def get_inventario(cls, db, q='', depto='', estado='', marca='',
                        propiedad='', sort='', direction='asc',
-                       page=1, per_page=15):
+                       page=1, per_page=15, agrupar_estado=True):
         """
         Lista paginada con búsqueda, filtros y ordenamiento.
+
+        agrupar_estado=True (default) antepone SIEMPRE el orden por estado:
+        Operativo → Mantenimiento → Fuera de Servicio, y dentro de cada grupo
+        se aplica el 'sort' elegido por el usuario. Aplica igual en búsquedas
+        y filtros. Con agrupar_estado=False se respeta solo el 'sort'.
+
         Devuelve (lista_equipos, total_registros).
         """
         SORTABLE = {
@@ -96,9 +114,26 @@ class ModelInventario:
         )
         total = cursor.fetchone()[0]
 
-        dir_sql   = "ASC" if direction.lower() == "asc" else "DESC"
-        order_sql = f"ORDER BY {sort} {dir_sql}" if sort in SORTABLE \
-                    else "ORDER BY numero_inventario ASC"
+        dir_sql = "ASC" if direction.lower() == "asc" else "DESC"
+        prio    = " ".join(cls.ORDEN_ESTADO.split())
+
+        # Criterios en orden: [grupo estado] → [columna elegida] → desempate.
+        criterios = []
+
+        if sort == 'estado':
+            # Ordenar por estado = ordenar por prioridad (no alfabéticamente).
+            criterios.append(f"{prio} {dir_sql}")
+        else:
+            if agrupar_estado:
+                criterios.append(f"{prio} ASC")
+            if sort in SORTABLE:
+                criterios.append(f"{sort} {dir_sql}")
+
+        # numero_inventario siempre al final: desempate estable para paginar.
+        if sort != 'numero_inventario':
+            criterios.append("numero_inventario ASC")
+
+        order_sql = "ORDER BY " + ", ".join(criterios)
 
         offset = (page - 1) * per_page
         cursor.execute(
@@ -143,12 +178,110 @@ class ModelInventario:
         }
 
     @classmethod
+    def get_equipos_nfc(cls, db):
+        """
+        Equipos con chip NFC (tiene_nfc = 1) junto con su checklist de
+        información: imagen, guía rápida, manual, ficha técnica,
+        capacitación y registro de mantenimiento.
+
+        Usado por el Panel NFC (admin.panel_nfc) — el panel de control
+        para saber qué equipos con chip ya tienen su información cargada
+        y cuáles faltan, con enlaces directos para completarla.
+
+        Devuelve una lista de dicts, cada uno con las columnas base del
+        equipo más:
+            tiene_imagen, tiene_guia, tiene_manual, tiene_ficha,
+            tiene_capacitacion  (bool)
+            mant_id                (int|None — existe registro de mantenimiento)
+            proximo_mantenimiento  (date|None)
+            estado_mant            ('al_dia'|'proximo'|'vencido'|'sin_registro')
+            items_completos, total_items  (int) — para el resumen de completitud
+        """
+        query = """
+            SELECT
+                e.id, e.equipo_unidad, e.marca, e.modelo, e.numero_serie,
+                e.numero_inventario, e.departamento, e.area, e.estado, e.imagen,
+                m.id AS mant_id, m.proximo_mantenimiento,
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM HospitalGalenia.dbo.EquipoRecursos er
+                    INNER JOIN HospitalGalenia.dbo.Recursos r ON r.id = er.recurso_id
+                    WHERE er.equipo_id = e.id AND r.categoria = 'guia_rapida'
+                ) THEN 1 ELSE 0 END AS tiene_guia,
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM HospitalGalenia.dbo.EquipoRecursos er
+                    INNER JOIN HospitalGalenia.dbo.Recursos r ON r.id = er.recurso_id
+                    WHERE er.equipo_id = e.id
+                      AND r.categoria IN ('manual_servicio', 'manual_usuario')
+                ) THEN 1 ELSE 0 END AS tiene_manual,
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM HospitalGalenia.dbo.EquipoRecursos er
+                    INNER JOIN HospitalGalenia.dbo.Recursos r ON r.id = er.recurso_id
+                    WHERE er.equipo_id = e.id AND r.categoria = 'ficha_tecnica'
+                ) THEN 1 ELSE 0 END AS tiene_ficha,
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM HospitalGalenia.dbo.EquipoRecursos er
+                    INNER JOIN HospitalGalenia.dbo.Recursos r ON r.id = er.recurso_id
+                    WHERE er.equipo_id = e.id AND r.categoria = 'capacitacion'
+                ) THEN 1 ELSE 0 END AS tiene_capacitacion
+            FROM HospitalGalenia.dbo.InventarioEquipos e
+            LEFT JOIN HospitalGalenia.dbo.MantenimientosEquipos m ON m.equipo_id = e.id
+            WHERE e.tiene_nfc = 1
+            ORDER BY e.numero_inventario ASC
+        """
+        try:
+            cursor = db.cursor()
+            cursor.execute(query)
+            rows    = cursor.fetchall()
+            columns = [col[0] for col in cursor.description]
+            cursor.close()
+        except Exception as e:
+            print(f"Error get_equipos_nfc: {e}")
+            return []
+
+        hoy      = datetime.now().date()
+        equipos  = []
+        for row in rows:
+            eq = dict(zip(columns, row))
+
+            eq['tiene_imagen'] = bool(eq.get('imagen'))
+            for k in ('tiene_guia', 'tiene_manual', 'tiene_ficha', 'tiene_capacitacion'):
+                eq[k] = bool(eq.get(k))
+
+            # Estado de mantenimiento — misma escala que ModelMantenimientos
+            proximo = eq.get('proximo_mantenimiento')
+            if proximo is None:
+                eq['estado_mant'] = 'sin_registro'
+            else:
+                p = proximo.date() if isinstance(proximo, datetime) else proximo
+                delta = (p - hoy).days
+                eq['estado_mant'] = 'vencido' if delta < 0 else ('proximo' if delta <= 30 else 'al_dia')
+
+            for k, v in eq.items():
+                if v is None:
+                    eq[k] = ''
+
+            checklist = (
+                eq['tiene_imagen'], eq['tiene_guia'], eq['tiene_manual'],
+                eq['tiene_ficha'], eq['tiene_capacitacion'],
+                eq['estado_mant'] != 'sin_registro',
+            )
+            eq['items_completos'] = sum(checklist)
+            eq['total_items']     = len(checklist)
+
+            equipos.append(eq)
+
+        return equipos
+
+    @classmethod
     def get_marcas(cls, db):
         return cls._distinct(db, 'marca')
 
     @classmethod
     def get_departamentos(cls, db):
         return cls._distinct(db, 'departamento')
+    @classmethod
+    def get_areas(cls, db):
+        return cls._distinct(db, 'area')
 
     @classmethod
     def get_propiedades(cls, db):
@@ -171,11 +304,6 @@ class ModelInventario:
 
     @classmethod
     def generar_numero_inventario(cls, db, prefijo):
-        """
-        Genera el siguiente número de inventario para el prefijo dado.
-        Primero agota 3 dígitos (001-999), luego pasa a 4 (0001-9999).
-        Lógica MAX+1 sin rellenar huecos.
-        """
         try:
             cursor = db.cursor()
             cursor.execute(
@@ -186,28 +314,15 @@ class ModelInventario:
             rows = cursor.fetchall()
             cursor.close()
 
-            tres_digitos  = []
-            cuatro_digitos = []
-
+            numeros = []
             for row in rows:
                 sufijo = row[0][len(prefijo):]
-                if not sufijo.isdigit():
-                    continue
-                n      = int(sufijo)
-                digits = len(sufijo)
-                if digits == 3:
-                    tres_digitos.append(n)
-                elif digits == 4:
-                    cuatro_digitos.append(n)
+                if sufijo.isdigit():
+                    numeros.append(int(sufijo))
 
-            # Si aún no se agotaron los de 3 dígitos
-            if not tres_digitos or max(tres_digitos) < 999:
-                siguiente = (max(tres_digitos) + 1) if tres_digitos else 1
-                return f"{prefijo}{str(siguiente).zfill(3)}"
-            else:
-                # Ya llegamos a 999, pasamos a 4 dígitos
-                siguiente = (max(cuatro_digitos) + 1) if cuatro_digitos else 1
-                return f"{prefijo}{str(siguiente).zfill(4)}"
+            siguiente = (max(numeros) + 1) if numeros else 1
+            digits = 4 if prefijo == 'EQ-ME' else 3
+            return f"{prefijo}{str(siguiente).zfill(digits)}"
 
         except Exception as e:
             print(f"Error generar_numero_inventario [{prefijo}]: {e}")
@@ -324,18 +439,24 @@ class ModelInventario:
         try:
             cursor = db.cursor()
 
-            # Obtener marca y modelo del equipo actual
-            cursor.execute(f"SELECT marca, modelo FROM {cls.TABLE} WHERE id = ?", (id,))
+            # Obtener modelo del equipo actual
+            cursor.execute(f"SELECT modelo FROM {cls.TABLE} WHERE id = ?", (id,))
             row = cursor.fetchone()
             if not row:
                 return False
-            marca, modelo = row
+            modelo = row[0]
 
-            # Actualizar todos los equipos con la misma marca y modelo
-            cursor.execute(
-                f"UPDATE {cls.TABLE} SET imagen = ? WHERE marca = ? AND modelo = ?",
-                (filename, marca, modelo)
-            )
+            # Sin modelo no hay grupo al que propagar: solo este equipo.
+            if modelo and modelo.strip():
+                cursor.execute(
+                    f"UPDATE {cls.TABLE} SET imagen = ? WHERE modelo = ?",
+                    (filename, modelo)
+                )
+            else:
+                cursor.execute(
+                    f"UPDATE {cls.TABLE} SET imagen = ? WHERE id = ?",
+                    (filename, id)
+                )
             db.commit()
             cursor.close()
             return True
@@ -343,29 +464,56 @@ class ModelInventario:
             print(f"Error actualizar_imagen [{id}]: {e}")
             db.rollback()
             return False
+
+    @classmethod
+    def buscar_imagen_por_modelo(cls, db, modelo):
+        """
+        Busca una imagen ya existente entre equipos con el mismo modelo.
+        Se usa al dar de alta un equipo nuevo para no pedir resubir la
+        imagen si ya hay una registrada para ese modelo.
+        Devuelve la ruta relativa (columna 'imagen') o None.
+        """
+        if not modelo or not modelo.strip():
+            return None
+        try:
+            cursor = db.cursor()
+            cursor.execute(
+                f"SELECT TOP 1 imagen FROM {cls.TABLE} "
+                f"WHERE modelo = ? AND imagen IS NOT NULL AND imagen <> '' "
+                f"ORDER BY id",
+                (modelo,)
+            )
+            row = cursor.fetchone()
+            cursor.close()
+            return row[0] if row else None
+        except Exception as e:
+            print(f"Error buscar_imagen_por_modelo [{modelo}]: {e}")
+            return None
         
     @classmethod
     def guardar_imagen(cls, imagen_file, flag='equipos', max_size_mb=2,
-                    allowed_extensions=None, output_size=(800, 800)):
+                    allowed_extensions=None, output_size=(800, 800),
+                    quality_inicial=85, calidad_minima=40):
+        """
+        Guarda y comprime una imagen automáticamente.
+        
+        - Comprime primero, valida después (ya no falla por fotos de celular).
+        - Reduce calidad iterativamente si el resultado aún excede max_size_mb.
+        - quality_inicial: calidad JPEG de inicio (85 es buen balance).
+        - calidad_minima: piso de calidad antes de levantar error real.
+        """
         if allowed_extensions is None:
             allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp']
 
         if not imagen_file:
             raise ValueError("No se proporcionó ninguna imagen")
 
-        # Validar tamaño
-        imagen_file.seek(0, 2)          # ir al final
-        size = imagen_file.tell()
-        imagen_file.seek(0)             # resetear
-        if size > max_size_mb * 1024 * 1024:
-            raise ValueError(f"El archivo excede {max_size_mb}MB")
-
-        # Validar extensión
+        # ── 1. Validar extensión (rápido, antes de leer el archivo) ──────────
         file_ext = os.path.splitext(imagen_file.filename)[1].lower()
         if file_ext not in allowed_extensions:
             raise ValueError(f"Extensión no permitida. Use: {', '.join(allowed_extensions)}")
 
-        # Validar que sea imagen real
+        # ── 2. Validar que sea imagen real ───────────────────────────────────
         try:
             img = Image.open(imagen_file)
             img.verify()
@@ -374,37 +522,64 @@ class ModelInventario:
         except Exception:
             raise ValueError("El archivo no es una imagen válida")
 
-        # Nombre único
+        # ── 3. Preparar imagen (conversión de modo, redimensionado) ──────────
+        if img.mode in ('RGBA', 'LA'):
+            bg = Image.new('RGB', img.size, 'white')
+            bg.paste(img, mask=img.split()[-1])
+            img = bg
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        # Redimensionar solo si excede output_size (preserva proporción)
+        img.thumbnail(output_size, Image.Resampling.LANCZOS)
+
+        # ── 4. Comprimir iterativamente hasta cumplir el límite ──────────────
+        max_bytes = max_size_mb * 1024 * 1024
+        quality = quality_inicial
+        buffer = io.BytesIO()
+
+        while quality >= calidad_minima:
+            buffer.seek(0)
+            buffer.truncate()
+            img.save(buffer, 'JPEG', quality=quality, optimize=True)
+            if buffer.tell() <= max_bytes:
+                break
+            quality -= 10
+        else:
+            # Si con calidad mínima sigue siendo demasiado grande,
+            # reducir también las dimensiones a la mitad y reintentar una vez
+            img = img.resize(
+                (img.width // 2, img.height // 2),
+                Image.Resampling.LANCZOS
+            )
+            buffer.seek(0)
+            buffer.truncate()
+            img.save(buffer, 'JPEG', quality=calidad_minima, optimize=True)
+            if buffer.tell() > max_bytes:
+                raise ValueError(
+                    f"La imagen no pudo comprimirse por debajo de {max_size_mb}MB. "
+                    "Use una imagen con menos detalle o menor resolución."
+                )
+
+        # ── 5. Guardar a disco ───────────────────────────────────────────────
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         unique_id = uuid.uuid4().hex[:8]
         filename  = secure_filename(f"{timestamp}_{unique_id}.jpg")
 
-        # Ruta destino: static/uploads/equipos/
         base_path = os.path.abspath(
             os.path.join(os.path.dirname(__file__), '..', 'static', 'uploads', flag)
         )
         os.makedirs(base_path, exist_ok=True)
         filepath = os.path.join(base_path, filename)
 
-        # Procesar y guardar
         try:
-            if img.mode in ('RGBA', 'LA'):
-                bg = Image.new('RGB', img.size, 'white')
-                bg.paste(img, mask=img.split()[-1])
-                img = bg
-            elif img.mode != 'RGB':
-                img = img.convert('RGB')
-
-            img.thumbnail(output_size, Image.Resampling.LANCZOS)
-            img.save(filepath, 'JPEG', quality=85, optimize=True)
-
-            # Devuelve la ruta relativa para guardar en BD
+            with open(filepath, 'wb') as f:
+                f.write(buffer.getvalue())
             return os.path.join(flag, filename).replace('\\', '/')
-
         except Exception as e:
             if os.path.exists(filepath):
                 os.remove(filepath)
-            raise ValueError(f"Error al procesar la imagen: {e}")
+            raise ValueError(f"Error al guardar la imagen: {e}")
 
     @classmethod
     def eliminar_archivo_fisico(cls, ruta_relativa):

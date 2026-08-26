@@ -1,0 +1,558 @@
+{% extends 'base.html' %}
+{% block title %}{{ reporte.folio }} · Reporte{% endblock %}
+
+{% block customCSS %}
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   Visor de un reporte — el expediente.
+
+   Muestra MÁS de lo que sale impreso: las anotaciones internas y las fotos del
+   proceso viven aquí aunque no entren al PDF. Esa diferencia es intencional y
+   es lo que convierte un correctivo en un antecedente consultable.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --rv-border: #e6ecef;
+  --rv-text:   #1f2d3a;
+  --rv-muted:  #6b7c8a;
+  --rv-radius: 13px;
+  --rv-shadow: 0 1px 3px rgba(16,32,45,.06);
+}
+
+.rv-wrap { max-width: 1000px; margin: 0 auto; }
+
+.rv-volver {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px;
+  color: var(--rv-muted); text-decoration: none; font-size: .87rem; margin-bottom: 10px;
+}
+.rv-volver:hover { color: var(--hospital-primary); }
+
+/* ── Cabecera ───────────────────────────────────────────── */
+.rv-head {
+  background: #fff; border: 1px solid var(--rv-border); border-radius: var(--rv-radius);
+  padding: 16px; margin-bottom: 14px; box-shadow: var(--rv-shadow);
+}
+.rv-head-top { display: flex; align-items: flex-start; justify-content: space-between;
+               gap: 12px; flex-wrap: wrap; }
+.rv-folio { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 1.2rem; font-weight: 700; color: var(--rv-text); }
+.rv-tipo  { font-size: .87rem; color: var(--rv-muted); margin-top: 2px; }
+.rv-badge { display: inline-block; padding: 5px 13px; border-radius: 20px;
+            font-size: .78rem; font-weight: 600; }
+.rv-badge-borrador   { background: var(--ble-warn-bg); color: var(--ble-warn-fg); }
+.rv-badge-en_proceso { background: #dbeafe; color: #1e40af; }
+.rv-badge-liberado   { background: var(--ble-ok-bg); color: var(--ble-ok-fg); }
+.rv-badge-cancelado  { background: #f1f5f9; color: #64748b; }
+
+.rv-meta { display: flex; gap: 10px 26px; flex-wrap: wrap; margin-top: 14px;
+           padding-top: 13px; border-top: 1px solid #f1f5f7; }
+.rv-meta-item  { min-width: 110px; }
+.rv-meta-label { display: block; font-size: .71rem; text-transform: uppercase;
+                 letter-spacing: .4px; color: var(--rv-muted); margin-bottom: 2px; }
+.rv-meta-valor { font-size: .9rem; color: var(--rv-text); font-weight: 500; }
+
+.rv-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.rv-btn {
+  min-height: 44px; padding: 10px 16px; border-radius: 9px; font-size: .88rem;
+  font-weight: 600; cursor: pointer; text-decoration: none;
+  display: inline-flex; align-items: center; gap: 7px;
+  border: 1px solid var(--rv-border); background: #fff; color: var(--rv-text);
+}
+.rv-btn:hover   { border-color: var(--hospital-primary); color: var(--hospital-primary); }
+.rv-btn-primary { background: var(--hospital-primary); border-color: var(--hospital-primary); color: #fff; }
+.rv-btn-primary:hover { color: #fff; opacity: .92; }
+
+/* ── Secciones ──────────────────────────────────────────── */
+.rv-seccion {
+  background: #fff; border: 1px solid var(--rv-border); border-radius: var(--rv-radius);
+  margin-bottom: 14px; box-shadow: var(--rv-shadow); overflow: hidden;
+}
+.rv-seccion-hd {
+  padding: 12px 16px; border-bottom: 1px solid var(--rv-border); background: #f8fbfc;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.rv-seccion-tit { font-size: .93rem; font-weight: 600; color: var(--rv-text);
+                  display: flex; align-items: center; gap: 8px; margin: 0; }
+.rv-seccion-tit i { color: var(--hospital-primary); }
+.rv-cuenta { font-size: .77rem; color: var(--rv-muted); background: #eef4f7;
+             padding: 2px 9px; border-radius: 20px; }
+.rv-seccion-body { padding: 14px 16px; }
+
+/* ── Equipo ─────────────────────────────────────────────── */
+.rv-equipo { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.rv-equipo-img {
+  width: 74px; height: 74px; border-radius: 10px; object-fit: cover;
+  border: 1px solid var(--rv-border); flex: 0 0 74px; background: #f1f5f7;
+}
+.rv-equipo-ph {
+  width: 74px; height: 74px; border-radius: 10px; flex: 0 0 74px;
+  background: #f1f5f7; display: flex; align-items: center; justify-content: center;
+  color: #a8bcc7; font-size: 1.5rem;
+}
+.rv-equipo-nom { font-weight: 600; color: var(--rv-text); font-size: 1rem; }
+.rv-equipo-sub { font-size: .84rem; color: var(--rv-muted); margin-top: 3px; }
+.rv-inv { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* ── Fotos ──────────────────────────────────────────────── */
+.rv-galeria { display: flex; flex-wrap: wrap; gap: 9px; }
+.rv-foto { width: 128px; }
+.rv-foto img {
+  width: 128px; height: 96px; object-fit: cover; border-radius: 8px;
+  border: 1px solid var(--rv-border); display: block;
+}
+.rv-foto-pie { font-size: .74rem; color: var(--rv-muted); margin-top: 4px;
+               line-height: 1.3; word-wrap: break-word; }
+.rv-foto-no-pdf {
+  display: inline-block; font-size: .66rem; padding: 1px 6px; border-radius: 4px;
+  background: #f1f5f9; color: #64748b; margin-top: 3px;
+}
+.rv-grupo-tit { font-size: .78rem; font-weight: 600; color: var(--rv-muted);
+                text-transform: uppercase; letter-spacing: .4px; margin: 0 0 8px; }
+.rv-grupo + .rv-grupo { margin-top: 16px; }
+
+/* ── Notas ──────────────────────────────────────────────── */
+.rv-nota { padding: 10px 0; border-bottom: 1px solid #f1f5f7; }
+.rv-nota:last-child { border-bottom: none; padding-bottom: 0; }
+.rv-nota-hd { display: flex; gap: 9px; align-items: baseline; flex-wrap: wrap;
+              font-size: .77rem; color: var(--rv-muted); margin-bottom: 4px; }
+.rv-nota-autor { font-weight: 600; color: var(--rv-text); }
+.rv-nota-txt { font-size: .9rem; color: var(--rv-text); line-height: 1.5;
+               white-space: pre-line; word-wrap: break-word; }
+
+/* ── Costos ─────────────────────────────────────────────── */
+.rv-tabla { width: 100%; border-collapse: collapse; font-size: .87rem; }
+.rv-tabla th {
+  text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .4px;
+  color: var(--rv-muted); font-weight: 600; padding: 7px 9px;
+  border-bottom: 1px solid var(--rv-border);
+}
+.rv-tabla td { padding: 9px; border-bottom: 1px solid #f6f9fa; }
+.rv-tabla tfoot td { font-weight: 700; border-top: 2px solid var(--rv-border); border-bottom: none; }
+.rv-num { text-align: right; white-space: nowrap;
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.rv-sin-costo { color: var(--rv-muted); font-style: italic; font-size: .82rem; }
+.rv-aviso-costo { font-size: .8rem; color: var(--ble-warn-fg); background: var(--ble-warn-bg);
+                  padding: 7px 11px; border-radius: 7px; margin-top: 10px; }
+
+/* ── Bitácora ───────────────────────────────────────────── */
+.rv-bit { display: flex; gap: 10px; padding: 7px 0; font-size: .83rem; }
+.rv-bit-punto { width: 8px; height: 8px; border-radius: 50%; background: var(--hospital-primary);
+                flex: 0 0 8px; margin-top: 6px; }
+.rv-bit-fecha { color: var(--rv-muted); font-size: .77rem; white-space: nowrap; }
+
+.rv-vacio { color: var(--rv-muted); font-size: .87rem; font-style: italic; }
+
+@media (max-width: 768px) {
+  .rv-folio { font-size: 1.05rem; }
+  .rv-foto, .rv-foto img { width: calc(50% - 5px); }
+  .rv-foto img { height: 88px; }
+  .rv-btn { flex: 1 1 auto; justify-content: center; }
+  .rv-tabla th:nth-child(2), .rv-tabla td:nth-child(2) { display: none; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="rv-wrap">
+
+  <a class="rv-volver" href="{{ url_for('reportes.centro') }}">
+    <i class="fas fa-arrow-left"></i> Volver a Reportes
+  </a>
+
+  {# ── Cabecera ─────────────────────────────────────────── #}
+  <div class="rv-head">
+    <div class="rv-head-top">
+      <div>
+        <div class="rv-folio">{{ reporte.folio }}</div>
+        <div class="rv-tipo">{{ etiq_tipo.get(reporte.tipo, reporte.tipo) }}</div>
+      </div>
+      <span class="rv-badge rv-badge-{{ reporte.estado }}">
+        {{ etiq_est.get(reporte.estado, reporte.estado) }}
+      </span>
+    </div>
+
+    <div class="rv-meta">
+      <div class="rv-meta-item">
+        <span class="rv-meta-label">Apertura</span>
+        <span class="rv-meta-valor">
+          {{ (reporte.fecha_apertura or reporte.fecha).strftime('%d/%m/%Y') if (reporte.fecha_apertura or reporte.fecha) else '—' }}
+        </span>
+      </div>
+      {% if reporte.fecha_inicio %}
+      <div class="rv-meta-item">
+        <span class="rv-meta-label">Inicio</span>
+        <span class="rv-meta-valor">{{ reporte.fecha_inicio.strftime('%d/%m/%Y') }}</span>
+      </div>
+      {% endif %}
+      <div class="rv-meta-item">
+        <span class="rv-meta-label">Liberación</span>
+        <span class="rv-meta-valor">
+          {{ reporte.fecha_liberacion.strftime('%d/%m/%Y') if reporte.fecha_liberacion else 'Pendiente' }}
+        </span>
+      </div>
+    </div>
+
+    {# La barra se pinta siempre, no solo cuando ya hay PDF. Un expediente sin
+       liberar no tiene archivo, y con la condición anterior se quedaba sin
+       ninguna acción: se veía el reporte a medias y no había por dónde volver
+       a capturarlo. #}
+    {% set en_captura = reporte.estado in ('borrador', 'en_proceso') %}
+    <div class="rv-tools">
+      {% if en_captura and puede(ROL_BIOMEDICO) %}
+      <a class="rv-btn rv-btn-primary"
+         href="{{ url_for('reportes.editar', reporte_id=reporte.id) }}">
+        <i class="fas fa-pen-to-square"></i> Continuar captura
+      </a>
+      {% endif %}
+
+      {% if reporte.archivo_pdf %}
+      <a class="rv-btn {{ '' if en_captura else 'rv-btn-primary' }}"
+         href="{{ url_for('reportes.archivo', reporte_id=reporte.id) }}" target="_blank">
+        <i class="fas fa-file-pdf"></i> Ver PDF completo
+      </a>
+      {% if reporte.pdf_reporte %}
+      <a class="rv-btn"
+         href="{{ url_for('reportes.archivo', reporte_id=reporte.id, anexos=0) }}" target="_blank">
+        <i class="far fa-file-lines"></i> Solo el reporte
+      </a>
+      {% endif %}
+      <a class="rv-btn"
+         href="{{ url_for('reportes.archivo', reporte_id=reporte.id, descargar=1) }}">
+        <i class="fas fa-download"></i> Descargar
+      </a>
+      {% elif en_captura %}
+      <a class="rv-btn"
+         href="{{ url_for('reportes.archivo', reporte_id=reporte.id) }}" target="_blank">
+        <i class="far fa-file-pdf"></i> Vista previa
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Equipo(s) ────────────────────────────────────────────
+     Un movimiento en masa trae varios; el resto de los tipos, uno solo. #}
+  {% if equipos and equipos|length > 1 %}
+  <div class="rv-seccion">
+    <div class="rv-seccion-hd">
+      <h2 class="rv-seccion-tit"><i class="fas fa-cubes"></i> Equipos</h2>
+      <span class="rv-cuenta">{{ equipos|length }}</span>
+    </div>
+    <div class="rv-seccion-body">
+      {% for eq in equipos %}
+      <div class="rv-equipo" style="{{ 'margin-top:12px' if not loop.first }}">
+        {% if eq.imagen %}
+          <img class="rv-equipo-img" src="{{ url_for('static', filename='uploads/' ~ eq.imagen) }}"
+               alt="{{ eq.equipo_unidad }}">
+        {% else %}
+          <div class="rv-equipo-ph"><i class="fas fa-cube"></i></div>
+        {% endif %}
+        <div>
+          <div class="rv-equipo-nom">
+            <a href="{{ url_for('admin.ver_equipo', id=eq.id) }}">{{ eq.equipo_unidad }}</a>
+          </div>
+          <div class="rv-equipo-sub">
+            <span class="rv-inv">{{ eq.numero_inventario }}</span>
+            {% if eq.marca %} · {{ eq.marca }}{% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% elif equipo %}
+  <div class="rv-seccion">
+    <div class="rv-seccion-hd">
+      <h2 class="rv-seccion-tit"><i class="fas fa-cube"></i> Equipo</h2>
+      <a class="rv-cuenta" href="{{ url_for('admin.ver_equipo', id=equipo.id) }}">Ver ficha</a>
+    </div>
+    <div class="rv-seccion-body">
+      <div class="rv-equipo">
+        {% if equipo.imagen %}
+          <img class="rv-equipo-img"
+               src="{{ url_for('static', filename='uploads/' ~ equipo.imagen) }}"
+               alt="{{ equipo.equipo_unidad }}">
+        {% else %}
+          <div class="rv-equipo-ph"><i class="fas fa-cube"></i></div>
+        {% endif %}
+        <div>
+          <div class="rv-equipo-nom">{{ equipo.equipo_unidad }}</div>
+          <div class="rv-equipo-sub">
+            <span class="rv-inv">{{ equipo.numero_inventario }}</span>
+            {% if equipo.marca %} · {{ equipo.marca }}{% endif %}
+            {% if equipo.modelo %} {{ equipo.modelo }}{% endif %}
+          </div>
+          <div class="rv-equipo-sub">
+            {% if equipo.numero_serie %}Serie <span class="rv-inv">{{ equipo.numero_serie }}</span> · {% endif %}
+            {{ equipo.area or 'Sin área' }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Movimiento (entrada/salida) ─────────────────────────── #}
+  {% if movimiento %}
+  <div class="rv-seccion">
+    <div class="rv-seccion-hd">
+      <h2 class="rv-seccion-tit">
+        <i class="fas fa-{{ 'right-to-bracket' if movimiento.sentido == 'E' else 'right-from-bracket' }}"></i>
+        {{ movimiento.sentido_txt }}
+      </h2>
+    </div>
+    <div class="rv-seccion-body">
+      {% if movimiento.motivo %}
+      <div class="rv-nota" style="border-bottom:none;padding-top:0">
+        <div class="rv-nota-hd"><span class="rv-nota-autor">Motivo</span></div>
+        <div class="rv-nota-txt">{{ movimiento.motivo }}</div>
+      </div>
+      {% endif %}
+      {% if movimiento.accesorios %}
+      <div class="rv-nota">
+        <div class="rv-nota-hd"><span class="rv-nota-autor">Accesorios</span></div>
+        <div class="rv-nota-txt">{{ movimiento.accesorios }}</div>
+      </div>
+      {% endif %}
+      <div class="rv-meta" style="margin-top:4px;padding-top:0;border-top:none">
+        {% if movimiento.proveedor_nombre %}
+        <div class="rv-meta-item">
+          <span class="rv-meta-label">Proveedor</span>
+          <span class="rv-meta-valor">{{ movimiento.proveedor_nombre }}</span>
+        </div>
+        {% endif %}
+        {% if movimiento.destino_externo %}
+        <div class="rv-meta-item">
+          <span class="rv-meta-label">Destino</span>
+          <span class="rv-meta-valor">{{ movimiento.destino_externo }}</span>
+        </div>
+        {% endif %}
+        {% if movimiento.fecha_retorno_prevista %}
+        <div class="rv-meta-item">
+          <span class="rv-meta-label">Retorno previsto</span>
+          <span class="rv-meta-valor">{{ movimiento.fecha_retorno_prevista.strftime('%d/%m/%Y') }}</span>
+        </div>
+        {% endif %}
+        {% if movimiento.padre_folio %}
+        <div class="rv-meta-item">
+          <span class="rv-meta-label">Cierra la salida</span>
+          <span class="rv-meta-valor">{{ movimiento.padre_folio }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Tecnovigilancia ──────────────────────────────────────── #}
+  {% if tecno %}
+  <div class="rv-seccion">
+    <div class="rv-seccion-hd">
+      <h2 class="rv-seccion-tit"><i class="fas fa-triangle-exclamation"></i> Evento</h2>
+      {% if tecno.clasificacion_txt %}
+      <span class="rv-cuenta">{{ tecno.clasificacion_txt }}</span>
+      {% endif %}
+    </div>
+    <div class="rv-seccion-body">
+      <div class="rv-meta" style="margin-top:0;padding-top:0;border-top:none">
+        {% if tecno.fecha_evento %}
+        <div class="rv-meta-item">
+          <span class="rv-meta-label">Fecha del evento</span>
+          <span class="rv-meta-valor">{{ tecno.fecha_evento.strftime('%d/%m/%Y %H:%M') }}</span>
+        </div>
+        {% endif %}
+        {% if tecno.fecha_deteccion %}
+        <div class="rv-meta-item">
+          <span class="rv-meta-label">Fecha de detección</span>
+          <span class="rv-meta-valor">{{ tecno.fecha_deteccion.strftime('%d/%m/%Y %H:%M') }}</span>
+        </div>
+        {% endif %}
+      </div>
+      {% if tecno.descripcion %}
+      <div class="rv-nota" style="padding-top:12px">
+        <div class="rv-nota-hd"><span class="rv-nota-autor">Descripción</span></div>
+        <div class="rv-nota-txt">{{ tecno.descripcion }}</div>
+      </div>
+      {% endif %}
+      {% if tecno.involucrados %}
+      <div class="rv-nota">
+        <div class="rv-nota-hd"><span class="rv-nota-autor">Personas involucradas</span></div>
+        <div class="rv-nota-txt">{{ tecno.involucrados }}</div>
+      </div>
+      {% endif %}
+      {% if tecno.acciones_inmediatas %}
+      <div class="rv-nota">
+        <div class="rv-nota-hd"><span class="rv-nota-autor">Acciones inmediatas</span></div>
+        <div class="rv-nota-txt">{{ tecno.acciones_inmediatas }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Fotografías ──────────────────────────────────────── #}
+  {% set grupos = [('foto_antes', 'Antes'), ('foto_durante', 'Durante'),
+                   ('foto_despues', 'Después'), ('foto_estado', 'Estado')] %}
+  {% set hay_fotos = adjuntos.foto_antes or adjuntos.foto_durante
+                     or adjuntos.foto_despues or adjuntos.foto_estado %}
+  {% if hay_fotos %}
+  <div class="rv-seccion">
+    <div class="rv-seccion-hd">
+      <h2 class="rv-seccion-tit"><i class="fas fa-camera"></i> Fotografías</h2>
+    </div>
+    <div class="rv-seccion-body">
+      {% for clave, etiqueta in grupos %}
+        {% if adjuntos[clave] %}
+        <div class="rv-grupo">
+          <p class="rv-grupo-tit">{{ etiqueta }} ({{ adjuntos[clave]|length }})</p>
+          <div class="rv-galeria">
+            {% for foto in adjuntos[clave] %}
+            <figure class="rv-foto">
+              <a href="{{ url_for('static', filename='uploads/' ~ foto.archivo) }}" target="_blank">
+                <img src="{{ url_for('static', filename='uploads/' ~ (foto.archivo_thumb or foto.archivo)) }}"
+                     alt="{{ foto.descripcion or etiqueta }}" loading="lazy">
+              </a>
+              <figcaption class="rv-foto-pie">
+                {{ foto.descripcion or '' }}
+                {# Las fotos del proceso quedan fuera del anexo por omisión: es
+                   útil que se note en pantalla, para que nadie busque en el PDF
+                   una foto que decidió no imprimir. #}
+                {% if not foto.incluir_en_pdf %}
+                  <span class="rv-foto-no-pdf">No va al PDF</span>
+                {% endif %}
+              </figcaption>
+            </figure>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Archivos ─────────────────────────────────────────── #}
+  {% set archivos = adjuntos.documento + adjuntos.requisicion %}
+  {% if archivos %}
+  <div class="rv-seccion">
+    <div class="rv-seccion-hd">
+      <h2 class="rv-seccion-tit"><i class="fas fa-paperclip"></i> Archivos adjuntos</h2>
+      <span class="rv-cuenta">{{ archivos|length }}</span>
+    </div>
+    <div class="rv-seccion-body">
+      {% for archivo in archivos %}
+      <div class="rv-nota">
+        <a href="{{ url_for('static', filename='uploads/' ~ archivo.archivo) }}" target="_blank">
+          <i class="far fa-file"></i> {{ archivo.nombre_original or 'Archivo' }}
+        </a>
+        {% if archivo.descripcion %}<div class="rv-foto-pie">{{ archivo.descripcion }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Anotaciones ──────────────────────────────────────── #}
+  {% if notas %}
+  <div class="rv-seccion">
+    <div class="rv-seccion-hd">
+      <h2 class="rv-seccion-tit"><i class="far fa-comment-dots"></i> Anotaciones</h2>
+      <span class="rv-cuenta">{{ notas|length }}</span>
+    </div>
+    <div class="rv-seccion-body">
+      {% for nota in notas %}
+      <div class="rv-nota">
+        <div class="rv-nota-hd">
+          <span class="rv-nota-autor">{{ nota.autor }}</span>
+          <span>{{ nota.fecha.strftime('%d/%m/%Y %H:%M') if nota.fecha else '' }}</span>
+          {% if nota.incluir_en_pdf %}<span class="rv-foto-no-pdf">Se imprime</span>{% endif %}
+        </div>
+        <div class="rv-nota-txt">{{ nota.texto }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Refacciones y costos — solo Biomédico y Administrador ── #}
+  {% if ver_costos and lineas %}
+  <div class="rv-seccion">
+    <div class="rv-seccion-hd">
+      <h2 class="rv-seccion-tit"><i class="fas fa-screwdriver-wrench"></i> Refacciones y costos</h2>
+      <span class="rv-cuenta">{{ lineas|length }}</span>
+    </div>
+    <div class="rv-seccion-body">
+      <table class="rv-tabla">
+        <thead>
+          <tr>
+            <th>Descripción</th>
+            <th>Clase</th>
+            <th class="rv-num">Cant.</th>
+            <th class="rv-num">P. unitario</th>
+            <th class="rv-num">Importe</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for linea in lineas %}
+          <tr>
+            <td>{{ linea.descripcion }}</td>
+            <td>{{ linea.clase|replace('_', ' ')|capitalize }}</td>
+            <td class="rv-num">{{ '%g'|format(linea.cantidad) }}</td>
+            <td class="rv-num">
+              {% if linea.precio_unitario is not none %}
+                ${{ '{:,.2f}'.format(linea.precio_unitario) }}
+              {% else %}
+                <span class="rv-sin-costo">sin costear</span>
+              {% endif %}
+            </td>
+            <td class="rv-num">
+              {% if linea.importe is not none %}${{ '{:,.2f}'.format(linea.importe) }}{% else %}—{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4" class="rv-num">Total</td>
+            <td class="rv-num">${{ '{:,.2f}'.format(totales.total) }}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      {# Un total sobre renglones sin precio no es un total, y la pantalla
+         tiene que poder decirlo en vez de dar una cifra que engaña. #}
+      {% if totales.sin_costear %}
+      <div class="rv-aviso-costo">
+        <i class="fas fa-circle-info"></i>
+        {{ totales.sin_costear }} renglón{{ 'es' if totales.sin_costear != 1 }} sin costear:
+        el total refleja solo lo capturado.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Bitácora ─────────────────────────────────────────── #}
+  {% if bitacora %}
+  <div class="rv-seccion">
+    <div class="rv-seccion-hd">
+      <h2 class="rv-seccion-tit"><i class="fas fa-clock-rotate-left"></i> Bitácora</h2>
+    </div>
+    <div class="rv-seccion-body">
+      {% for evento in bitacora %}
+      <div class="rv-bit">
+        <span class="rv-bit-punto"></span>
+        <div>
+          <strong>{{ evento.evento|capitalize }}</strong>
+          {% if evento.detalle %} — {{ evento.detalle }}{% endif %}
+          <div class="rv-bit-fecha">
+            {{ evento.fecha.strftime('%d/%m/%Y %H:%M') if evento.fecha else '' }}
+            {% if evento.NombreUsuario %} · {{ evento.NombreUsuario }}{% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

@@ -50,11 +50,44 @@ def _job_purgar_lecturas():
                 db.close()
 
 
+def _calentar_plan_mantenimientos():
+    """
+    Ejecuta una sola vez, en un hilo de fondo, las consultas pesadas del
+    dashboard de mantenimientos (obtener_todos + obtener_stats) para que
+    SQL Server ya tenga su plan de ejecución en caché antes de que un
+    usuario real entre a /mantenimientos.
+
+    Medido: la primera ejecución de esas consultas tras reiniciar el
+    servicio de SQL Server tarda 12-25s (probablemente por antivirus
+    escaneando los archivos de datos en el primer acceso); ya con el plan
+    cacheado tardan ~20ms. Esto no cambia esa causa raíz — solo evita que
+    le toque a la primera persona que abre la página en el día.
+    """
+    from models.model_mantenimientos import ModelMantenimientos
+
+    global _app_instance
+    if _app_instance is None:
+        return
+
+    with _app_instance.app_context():
+        db = None
+        try:
+            db = get_connection()
+            ModelMantenimientos.obtener_todos(db, page=1, per_page=1)
+            ModelMantenimientos.obtener_stats(db)
+            _app_instance.logger.info("[Warmup] Plan de mantenimientos precalentado")
+        except Exception as e:
+            _app_instance.logger.warning(f"[Warmup] No se pudo precalentar mantenimientos: {e}")
+        finally:
+            if db:
+                db.close()
+
+
 def create_app():
     # ── Crear la aplicación ──────────────────────────────────
     app = Flask(__name__)
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(days=30)
-
+    app.config['MAX_CONTENT_LENGTH'] = 300 * 1024 * 1024  # 300 MB
     # Configuración
     app.config.from_object(config['development'])
 
@@ -79,6 +112,9 @@ def create_app():
     from routes.admin_routes import admin_bp
     from routes.Catalogo_routes import equipos_bp
     from routes.ble_routes import ble_bp
+    from routes.mantenimientos_routes import mantenimientos_bp
+    from routes.reportes_routes import reportes_bp
+
 
     # En create_app(), después de registrar blueprints
     from routes.ble_routes import (
@@ -94,6 +130,8 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(equipos_bp)
+    app.register_blueprint(mantenimientos_bp)
+    app.register_blueprint(reportes_bp)
 
     # ── Filtros Jinja2 ───────────────────────────────────────
     import re
@@ -135,6 +173,11 @@ def create_app():
         )
         # Apagar limpiamente cuando Flask se detenga
         atexit.register(lambda: scheduler.shutdown(wait=False))
+
+    # Precalentar el plan de mantenimientos al arrancar (ver docstring de
+    # _calentar_plan_mantenimientos). Desactivado por ahora — descomenta
+    # la siguiente línea para activarlo:
+    # threading.Thread(target=_calentar_plan_mantenimientos, daemon=True).start()
 
     return app
 

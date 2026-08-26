@@ -3,194 +3,233 @@
 <head>
 <meta charset="UTF-8">
 <style>
+  /* ══════════════════════════════════════════════════════════
+     NOTA DE COMPATIBILIDAD
+     El entorno del proyecto (env/) corre WeasyPrint 52.5, que NO
+     soporta CSS Grid ni depende de flexbox de forma fiable: todo
+     `display:grid` cae silenciosamente a `display:block` y por eso
+     los campos se derramaban fuera de sus recuadros.
+     Este documento se maqueta SOLO con tablas e inline-block, que
+     se comportan igual en 52.5 y en versiones nuevas.
+     ══════════════════════════════════════════════════════════ */
+
+  /* ══ PÁGINA ══
+     El encabezado y el pie se declaran una sola vez y WeasyPrint los
+     repite en todas las páginas (position:running + element()). */
   @page {
     size: letter;
-    margin: 18mm 16mm 18mm 16mm;
+    margin: 26mm 14mm 16mm 14mm;
+
+    @top-center {
+      content: element(hdr);
+      width: 100%;
+      vertical-align: bottom;
+    }
+    @bottom-left {
+      content: element(ftr);
+      width: 72%;
+      vertical-align: top;
+      font-size: 7.5px;
+      color: #9ca3af;
+    }
+    @bottom-right {
+      content: "Página " counter(page) " de " counter(pages);
+      width: 28%;
+      text-align: right;
+      vertical-align: top;
+      font-size: 7.5px;
+      color: #9ca3af;
+    }
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
     font-family: 'Arial', sans-serif;
-    font-size: 11px;
+    font-size: 10.5px;
     color: #1f2937;
     background: #fff;
   }
 
-  /* ══ HEADER ══ */
+  /* Ninguna caja de texto puede empujar fuera de su recuadro, ni
+     siquiera un número de serie de 100 caracteres sin espacios. */
+  .f-box, .obs-box, .acc-tbl td, .meta-val, .firma-name, .doc-title {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* ══ ENCABEZADO CORRIDO ══ */
   .doc-header {
+    position: running(hdr);
+    width: 100%;
     background: #0e1d3e;
-    padding: 16px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 14px;
     border-radius: 6px;
   }
-  .header-left { display: flex; align-items: center; gap: 14px; }
-  .logo-box {
-    background: #fff;
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 13px;
-    font-weight: 900;
-    color: #0e1d3e;
-    letter-spacing: 1px;
+  .hdr-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .hdr-tbl td { padding: 10px 16px; vertical-align: middle; }
+  .hdr-right { text-align: right; width: 34%; }
+  /* El logo es blanco con transparencia: va directo sobre el azul del
+     encabezado, sin recuadro de fondo. 431x265 -> 30px de alto ≈ 49 de ancho. */
+  .logo-img {
+    height: 30px;
+    width: auto;
+    vertical-align: middle;
+    margin-right: 12px;
   }
+  .hdr-txt { display: inline-block; vertical-align: middle; }
   .doc-title {
     color: #fff;
-    font-size: 13px;
+    font-size: 11.5px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
   }
-  .doc-sub {
-    color: rgba(255,255,255,0.7);
-    font-size: 9px;
-    margin-top: 3px;
-  }
-  .header-right { text-align: right; }
-  .folio-lbl { font-size: 8px; color: rgba(255,255,255,0.6); text-transform: uppercase; }
+  .doc-sub { color: #b9c2d4; font-size: 8px; margin-top: 2px; }
+  .folio-lbl { font-size: 7px; color: #9aa6bd; text-transform: uppercase; }
   .folio-val {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 700;
     color: #fff;
     font-family: 'Courier New', monospace;
     letter-spacing: 1px;
   }
 
-  /* ══ META ROW ══ */
+  /* ══ PIE CORRIDO ══ */
+  .doc-footer { position: running(ftr); width: 100%; }
+
+  /* ══ META ══ */
   .meta-row {
-    display: flex;
-    gap: 0;
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
     border: 1px solid #d1d5db;
-    border-radius: 6px;
-    overflow: hidden;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
-  .meta-cell {
-    flex: 1;
-    padding: 10px 14px;
+  .meta-row td {
+    padding: 8px 11px;
     border-right: 1px solid #d1d5db;
+    vertical-align: top;
   }
-  .meta-cell:last-child { border-right: none; }
+  .meta-row td:last-child { border-right: none; }
   .meta-lbl {
-    font-size: 8px;
+    font-size: 7.5px;
     color: #6b7280;
     text-transform: uppercase;
     font-weight: 700;
-    letter-spacing: 0.5px;
-    margin-bottom: 5px;
+    letter-spacing: 0.4px;
+    margin-bottom: 4px;
   }
-  .meta-val { font-size: 11px; font-weight: 600; }
+  .meta-val { font-size: 10.5px; font-weight: 600; }
 
-  .chips { display: flex; gap: 5px; flex-wrap: wrap; }
   .chip {
-    padding: 2px 8px;
+    display: inline-block;
+    padding: 2px 6px;
+    margin: 0 3px 3px 0;
     border-radius: 3px;
-    font-size: 9px;
+    font-size: 8px;
     border: 1px solid #d1d5db;
     color: #6b7280;
     text-transform: uppercase;
     font-weight: 600;
   }
-  .chip-on {
-    background: #0e1d3e;
-    color: #fff;
-    border-color: #0e1d3e;
-  }
+  .chip-on { background: #0e1d3e; color: #fff; border-color: #0e1d3e; }
 
   /* ══ SECCIÓN ══ */
   .section {
     border: 1px solid #d1d5db;
     border-radius: 6px;
-    overflow: hidden;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
+  /* La tabla de accesorios es la única de largo impredecible: se le
+     permite partirse entre páginas. */
+  .section-flow { page-break-inside: auto; break-inside: auto; }
   .sec-hd {
-    padding: 7px 14px;
+    padding: 6px 12px;
     background: #f8f9fa;
     border-bottom: 1px solid #d1d5db;
-    display: flex;
-    align-items: center;
-    gap: 8px;
   }
   .sec-bar {
+    display: inline-block;
     width: 3px;
-    height: 14px;
+    height: 11px;
     background: #0e1d3e;
     border-radius: 2px;
-    flex-shrink: 0;
+    margin-right: 7px;
+    vertical-align: middle;
   }
   .sec-title {
-    font-size: 9px;
+    display: inline-block;
+    font-size: 8.5px;
     font-weight: 800;
     color: #0e1d3e;
     text-transform: uppercase;
-    letter-spacing: 0.7px;
+    letter-spacing: 0.6px;
+    vertical-align: middle;
   }
-  .sec-body { padding: 14px; }
+  .sec-body { padding: 10px; }
 
-  /* ══ FIELD GRID ══ */
-    .fg {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      width: 100%;
-    }
-      .fg-row { display: flex; gap: 10px; margin-bottom: 10px; }
-      .f { display: flex; flex-direction: column; gap: 3px; }
-      .f.full { grid-column: 1 / -1; }
-      .f.half { grid-column: span 2; }
-      .f-lbl {
-    font-size: 8px;
+  /* ══ REJILLA DE CAMPOS ══
+     Tabla de 3 columnas iguales con table-layout:fixed. Las columnas
+     no pueden crecer con el contenido, así que el texto largo parte
+     dentro del recuadro en vez de derramarse. */
+  .fg { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .fg td {
+    width: 33.33%;
+    padding: 0 5px 9px 0;
+    vertical-align: top;
+  }
+  .fg td.last { padding-right: 0; }
+  .fg tr:last-child td { padding-bottom: 0; }
+  .f-lbl {
+    display: block;
+    font-size: 7.5px;
     color: #6b7280;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.4px;
+    margin-bottom: 3px;
   }
   .f-box {
     border: 1px solid #d1d5db;
     border-radius: 4px;
     padding: 5px 8px;
     background: #fafafa;
-    min-height: 26px;
-    display: flex;
-    align-items: center;
+    min-height: 25px;
+    line-height: 1.35;
+    font-size: 10.5px;
+    font-weight: 500;
+    color: #111;
   }
-  .f-box-hl {
-    border-color: #0e1d3e;
-    border-width: 1.5px;
-    background: #fff;
-  }
-  .f-val { font-size: 11px; font-weight: 500; color: #111; }
+  .f-box-hl { border: 1.5px solid #0e1d3e; background: #fff; }
   .f-mono {
     font-family: 'Courier New', monospace;
     font-weight: 700;
     color: #1a3a6d;
-    font-size: 11px;
   }
-  .f-empty { color: #9ca3af; font-style: italic; font-size: 10px; }
 
-  /* ══ IMAGEN PLACEHOLDER ══ */
+  /* ══ FOTOGRAFÍA ══ */
+  /* Sin foto no tiene sentido gastar media hoja en un recuadro vacío:
+     el hueco que se ahorra aquí es lo que permite que un acta corta
+     quepa en una sola página, con las firmas al pie. */
   .img-ph {
     border: 1px dashed #d1d5db;
     border-radius: 4px;
-    height: 90px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    height: 44px;
+    padding-top: 15px;
+    text-align: center;
     background: #fdfdfd;
     color: #9ca3af;
-    font-size: 9px;
+    font-size: 8.5px;
     font-weight: 600;
-    gap: 4px;
   }
+  .img-wrap { text-align: center; }
   .img-equipo {
-    width: 100%;
-    height: 90px;
-    object-fit: contain;
+    max-width: 100%;
+    max-height: 56mm;
     border-radius: 4px;
     border: 1px solid #e5e7eb;
   }
@@ -199,398 +238,465 @@
   .acc-tbl {
     width: 100%;
     border-collapse: collapse;
-    font-size: 11px;
+    font-size: 10.5px;
+    table-layout: fixed;
   }
+  /* Que la cabecera se repita si la tabla parte de página */
+  .acc-tbl thead { display: table-header-group; }
+  .acc-tbl tr { page-break-inside: avoid; break-inside: avoid; }
   .acc-tbl th {
     background: #f8f9fa;
     color: #6b7280;
-    font-size: 8px;
+    font-size: 7.5px;
     text-transform: uppercase;
-    padding: 7px 10px;
+    padding: 6px 9px;
     text-align: left;
     border-bottom: 2px solid #d1d5db;
     font-weight: 800;
     letter-spacing: 0.4px;
   }
   .acc-tbl td {
-    padding: 7px 10px;
+    padding: 6px 9px;
     border-bottom: 1px solid #f3f4f6;
     color: #1f2937;
+    vertical-align: top;
   }
-  .acc-tbl tr:last-child td { border-bottom: none; }
-  .acc-tbl tr:nth-child(even) td { background: #fafafa; }
+  .acc-tbl tbody tr:last-child td { border-bottom: none; }
   .acc-num {
     display: inline-block;
-    width: 18px;
-    height: 18px;
+    width: 17px;
+    height: 17px;
     background: #0e1d3e;
     color: #fff;
-    border-radius: 50%;
+    border-radius: 9px;
     text-align: center;
-    line-height: 18px;
-    font-size: 9px;
+    line-height: 17px;
+    font-size: 8.5px;
     font-weight: 700;
   }
   .acc-empty {
     text-align: center;
     color: #9ca3af;
     font-style: italic;
-    padding: 14px;
-    font-size: 10px;
+    padding: 12px;
+    font-size: 9.5px;
   }
+  /* Renglones vacíos para llenar con pluma en las actas retroactivas */
+  .acc-tbl td.acc-hueco { height: 21px; }
+
+  /* ══ LEYENDA DE REGULARIZACIÓN ══ */
+  .aviso-reg {
+    border: 1px solid #d97706;
+    border-left: 4px solid #d97706;
+    border-radius: 0 4px 4px 0;
+    background: #fffbeb;
+    padding: 7px 11px;
+    margin-bottom: 8px;
+    font-size: 8.5px;
+    line-height: 1.45;
+    color: #7c4a03;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .aviso-reg strong { text-transform: uppercase; letter-spacing: 0.4px; }
 
   /* ══ OBSERVACIONES ══ */
   .obs-box {
     border: 1px solid #d1d5db;
     border-left: 4px solid #0e1d3e;
-    border-radius: 0 4px 4px 0;
-    padding: 10px 14px;
-    font-size: 11px;
-    line-height: 1.6;
+    padding: 9px 12px;
+    font-size: 10.5px;
+    line-height: 1.55;
     color: #374151;
     background: #fffdf5;
-    min-height: 48px;
+    min-height: 42px;
+    /* Respeta los saltos de línea que escribió el biomédico. pre-line y no
+       pre-wrap: este último conserva el espacio final de cada renglón, que
+       cuelga fuera del recuadro (sin tinta, pero ensucia la medición) y
+       además arrastra los espacios dobles tal cual se capturaron. */
+    white-space: pre-line;
   }
   .obs-empty { color: #9ca3af; font-style: italic; }
 
   /* ══ FIRMAS ══ */
-  .firmas-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .firmas-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .firmas-tbl > tbody > tr > td { width: 50%; padding-right: 7px; vertical-align: top; }
+  .firmas-tbl > tbody > tr > td.last { padding-right: 0; padding-left: 7px; }
   .firma-blk {
     border: 1px solid #d1d5db;
     border-radius: 6px;
-    overflow: hidden;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
   .firma-hd {
-    padding: 8px 12px;
+    padding: 7px 11px;
     background: #f8f9fa;
     border-bottom: 1px solid #d1d5db;
   }
   .firma-role {
-    font-size: 8px;
+    font-size: 7.5px;
     color: #6b7280;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
-  .firma-name { font-size: 10px; margin-top: 2px; font-weight: 600; color: #1f2937; }
-  .firma-espacio {
-    height: 64px;
-    border-bottom: 1px solid #e5e7eb;
-    display: flex;
-    align-items: flex-end;
-    padding: 0 12px 6px;
-  }
+  .firma-name { font-size: 9.5px; margin-top: 2px; font-weight: 600; color: #1f2937; }
+  .firma-espacio { height: 62px; padding: 44px 11px 0; }
   .firma-linea {
-    width: 100%;
     border-bottom: 1px solid #9ca3af;
     padding-bottom: 2px;
-    font-size: 8px;
+    font-size: 7.5px;
     color: #9ca3af;
     text-align: center;
   }
-
-  /* ══ FOOTER ══ */
-  .doc-footer {
-    margin-top: 14px;
-    padding-top: 10px;
-    border-top: 1px solid #e5e7eb;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  /* Firmada: el trazo se apoya sobre la línea */
+  .firma-trazo-caja { height: 62px; padding: 4px 11px 0; text-align: center; }
+  .firma-trazo { max-height: 44px; max-width: 100%; }
+  .firma-datos {
+    padding: 3px 11px 7px;
+    border-top: 1px solid #9ca3af;
+    margin: 0 11px;
+    text-align: center;
   }
-  .footer-txt { font-size: 8px; color: #9ca3af; }
-  .footer-page { font-size: 8px; color: #9ca3af; }
+  .firma-datos-nombre { font-size: 9px; font-weight: 700; color: #1f2937; }
+  .firma-datos-meta   { font-size: 7px; color: #6b7280; margin-top: 1px; }
+  .firma-pendiente {
+    display: inline-block;
+    margin-top: 3px;
+    padding: 1px 6px;
+    border: 1px solid #d97706;
+    border-radius: 3px;
+    background: #fffbeb;
+    color: #b45309;
+    font-size: 7px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
 
-  /* ══ SALTO DE PÁGINA ══ */
-  .page-break { page-break-before: always; margin-top: 0; }
+  /* Empuja el bloque de firmas al pie de la última hoja. La altura la
+     calcula la ruta con una primera pasada de render (ver
+     _generar_pdf_reporte); con 0 el documento fluye normal. */
+  .espaciador-firmas { width: 100%; }
+
+  /* Corte elegido por la ruta para repartir las secciones entre las hojas.
+     Sin esto el contenido se amontona en la primera página y la segunda
+     queda casi en blanco con solo las firmas. */
+  .corte-antes { page-break-before: always; break-before: page; }
 </style>
 </head>
 <body>
 
-{# ── PÁGINA 1 ── #}
+{# ══════════════════════════════════════════════════════════════
+   Los datos salen del SNAPSHOT (datos_json) guardado el día del
+   alta, no del equipo vivo: el acta no debe cambiar si mañana se
+   edita la ficha. La ruta arma `eq` = snapshot sobre equipo vivo.
+   ══════════════════════════════════════════════════════════════ #}
 
+{# Las secciones marcadas con .blq se numeran en orden para que la ruta
+   pueda decidir antes de cuál cortar y así repartir el contenido entre las
+   hojas. El contador solo avanza con lo que realmente se imprime, así que
+   el índice N siempre es el N-ésimo bloque del documento. #}
+{% set ns = namespace(blq=0) %}
+
+{# Encabezado corrido — se repite en todas las páginas #}
 <div class="doc-header">
-  <div class="header-left">
-    <div class="logo-box">GALENIA</div>
-    <div>
-      <div class="doc-title">Reporte de Alta de Equipo Biomédico</div>
-      <div class="doc-sub">Hospital Galenia — Departamento de Ingeniería Biomédica</div>
-    </div>
-  </div>
-  <div class="header-right">
-    <div class="folio-lbl">Folio de Control</div>
-    <div class="folio-val">{{ folio }}</div>
-  </div>
+  <table class="hdr-tbl">
+    <tr>
+      <td>
+        {% if logo_url %}<img class="logo-img" src="{{ logo_url }}" alt="Hospital Galenia">{% endif %}
+        <span class="hdr-txt">
+          <span class="doc-title">Reporte de Alta de Equipo Biomédico</span>
+          <div class="doc-sub">Hospital Galenia — Departamento de Ingeniería Biomédica</div>
+        </span>
+      </td>
+      <td class="hdr-right">
+        <div class="folio-lbl">Folio de Control</div>
+        <div class="folio-val">{{ folio }}</div>
+      </td>
+    </tr>
+  </table>
 </div>
 
-{# Meta #}
-<div class="meta-row">
-  <div class="meta-cell">
-    <div class="meta-lbl">Fecha de Registro</div>
-    <div class="meta-val">
-      {% if fecha %}
-        {{ fecha.strftime('%d / %b / %Y') if fecha is not string else fecha }}
-      {% else %}—{% endif %}
-    </div>
-  </div>
-  <div class="meta-cell">
-    <div class="meta-lbl">Tipo de Movimiento</div>
-    <div class="chips">
+{# Pie corrido — se repite en todas las páginas #}
+<div class="doc-footer">
+  Generado por el Sistema de Activos — Galenia Biomedical Engineering
+  {%- if anio %} © {{ anio }}{% endif %} · Folio {{ folio }}
+</div>
+
+{# ── Aviso de acta retroactiva ──
+   El equipo ya estaba en el inventario antes del sistema: la fecha del
+   documento es la de regularización del expediente, no la de recepción.
+   Sin esta leyenda el acta afirmaría algo que no ocurrió. #}
+{% if regularizado %}
+<div class="aviso-reg">
+  <strong>Expediente regularizado</strong> — Este equipo ya formaba parte del inventario
+  antes de la puesta en marcha del sistema de activos, por lo que no existe un acta de
+  recepción original. Los datos provienen del registro de inventario al
+  {{ fecha_txt or 'día de su generación' }}; la fecha de este documento corresponde a la
+  regularización del expediente y <strong>no</strong> a la fecha de recepción del equipo.
+  Los campos en blanco pueden completarse a mano.
+</div>
+{% endif %}
+
+{# ── Meta ── #}
+<table class="meta-row">
+  <tr>
+    <td>
+      <div class="meta-lbl">Fecha de Registro</div>
+      <div class="meta-val">{{ fecha_txt or ph }}</div>
+    </td>
+    <td>
+      <div class="meta-lbl">Tipo de Movimiento</div>
       <span class="chip chip-on">Alta</span>
       <span class="chip">Baja</span>
       <span class="chip">Cambio</span>
-    </div>
-  </div>
-  <div class="meta-cell">
-    <div class="meta-lbl">Motivo Legal de Ingreso</div>
-    <div class="chips">
+    </td>
+    <td>
+      <div class="meta-lbl">Motivo Legal de Ingreso</div>
       {% for m in ['Compra','Donación','Comodato','Transferencia','Otro'] %}
-        <span class="chip {{ 'chip-on' if datos.get('motivo_ingreso') == m else '' }}">{{ m }}</span>
+        <span class="chip {{ 'chip-on' if eq.motivo_ingreso == m else '' }}">{{ m }}</span>
       {% endfor %}
-    </div>
-  </div>
-  <div class="meta-cell">
-    <div class="meta-lbl">Empresa Responsable</div>
-    <div class="chips">
-      {% for e in ['AMA','ANT','AMG','HCH'] %}
-        <span class="chip {{ 'chip-on' if datos.get('empresa_responsable') == e else '' }}">{{ e }}</span>
+    </td>
+    <td>
+      <div class="meta-lbl">Empresa Responsable</div>
+      {% for e in ['AMA','ANT','AMG','HCH','N/A'] %}
+        <span class="chip {{ 'chip-on' if eq.empresa_responsable == e else '' }}">{{ e }}</span>
       {% endfor %}
-    </div>
-  </div>
-</div>
-{# Identificación #}
-<div class="section">
+    </td>
+  </tr>
+</table>
+
+{# ── Identificación ── #}
+{% set ns.blq = ns.blq + 1 %}
+<div class="section blq {{ 'corte-antes' if corte_en == ns.blq }}">
   <div class="sec-hd">
-    <div class="sec-bar"></div>
-    <span class="sec-title">Identificación Detallada del Activo</span>
+    <span class="sec-bar"></span><span class="sec-title">Identificación Detallada del Activo</span>
   </div>
   <div class="sec-body">
-    <div class="fg">
-
-      <div class="fg-row">
-        <div class="f">
+    <table class="fg">
+      <tr>
+        <td>
           <span class="f-lbl">No. Inventario</span>
-          <div class="f-box f-box-hl">
-            <span class="f-val f-mono">{{ equipo.numero_inventario or '—' }}</span>
-          </div>
-        </div>
-        <div class="f half">
+          <div class="f-box f-box-hl"><span class="f-mono">{{ eq.numero_inventario or ph }}</span></div>
+        </td>
+        <td colspan="2" class="last">
           <span class="f-lbl">Equipo / Unidad</span>
-          <div class="f-box">
-            <span class="f-val">{{ equipo.equipo_unidad or '—' }}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="fg-row">
-        <div class="f">
+          <div class="f-box">{{ eq.equipo_unidad or ph }}</div>
+        </td>
+      </tr>
+      <tr>
+        <td>
           <span class="f-lbl">Marca</span>
-          <div class="f-box"><span class="f-val">{{ equipo.marca or '—' }}</span></div>
-        </div>
-        <div class="f">
+          <div class="f-box">{{ eq.marca or ph }}</div>
+        </td>
+        <td>
           <span class="f-lbl">Modelo</span>
-          <div class="f-box"><span class="f-val">{{ equipo.modelo or '—' }}</span></div>
-        </div>
-        <div class="f">
+          <div class="f-box">{{ eq.modelo or ph }}</div>
+        </td>
+        <td class="last">
           <span class="f-lbl">No. de Serie</span>
-          <div class="f-box"><span class="f-val f-mono">{{ equipo.numero_serie or '—' }}</span></div>
-        </div>
-      </div>
-
-      <div class="fg-row">
-        <div class="f">
+          <div class="f-box"><span class="f-mono">{{ eq.numero_serie or ph }}</span></div>
+        </td>
+      </tr>
+      <tr>
+        <td>
           <span class="f-lbl">Estado de Operación</span>
-          <div class="f-box"><span class="f-val">{{ equipo.estado or '—' }}</span></div>
-        </div>
-        <div class="f">
+          <div class="f-box">{{ eq.estado or ph }}</div>
+        </td>
+        <td>
           <span class="f-lbl">Departamento</span>
-          <div class="f-box"><span class="f-val">{{ equipo.departamento or '—' }}</span></div>
-        </div>
-        <div class="f">
+          <div class="f-box">{{ eq.departamento or ph }}</div>
+        </td>
+        <td class="last">
           <span class="f-lbl">Ubicación / Área</span>
-          <div class="f-box"><span class="f-val">{{ equipo.area or '—' }}</span></div>
-        </div>
-      </div>
-
-      <div class="fg-row">
-        <div class="f">
+          <div class="f-box">{{ eq.area or ph }}</div>
+        </td>
+      </tr>
+      <tr>
+        <td>
           <span class="f-lbl">Tipo de Propiedad</span>
-          <div class="f-box"><span class="f-val">{{ equipo.propiedad or '—' }}</span></div>
-        </div>
-        <div class="f">
+          <div class="f-box">{{ eq.propiedad or ph }}</div>
+        </td>
+        <td>
           <span class="f-lbl">Fecha Adquisición</span>
-          <div class="f-box">
-            <span class="f-val">
-              {% if equipo.fecha_adquisicion %}
-                {{ equipo.fecha_adquisicion.strftime('%d/%m/%Y') if equipo.fecha_adquisicion is not string else equipo.fecha_adquisicion }}
-              {% else %}—{% endif %}
-            </span>
-          </div>
-        </div>
-        <div class="f">
+          <div class="f-box">{{ eq.fecha_adquisicion or ph }}</div>
+        </td>
+        <td class="last">
           <span class="f-lbl">Fecha de Fabricación</span>
-          <div class="f-box">
-            <span class="f-val">
-              {% if equipo.fecha_fabricacion %}
-                {{ equipo.fecha_fabricacion.strftime('%d/%m/%Y') if equipo.fecha_fabricacion is not string else equipo.fecha_fabricacion }}
-              {% else %}—{% endif %}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div class="fg-row">
-        <div class="f">
+          <div class="f-box">{{ eq.fecha_fabricacion or ph }}</div>
+        </td>
+      </tr>
+      <tr>
+        <td>
           <span class="f-lbl">Vencimiento Garantía</span>
-          <div class="f-box">
-            <span class="f-val">
-              {% if equipo.fecha_fin_garantia %}
-                {{ equipo.fecha_fin_garantia.strftime('%d/%m/%Y') if equipo.fecha_fin_garantia is not string else equipo.fecha_fin_garantia }}
-              {% else %}—{% endif %}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div class="fg-row">
-        <div class="f full">
-          <span class="f-lbl">Fotografía del Activo</span>
-          {% if equipo.imagen %}
-            <img class="img-equipo"
-                 src="file://{{ static_path }}/uploads/{{ equipo.imagen }}"
-                 alt="{{ equipo.equipo_unidad }}">
-          {% else %}
-            <div class="img-ph">
-              <span>▣</span>
-              <span>Sin imagen registrada</span>
-            </div>
-          {% endif %}
-        </div>
-      </div>
-
-    </div>
+          <div class="f-box">{{ eq.fecha_fin_garantia or ph }}</div>
+        </td>
+        <td></td>
+        <td class="last"></td>
+      </tr>
+    </table>
   </div>
 </div>
 
-{# Observaciones del equipo #}
-{% if equipo.observaciones %}
-<div class="section">
+{# ── Fotografía ──
+   Sin foto no se imprime la sección: un recuadro que solo dice "sin imagen"
+   no aporta nada y puede ser lo que empuje el acta a una segunda hoja. #}
+{% if imagen_url %}
+{% set ns.blq = ns.blq + 1 %}
+<div class="section blq {{ 'corte-antes' if corte_en == ns.blq }}">
   <div class="sec-hd">
-    <div class="sec-bar"></div>
-    <span class="sec-title">Observaciones Generales del Equipo</span>
+    <span class="sec-bar"></span><span class="sec-title">Fotografía del Activo</span>
   </div>
   <div class="sec-body">
-    <div class="obs-box">{{ equipo.observaciones }}</div>
+    <div class="img-wrap">
+      <img class="img-equipo" src="{{ imagen_url }}" alt="{{ eq.equipo_unidad }}">
+    </div>
   </div>
 </div>
 {% endif %}
 
-{# ── PÁGINA 2 ── #}
-<div class="page-break"></div>
-
-{# Repetir header en página 2 #}
-<div class="doc-header">
-  <div class="header-left">
-    <div class="logo-box">GALENIA</div>
-    <div>
-      <div class="doc-title">Reporte de Alta de Equipo Biomédico</div>
-      <div class="doc-sub">Continuación — {{ folio }}</div>
-    </div>
-  </div>
-  <div class="header-right">
-    <div class="folio-lbl">Folio de Control</div>
-    <div class="folio-val">{{ folio }}</div>
-  </div>
-</div>
-
-{# Accesorios #}
-<div class="section">
+{# ── Observaciones del equipo ── #}
+{% if eq.observaciones %}
+{% set ns.blq = ns.blq + 1 %}
+<div class="section blq {{ 'corte-antes' if corte_en == ns.blq }}">
   <div class="sec-hd">
-    <div class="sec-bar"></div>
-    <span class="sec-title">Accesorios y Componentes Entregados</span>
+    <span class="sec-bar"></span><span class="sec-title">Observaciones Generales del Equipo</span>
   </div>
   <div class="sec-body">
-    {% set accesorios = datos.get('accesorios', []) | selectattr('descripcion') | list %}
-    {% if accesorios %}
+    <div class="obs-box">{{ eq.observaciones }}</div>
+  </div>
+</div>
+{% endif %}
+
+{# ── Accesorios ──
+   Sin accesorios capturados la sección desaparece. `relleno` es el número
+   de renglones en blanco que la ruta confirmó que caben sin empujar el
+   acta a otra hoja; 0 significa que no cabía ninguno. #}
+{% set accesorios = eq.accesorios or [] %}
+{% if accesorios or relleno %}
+{% set ns.blq = ns.blq + 1 %}
+<div class="section section-flow blq {{ 'corte-antes' if corte_en == ns.blq }}">
+  <div class="sec-hd">
+    <span class="sec-bar"></span><span class="sec-title">Accesorios y Componentes Entregados</span>
+  </div>
+  <div class="sec-body">
     <table class="acc-tbl">
       <thead>
         <tr>
-          <th style="width:32px">#</th>
+          {# 40px = 17 del círculo + 18 de padding + holgura #}
+          <th style="width:40px">#</th>
           <th>Descripción del Accesorio</th>
-          <th style="width:60px;text-align:center;">Cant.</th>
-          <th style="width:100px;">Condición</th>
+          <th style="width:50px;text-align:center;">Cant.</th>
+          <th style="width:88px;">Condición</th>
         </tr>
       </thead>
       <tbody>
         {% for acc in accesorios %}
         <tr>
           <td><span class="acc-num">{{ loop.index }}</span></td>
-          <td>{{ acc.descripcion }}</td>
-          <td style="text-align:center;">{{ acc.cantidad }}</td>
-          <td>{{ acc.condicion }}</td>
+          <td>{{ acc.get('descripcion') or ph }}</td>
+          <td style="text-align:center;">{{ acc.get('cantidad') or ph }}</td>
+          <td>{{ acc.get('condicion') or ph }}</td>
         </tr>
         {% endfor %}
+        {% if not accesorios %}
+          {% for n in range(1, relleno + 1) %}
+          <tr>
+            <td class="acc-hueco"><span class="acc-num">{{ n }}</span></td>
+            <td class="acc-hueco"></td>
+            <td class="acc-hueco"></td>
+            <td class="acc-hueco"></td>
+          </tr>
+          {% endfor %}
+        {% endif %}
       </tbody>
     </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── Observaciones del reporte ──
+   Igual que accesorios: sin texto no se imprime, salvo que quepa el
+   recuadro en blanco para escribir a mano. #}
+{% set obs = eq.observaciones_reporte %}
+{% if obs or relleno %}
+{% set ns.blq = ns.blq + 1 %}
+<div class="section blq {{ 'corte-antes' if corte_en == ns.blq }}">
+  <div class="sec-hd">
+    <span class="sec-bar"></span><span class="sec-title">Observaciones de Ingeniería Biomédica</span>
+  </div>
+  <div class="sec-body">
+    {% if obs %}
+      <div class="obs-box">{{ obs }}</div>
     {% else %}
-    <div class="acc-empty">No se registraron accesorios para este equipo.</div>
+      {# En blanco y con altura suficiente para escribir a mano #}
+      <div class="obs-box" style="min-height:56px;">&nbsp;</div>
     {% endif %}
   </div>
 </div>
+{% endif %}
 
-{# Observaciones del reporte #}
-<div class="section">
-  <div class="sec-hd">
-    <div class="sec-bar"></div>
-    <span class="sec-title">Observaciones de Ingeniería Biomédica</span>
+{# ── Firmas ──
+   El espaciador las ancla al pie de la última hoja, sea de una o de dos
+   páginas. Su altura la mide la ruta en una primera pasada de render. #}
+{% if espaciador %}<div class="espaciador-firmas" style="height:{{ espaciador }}px"></div>{% endif %}
+
+{# `fijo` es lo que se imprime siempre (el área que responde); `marcador` es
+   el hueco que solo tiene sentido mientras nadie ha firmado — una vez
+   firmado, el nombre real ya aparece debajo del trazo. #}
+{% macro bloque_firma(rol, etiqueta, firma, fijo=None, marcador=None) %}
+<div class="firma-blk">
+  <div class="firma-hd">
+    <div class="firma-role">{{ etiqueta }}</div>
+    {% if fijo %}
+      <div class="firma-name">{{ fijo }}</div>
+    {% endif %}
+    {% if not firma %}
+      {% if marcador %}
+        <div class="firma-name" style="color:#9ca3af;">{{ marcador }}</div>
+      {% endif %}
+      <span class="firma-pendiente">Pendiente de firma</span>
+    {% endif %}
   </div>
-  <div class="sec-body">
-    {% set obs = datos.get('observaciones_reporte') %}
-    <div class="obs-box {{ '' if obs else 'obs-empty' }}">
-      {{ obs if obs else 'Sin observaciones registradas.' }}
+
+  {% if firma %}
+    <div class="firma-trazo-caja">
+      <img class="firma-trazo" src="{{ firma.url }}" alt="Firma de {{ firma.nombre }}">
     </div>
-  </div>
-</div>
-
-{# Firmas #}
-<div class="section">
-  <div class="sec-hd">
-    <div class="sec-bar"></div>
-    <span class="sec-title">Protocolo de Firmas de Recepción</span>
-  </div>
-  <div class="sec-body">
-    <div class="firmas-row">
-      <div class="firma-blk">
-        <div class="firma-hd">
-          <div class="firma-role">Entrega / Responsable</div>
-          <div class="firma-name">Jefatura de Ingeniería Biomédica</div>
-        </div>
-        <div class="firma-espacio">
-          <div class="firma-linea">Firma y sello</div>
-        </div>
-      </div>
-      <div class="firma-blk">
-        <div class="firma-hd">
-          <div class="firma-role">Recibe / Responsable de Área</div>
-          <div class="firma-name" style="color:#9ca3af;">
-            Nombre: ___________________________
-          </div>
-        </div>
-        <div class="firma-espacio">
-          <div class="firma-linea">Firma y sello</div>
-        </div>
+    <div class="firma-datos">
+      <div class="firma-datos-nombre">{{ firma.nombre }}</div>
+      <div class="firma-datos-meta">
+        {%- if firma.cargo %}{{ firma.cargo }} · {% endif -%}
+        Firmado el {{ firma.fecha_txt or ph }}
       </div>
     </div>
-  </div>
+  {% else %}
+    <div class="firma-espacio">
+      <div class="firma-linea">Firma y sello</div>
+    </div>
+  {% endif %}
 </div>
+{% endmacro %}
 
-{# Footer #}
-<div class="doc-footer">
-  <span class="footer-txt">
-    Generado por el Sistema de Activos — Galenia Biomedical Engineering ©
-    {{ fecha.year if fecha and fecha is not string else '' }}
-  </span>
-  <span class="footer-page">Folio: {{ folio }}</span>
+<div class="section">
+  <div class="sec-hd">
+    <span class="sec-bar"></span><span class="sec-title">Protocolo de Firmas de Recepción</span>
+  </div>
+  <div class="sec-body">
+    <table class="firmas-tbl">
+      <tr>
+        <td>
+          {{ bloque_firma('entrega', 'Entrega / Responsable', firmas.get('entrega'),
+                          fijo='Jefatura de Ingeniería Biomédica') }}
+        </td>
+        <td class="last">
+          {{ bloque_firma('recibe', 'Recibe / Responsable de Área', firmas.get('recibe'),
+                          marcador='Nombre: _____________________') }}
+        </td>
+      </tr>
+    </table>
+  </div>
 </div>
 
 </body>

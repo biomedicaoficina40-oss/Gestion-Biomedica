@@ -4,124 +4,153 @@
 
 {% block customCSS %}
 <style>
-    /* ══ TARJETAS RESUMEN ══ */
-    .ble-stat-card {
-        border: none;
-        border-radius: 0.75rem;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .ble-stat-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 6px 20px rgba(0,0,0,0.12);
-    }
-    .ble-stat-icon {
-        width: 52px; height: 52px;
+    /* Los badges, la barra de estado, las filas, la señal neutra y el
+       indicador de polling viven en base.html — son el sistema visual
+       compartido del módulo. Aquí solo queda lo propio del dashboard. */
+
+    /* ══ SEARCH BOX ══
+       Es la herramienta principal de la pantalla: se busca un equipo
+       concreto mucho mas seguido de lo que se lee la lista completa.
+       Por eso ocupa toda la fila bajo el encabezado y no un rincon. */
+    .search-ble {
+        border: 1.5px solid #e2e8f0;
         border-radius: 0.6rem;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 1.4rem;
-    }
-    .ble-stat-number {
-        font-size: 2rem;
-        font-weight: 700;
-        line-height: 1.1;
-    }
-    .ble-stat-label {
-        font-size: 0.8rem;
-        color: #6c757d;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    /* ══ BADGE ESTADO ══ */
-    .badge-localizado   { background-color: #d1fae5; color: #065f46; }
-    .badge-sin-senal    { background-color: #fee2e2; color: #991b1b; }
-    .badge-mantenimiento{ background-color: #fef9c3; color: #854d0e; }
-
-    /* ══ RSSI BAR ══ */
-    .rssi-bar-wrap { width: 80px; }
-    .rssi-bar {
-        height: 6px; border-radius: 3px;
-        background: #e5e7eb;
-        overflow: hidden;
-    }
-    .rssi-bar-fill {
-        height: 100%; border-radius: 3px;
-        transition: width 0.4s ease;
-    }
-    .rssi-strong  { background: #10b981; }
-    .rssi-medium  { background: #f59e0b; }
-    .rssi-weak    { background: #ef4444; }
-
-    /* ══ TABLA ══ */
-    .ble-table thead th {
-        background: #f8f9fa;
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #6c757d;
-        border-bottom: 2px solid #e9ecef;
-        padding: 0.75rem 1rem;
-        white-space: nowrap;
-    }
-    .ble-table tbody td {
-        padding: 0.75rem 1rem;
-        vertical-align: middle;
+        padding: 0.55rem 2.2rem 0.55rem 2.4rem;
         font-size: 0.875rem;
-        border-bottom: 1px solid #f1f3f5;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        width: 100%;
+        background: #f8fafc;
     }
-    .ble-table tbody tr:hover { background: rgba(61,144,174,0.04); }
+    .search-ble:focus {
+        outline: none;
+        background: #fff;
+        border-color: var(--hospital-primary);
+        box-shadow: 0 0 0 3px rgba(61,144,174,0.12);
+    }
+    .search-wrap { position: relative; flex: 1 1 260px; min-width: 0; }
+    .search-wrap > i.fa-search {
+        position: absolute; left: 0.85rem; top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af; font-size: 0.8rem;
+        pointer-events: none;
+    }
+    /* La tecla que abre el buscador, visible sin tener que descubrirla. */
+    .search-kbd {
+        position: absolute; right: 0.6rem; top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.68rem; color: #cbd5e1;
+        border: 1px solid #e2e8f0; border-radius: 4px;
+        padding: 0 0.3rem; background: #fff;
+        pointer-events: none;
+    }
+    .search-clear {
+        position: absolute; right: 0.45rem; top: 50%;
+        transform: translateY(-50%);
+        display: none; align-items: center; justify-content: center;
+        width: 1.55rem; height: 1.55rem; border: none; border-radius: 50%;
+        background: transparent; color: #9ca3af; font-size: 0.72rem;
+    }
+    .search-clear:hover { background: #eef2f6; color: #475569; }
+    /* Con texto: se va el hint de teclado y aparece la X. */
+    .search-wrap.con-texto .search-clear { display: flex; }
+    .search-wrap.con-texto .search-kbd,
+    .search-wrap:focus-within .search-kbd { display: none; }
+
+    /* Coincidencia del buscador dentro de la fila. Sin esto hay que
+       releer la fila entera para entender por que salio en la lista. */
+    .ble-mark {
+        background: rgba(61,144,174,0.20);
+        border-radius: 3px; padding: 0 0.1rem; color: inherit;
+    }
+
+    /* ══ CONTROLES DEL ENCABEZADO ══ */
+    .ble-toggle {
+        border: 1.5px solid #e2e8f0; background: #fff; color: #6b7280;
+        border-radius: 0.6rem; padding: 0.5rem 0.8rem;
+        font-size: 0.78rem; white-space: nowrap;
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .ble-toggle:hover  { border-color: #cbd5e1; color: #475569; }
+    .ble-toggle.activo {
+        border-color: var(--hospital-primary);
+        color: var(--hospital-primary);
+        background: rgba(61,144,174,0.08);
+    }
+    .ble-count { font-size: 0.74rem; color: #9ca3af; white-space: nowrap; }
+
+    /* ══ AGRUPACION POR AREA ══
+       Para la pregunta real de piso: "voy al area X, que hay ahi". */
+    .ble-group {
+        display: flex; align-items: center; gap: 0.5rem;
+        padding: 0.45rem 0.95rem;
+        background: #f8fafc;
+        border-top: 1px solid var(--ble-line);
+        border-bottom: 1px solid var(--ble-line);
+        font-size: 0.78rem; color: #475569;
+    }
+    .ble-group > i          { color: #94a3b8; font-size: 0.75rem; }
+    .ble-group-nom          { font-weight: 600; color: #334155;
+                              overflow: hidden; text-overflow: ellipsis;
+                              white-space: nowrap; }
+    .ble-group-piso         { font-size: 0.7rem; color: #94a3b8;
+                              border: 1px solid #e2e8f0; border-radius: 999px;
+                              padding: 0 0.45rem; background: #fff; }
+    .ble-group-flag         { font-size: 0.7rem; border-radius: 999px;
+                              padding: 0.05rem 0.5rem;
+                              background: var(--ble-warn-bg);
+                              color: var(--ble-warn-fg); }
+    .ble-group-n            { margin-left: auto; font-size: 0.72rem;
+                              color: #94a3b8; white-space: nowrap; }
+    /* Agrupado, el area ya la dice el encabezado: repetirla en cada
+       fila es ruido. Queda solo la hora del ultimo reporte. */
+    #listaEquipos.agrupado .ble-row-area { display: none; }
+
+    /* ══ MODELO EN LA FILA ══
+       El dato que se necesita para reconocer el aparato al llegar al
+       area. Va delante del inventario porque se identifica antes de
+       vista que leyendo una etiqueta. */
+    .fila-meta { display: flex; align-items: center; gap: 0.35rem;
+                 min-width: 0; }
+    /* Sin min-width:0 en los hijos, un flex item no baja de su ancho de
+       contenido y text-truncate nunca llega a recortar. */
+    .fila-meta > * { min-width: 0; }
+    /* Si falta espacio, cede primero el inventario: el modelo recortado
+       ("Mindray u…") no sirve para reconocer nada, el inventario si se
+       puede leer de la etiqueta del aparato. */
+    .fila-mod  { font-size: 0.76rem; color: #4b5563; font-weight: 500;
+                 overflow: hidden; text-overflow: ellipsis;
+                 white-space: nowrap; flex: 0 1 auto; }
+    .fila-meta .ble-row-inv { flex: 0 4 auto; }
+    .fila-mod.vacio { color: #cbd5e1; font-style: italic; font-weight: 400; }
+    .fila-sep  { color: #d1d5db; font-size: 0.7rem; flex-shrink: 0; }
+    .fila-area-ico { color: #cbd5e1; font-size: 0.7rem; margin-right: 0.25rem; }
+
+    /* ══ ACCIONES DE FILA ══ */
+    .ble-act {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 28px; height: 28px; border-radius: 0.4rem;
+        font-size: 0.75rem; color: #9ca3af;
+        transition: background 0.15s, color 0.15s;
+    }
+    .ble-act:hover { background: rgba(61,144,174,0.1); color: var(--hospital-primary); }
+    /* Atenuadas hasta que el cursor entra en la fila: la lista se lee
+       sin el ruido de dos iconos repetidos en cada renglon. */
+    .fila-acc { opacity: 0.45; transition: opacity 0.15s; }
+    .ble-row:hover .fila-acc,
+    .ble-row:focus-within .fila-acc { opacity: 1; }
 
     /* ══ ALERTAS PANEL ══ */
     .alerta-item {
         display: flex; align-items: flex-start; gap: 0.65rem;
         padding: 0.65rem 0;
-        border-bottom: 1px solid #f1f3f5;
+        border-bottom: 1px solid var(--ble-line);
         font-size: 0.85rem;
     }
     .alerta-item:last-child { border-bottom: none; }
     .alerta-dot {
         width: 8px; height: 8px; border-radius: 50%;
         margin-top: 5px; flex-shrink: 0;
-    }
-
-    /* ══ INDICADOR POLLING ══ */
-    .polling-badge {
-        display: inline-flex; align-items: center; gap: 0.4rem;
-        font-size: 0.75rem; color: #6c757d;
-    }
-    .polling-dot {
-        width: 8px; height: 8px; border-radius: 50%;
-        background: #10b981;
-        animation: pulse-dot 2s ease-in-out infinite;
-    }
-    @keyframes pulse-dot {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50%       { opacity: 0.4; transform: scale(0.8); }
-    }
-    .polling-dot.error { background: #ef4444; animation: none; }
-
-    /* ══ SEARCH BOX ══ */
-    .search-ble {
-        border: 1.5px solid #e2e8f0;
-        border-radius: 0.5rem;
-        padding: 0.45rem 0.9rem 0.45rem 2.2rem;
-        font-size: 0.875rem;
-        transition: border-color 0.2s;
-        width: 240px;
-    }
-    .search-ble:focus {
-        outline: none;
-        border-color: var(--hospital-primary);
-        box-shadow: 0 0 0 3px rgba(61,144,174,0.12);
-    }
-    .search-wrap { position: relative; }
-    .search-wrap i {
-        position: absolute; left: 0.7rem; top: 50%;
-        transform: translateY(-50%);
-        color: #9ca3af; font-size: 0.8rem;
     }
 
     /* ══ EMPTY STATE ══ */
@@ -138,12 +167,92 @@
         border-radius: 4px;
     }
     @keyframes shimmer { to { background-position: -200% 0; } }
+
+    /* ══ ANCHOS DE FILA ══
+       En clases y no en style="" inline: un ancho inline gana sobre
+       cualquier media query y era justo lo que rompia el móvil. */
+    .fila-main  { flex: 1; min-width: 0; }
+    .fila-loc   { width: 148px; min-width: 0; }
+    .fila-est   { width: 104px; text-align: right; }
+    .fila-acc   { display: flex; gap: 0.25rem; }
+    .fila-corte { display: none; }
+
+    /* ══════════════════════════════════════════════════════════
+       MÓVIL Y TABLET — el módulo se consulta desde el celular, en
+       piso. En una sola línea la fila pide ~480px entre anchos
+       fijos y gaps; abajo de eso se parte en dos renglones en
+       lugar de desbordar horizontalmente.
+
+           [foto] [nombre / modelo · inv]   [estado]
+           [área · hora]          [señal] [acciones]
+
+       El corte es 768px y no 576px desde que la fila muestra el
+       modelo: entre esos dos anchos el nombre y el modelo quedaban
+       recortados a tres letras, que es lo mismo que no mostrarlos.
+       ══════════════════════════════════════════════════════════ */
+    @media (max-width: 767.98px) {
+        .ble-row {
+            flex-wrap: wrap;
+            row-gap: 0.5rem;
+            column-gap: 0.6rem;
+            padding: 0.8rem 0.75rem;
+        }
+        /* El DOM queda en orden de escritorio; aquí se reacomoda. */
+        .ble-row > .ble-row-img,
+        .ble-row > .ble-row-ph { order: 1; width: 40px; height: 40px; }
+        /* flex-basis 0, NO auto: con flex-wrap activo un ítem de basis
+           auto reclama todo su ancho de contenido y el contenedor lo
+           manda a otra línea en lugar de encogerlo. Con basis 0 entra
+           en la línea y después crece con el espacio que sobra. */
+        .fila-main  { order: 2; flex: 1 1 0; }
+        .fila-est   { order: 3; width: auto; }
+        /* Salto de línea explícito: más predecible que esperar a que
+           el wrap natural caiga justo donde uno quiere. */
+        .fila-corte { order: 4; display: block; flex-basis: 100%; height: 0; }
+        .fila-loc   { order: 5; width: auto; flex: 1 1 0; }
+        .ble-signal { order: 6; }
+        .fila-acc   { order: 7; }
+
+        /* En el celular no hay tooltip que rescate un texto cortado, y el
+           modelo es justo el dato con el que se identifica el aparato
+           estando frente a él: aquí se deja envolver en vez de recortar. */
+        .fila-meta { flex-wrap: wrap; }
+        .fila-mod  { white-space: normal; overflow: visible; line-height: 1.3; }
+
+        /* Igual con el encabezado de area: antes de recortar el nombre
+           del area, que baje el contador a un segundo renglón. */
+        .ble-group { flex-wrap: wrap; row-gap: 0.2rem; }
+
+        /* 28px es muy chico para el dedo. */
+        .ble-act { width: 38px; height: 38px; font-size: 0.85rem; }
+        /* En tactil no hay hover: si se atenuan, no se recuperan nunca. */
+        .fila-acc { opacity: 1; }
+
+        .search-wrap { flex: 1 1 100%; }
+        .ble-toggle  { flex: 1 1 100%; justify-content: center; }
+
+        .ble-statusbar        { height: 46px; }
+        .ble-statusbar button { min-width: 5.25rem; font-size: 0.7rem; padding: 0 0.35rem; }
+        .ble-statusbar b      { font-size: 0.9rem; }
+
+        /* El px-4 de Bootstrap (1.5rem por lado) se come el ancho útil. */
+        .card-header,
+        .card-body.px-4,
+        .card-footer { padding-left: 1rem !important; padding-right: 1rem !important; }
+    }
+
+    /* El botón flotante del menú (fixed, 46px en top/left:1rem) se
+       encimaba sobre el título. Se resuelve aquí y no en base.html
+       para no alterar el resto de las pantallas. */
+    @media (max-width: 991.98px) {
+        .dash-header { padding-top: 2.75rem; }
+    }
 </style>
 {% endblock %}
 
 {% block body %}
 <!-- ══ HEADER ══ -->
-<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+<div class="dash-header d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
     <div>
         <h4 class="mb-0 fw-bold" style="color:#212529;">
             <i class="fas fa-map-marker-alt me-2" style="color:var(--hospital-primary);"></i>
@@ -154,8 +263,8 @@
         </p>
     </div>
     <div class="d-flex align-items-center gap-3">
-        <span class="polling-badge">
-            <span class="polling-dot" id="pollingDot"></span>
+        <span class="ble-polling">
+            <span class="ble-polling-dot" id="pollingDot"></span>
             <span id="pollingStatus">Actualizando...</span>
         </span>
         <a href="{{ url_for('ble.ver_alertas') }}" class="btn btn-sm btn-outline-danger">
@@ -165,108 +274,67 @@
     </div>
 </div>
 
-<!-- ══ TARJETAS RESUMEN ══ -->
-<div class="row g-3 mb-4">
-    <!-- Localizados -->
-    <div class="col-12 col-sm-6 col-lg-4">
-        <div class="card ble-stat-card h-100">
-            <div class="card-body d-flex align-items-center gap-3 p-3">
-                <div class="ble-stat-icon" style="background:#d1fae5;">
-                    <i class="fas fa-map-marker-alt" style="color:#065f46;"></i>
-                </div>
-                <div>
-                    <div class="ble-stat-number text-success" id="cntLocalizado">—</div>
-                    <div class="ble-stat-label">Localizados</div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- Sin señal -->
-    <div class="col-12 col-sm-6 col-lg-4">
-        <div class="card ble-stat-card h-100">
-            <div class="card-body d-flex align-items-center gap-3 p-3">
-                <div class="ble-stat-icon" style="background:#fee2e2;">
-                    <i class="fas fa-wifi" style="color:#991b1b;"></i>
-                </div>
-                <div>
-                    <div class="ble-stat-number text-danger" id="cntSinSenal">—</div>
-                    <div class="ble-stat-label">Sin Señal</div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- Mantenimiento -->
-    <div class="col-12 col-sm-6 col-lg-4">
-        <div class="card ble-stat-card h-100">
-            <div class="card-body d-flex align-items-center gap-3 p-3">
-                <div class="ble-stat-icon" style="background:#fef9c3;">
-                    <i class="fas fa-tools" style="color:#854d0e;"></i>
-                </div>
-                <div>
-                    <div class="ble-stat-number text-warning" id="cntMantenimiento">—</div>
-                    <div class="ble-stat-label">En Mantenimiento</div>
-                </div>
-            </div>
-        </div>
-    </div>
+<!-- ══ BARRA DE ESTADO — reemplaza las 3 tarjetas ══ -->
+<div class="ble-statusbar mb-1" id="statusBar"></div>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <small class="text-muted" style="font-size:0.74rem;" id="statusHint">
+        Cargando estado de la flota...
+    </small>
+    <button class="btn btn-sm p-0 border-0 bg-transparent text-muted"
+            id="btnLimpiar" style="font-size:0.74rem; display:none;">
+        <i class="fas fa-times me-1"></i>Quitar filtro
+    </button>
 </div>
 
-<!-- ══ FILA PRINCIPAL: TABLA + ALERTAS ══ -->
+<!-- ══ FILA PRINCIPAL: EQUIPOS + ALERTAS ══ -->
 <div class="row g-3">
 
-    <!-- TABLA EQUIPOS (columna grande) -->
+    <!-- LISTA DE EQUIPOS -->
     <div class="col-12 col-xl-8">
         <div class="card border-0 shadow-sm" style="border-radius:0.75rem;">
-            <div class="card-header bg-white border-0 d-flex align-items-center
-                        justify-content-between flex-wrap gap-2 py-3 px-4"
-                 style="border-bottom:1px solid #f1f3f5;">
-                <h6 class="mb-0 fw-bold">
-                    <i class="fas fa-list me-2" style="color:var(--hospital-primary);"></i>
-                    Equipos Registrados
-                </h6>
-                <div class="search-wrap">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="searchInput" class="search-ble"
-                           placeholder="Buscar equipo, área...">
+            <div class="card-header bg-white border-0 py-3 px-4"
+                 style="border-bottom:1px solid var(--ble-line);">
+                <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="fas fa-list me-2" style="color:var(--hospital-primary);"></i>
+                        Equipos Registrados
+                    </h6>
+                    <span class="ble-count" id="listaCount"></span>
+                </div>
+                <!-- El buscador ocupa su propia linea: es lo que mas se usa. -->
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <div class="search-wrap" id="searchWrap">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" class="search-ble"
+                               autocomplete="off"
+                               placeholder="Buscar por equipo, modelo, área o inventario">
+                        <span class="search-kbd">/</span>
+                        <button type="button" class="search-clear" id="searchClear"
+                                title="Limpiar búsqueda (Esc)">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <button type="button" class="ble-toggle" id="btnAgrupar"
+                            title="Agrupar la lista por área">
+                        <i class="fas fa-layer-group"></i> Por área
+                    </button>
                 </div>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table ble-table mb-0">
-                        <thead>
-                            <tr>
-                                <th>Equipo</th>
-                                <th>N° Inventario</th>
-                                <th>Área Actual</th>
-                                <th>Señal</th>
-                                <th>Último reporte</th>
-                                <th>Estado</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="tablaEquipos">
-                            <!-- Skeleton inicial -->
-                            <tr><td colspan="7">
-                                <div class="skeleton" style="height:16px; margin:0.5rem 0;"></div>
-                            </td></tr>
-                            <tr><td colspan="7">
-                                <div class="skeleton" style="height:16px; margin:0.5rem 0;"></div>
-                            </td></tr>
-                            <tr><td colspan="7">
-                                <div class="skeleton" style="height:16px; margin:0.5rem 0;"></div>
-                            </td></tr>
-                        </tbody>
-                    </table>
+            <div class="card-body p-0" id="listaEquipos">
+                <div class="p-3">
+                    <div class="skeleton" style="height:44px; margin:0.4rem 0;"></div>
+                    <div class="skeleton" style="height:44px; margin:0.4rem 0;"></div>
+                    <div class="skeleton" style="height:44px; margin:0.4rem 0;"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- PANEL ALERTAS (columna chica) -->
+    <!-- PANEL ALERTAS -->
     <div class="col-12 col-xl-4">
         <div class="card border-0 shadow-sm h-100" style="border-radius:0.75rem;">
             <div class="card-header bg-white border-0 py-3 px-4"
-                 style="border-bottom:1px solid #f1f3f5;">
+                 style="border-bottom:1px solid var(--ble-line);">
                 <h6 class="mb-0 fw-bold">
                     <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
                     Alertas Activas
@@ -297,105 +365,316 @@
 (function () {
     'use strict';
 
-    // ══ UTILIDADES ══
+    // Minutos sin reporte tras los cuales un 'Localizado' deja de ser
+    // creible. marcar_sin_senal() solo corre cuando llega un POST de
+    // algun ESP32: si todos se caen a la vez nadie recalcula estados y
+    // el panel se queda en verde mostrando datos rancios. Este umbral
+    // es la red de seguridad del cliente contra ese caso.
+    const MIN_DUDOSO = 5;
+
     const $ = id => document.getElementById(id);
 
-    // Convierte RSSI en porcentaje visual (de -85 a -40 dBm)
-    function rssiPct(rssi) {
-        if (!rssi) return 0;
-        const pct = Math.round(((rssi + 85) / 45) * 100);
-        return Math.max(0, Math.min(100, pct));
+    // ══ UTILIDADES ══
+    function esc(s) {
+        return String(s ?? '').replace(/[&<>"']/g,
+            c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
-    function rssiClass(rssi) {
-        if (!rssi || rssi < -75) return 'rssi-weak';
-        if (rssi < -60) return 'rssi-medium';
-        return 'rssi-strong';
+
+    // Resalta las coincidencias del buscador. Se trocea la cadena CRUDA
+    // y se escapa cada pedazo por separado: buscar dentro del texto ya
+    // escapado partiria entidades (&amp;) por la mitad.
+    function marcar(txt, q) {
+        const s = String(txt ?? '');
+        if (!q) return esc(s);
+        let out = '', resto = s, i;
+        while ((i = resto.toLowerCase().indexOf(q)) >= 0) {
+            out += esc(resto.slice(0, i))
+                 + '<mark class="ble-mark">' + esc(resto.slice(i, i + q.length)) + '</mark>';
+            resto = resto.slice(i + q.length);
+        }
+        return out + esc(resto);
     }
-    function rssiLabel(rssi) {
-        if (!rssi) return '—';
-        if (rssi < -75) return 'Débil';
-        if (rssi < -60) return 'Media';
-        return 'Fuerte';
+
+    function minutosDesde(ts) {
+        if (!ts) return null;
+        const d = new Date(ts);
+        if (isNaN(d)) return null;
+        return (Date.now() - d.getTime()) / 60000;
     }
-    function badgeEstado(estado) {
-        const map = {
-            'Localizado':      'badge-localizado',
-            'Sin señal':       'badge-sin-senal',
-            'Sin senal':       'badge-sin-senal',
-            'En mantenimiento':'badge-mantenimiento'
-        };
-        const cls = map[estado] || 'badge-localizado';
-        return `<span class="badge ${cls} rounded-pill px-2 py-1">${estado}</span>`;
+
+    // La senal se dibuja SIEMPRE en gris (ver base.html). Este nivel
+    // solo controla cuantas barritas se encienden, nunca el color.
+    function nivelSenal(rssi) {
+        if (!rssi || rssi < -85) return 0;
+        if (rssi < -75) return 1;
+        if (rssi < -60) return 2;
+        return 3;
     }
+    const LBL_SENAL = ['Sin señal', 'Débil', 'Media', 'Fuerte'];
+
+    // Unica fuente de verdad del color de una fila.
+    function condicion(e) {
+        const est = (e.estado || '').toLowerCase();
+        if (est.includes('senal') || est.includes('señal')) return 'bad';
+        if (est.includes('mantenimiento'))                  return 'warn';
+        // Solo un 'Localizado' explicito puede llegar a 'ok'. Un estado que
+        // el front no reconoce se marca por revisar — nunca se asume que
+        // esta bien algo que no entendemos.
+        if (!est.includes('localizado'))                    return 'warn';
+        const min = minutosDesde(e.ultima_vez);
+        if (min === null || min > MIN_DUDOSO)               return 'warn';
+        return 'ok';
+    }
+
+    function etiquetaCondicion(cond, e) {
+        if (cond === 'bad')  return `<span class="ble-badge ble-badge-bad">${esc(e.estado || 'Sin señal')}</span>`;
+        if (cond === 'warn') {
+            const est = (e.estado || '').toLowerCase();
+            if (est.includes('mantenimiento'))
+                return `<span class="ble-badge ble-badge-warn">En mantenimiento</span>`;
+            return `<span class="ble-badge ble-badge-warn" title="Marcado como Localizado, pero sin reporte reciente">Dudoso</span>`;
+        }
+        // Estado normal: sin color, sin ruido.
+        return `<span class="ble-badge-mute">En su lugar</span>`;
+    }
+
     function formatTime(ts) {
         if (!ts) return '—';
         const d = new Date(ts);
-        const hh = String(d.getHours()).padStart(2,'0');
-        const mm = String(d.getMinutes()).padStart(2,'0');
-        return `${hh}:${mm}`;
+        if (isNaN(d)) return '—';
+        const hh   = String(d.getHours()).padStart(2,'0');
+        const mm   = String(d.getMinutes()).padStart(2,'0');
+        const hora = `${hh}:${mm}`;
+
+        // Mostrar la antiguedad, no solo la hora: sin esto un reporte de
+        // hace 3 dias a las 16:45 se veia identico a uno de hoy a las 16:45
+        // y un dato obsoleto pasaba por fresco.
+        const hoy    = new Date();
+        const dDia   = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const hoyDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+        const dias   = Math.round((hoyDia - dDia) / 86400000);
+
+        if (dias === 0) return hora;
+        if (dias === 1) return `Ayer ${hora}`;
+        if (dias > 1 && dias < 7) return `hace ${dias} días · ${hora}`;
+
+        const dd = String(d.getDate()).padStart(2,'0');
+        const MM = String(d.getMonth() + 1).padStart(2,'0');
+        return `${dd}/${MM} ${hora}`;
     }
 
     // ══ ESTADO GLOBAL ══
-    let allEquipos = [];
-    let filterText = '';
-    let pollingOk  = true;
+    let allEquipos  = [];
+    let filterText  = '';
+    let filterCond  = null;   // 'ok' | 'warn' | 'bad' | null
+    // La preferencia sobrevive al refresco: quien trabaja por area la
+    // deja prendida y no tiene que volver a activarla cada 10 minutos.
+    let agrupado    = localStorage.getItem('ble_agrupar') === '1';
 
-    // ══ RENDER TABLA ══
-    function renderTabla(data) {
-        const tbody = $('tablaEquipos');
-        const filtered = filterText
-            ? data.filter(e =>
-                (e.equipo_nombre  || '').toLowerCase().includes(filterText) ||
-                (e.area_nombre    || '').toLowerCase().includes(filterText) ||
-                (e.numero_inventario  || '').toLowerCase().includes(filterText))
-            : data;
+    // Campos por los que busca la caja de texto.
+    const CAMPOS_BUSCAR = [
+        'equipo_nombre', 'modelo', 'area_nombre',
+        'numero_inventario', 'departamento'
+    ];
+
+    // ══ BARRA DE ESTADO ══
+    // Se calcula del MISMO payload que las filas, no de
+    // /api/ble/dashboard/resumen. Antes eran dos consultas SQL distintas
+    // y podian contradecirse; ahora la barra y la lista no pueden mentir
+    // una respecto de la otra.
+    const SEGMENTOS = [
+        { k:'ok',   txt:'en su lugar', ico:'fa-check',       bg:'var(--ble-ok-bg)',   fg:'var(--ble-ok-fg)'   },
+        { k:'warn', txt:'por revisar', ico:'fa-clock',       bg:'var(--ble-warn-bg)', fg:'var(--ble-warn-fg)' },
+        { k:'bad',  txt:'sin señal',   ico:'fa-wifi',        bg:'var(--ble-bad-bg)',  fg:'var(--ble-bad-fg)'  },
+    ];
+
+    function renderStatusBar(data) {
+        const cnt = { ok:0, warn:0, bad:0 };
+        data.forEach(e => cnt[condicion(e)]++);
+        const total = data.length || 1;
+
+        $('statusBar').innerHTML = SEGMENTOS.filter(s => cnt[s.k] > 0).map(s => {
+            // Con un filtro puesto, los demas segmentos se atenuan: se ve
+            // de un vistazo que la lista de abajo no es la flota completa.
+            const apagado = filterCond && filterCond !== s.k;
+            return `
+            <button data-cond="${s.k}"
+                    class="${filterCond === s.k ? 'activo' : ''}"
+                    style="flex:${cnt[s.k]}; background:${s.bg}; color:${s.fg};
+                           opacity:${apagado ? '0.45' : '1'};"
+                    title="${cnt[s.k]} · ${s.txt} — clic para filtrar">
+                <i class="fas ${s.ico}" style="font-size:0.7rem; opacity:0.7;"></i>
+                <b>${cnt[s.k]}</b><span class="text-truncate">${s.txt}</span>
+            </button>`;
+        }).join('');
+
+        const pct = Math.round((cnt.ok / total) * 100);
+        $('statusHint').textContent = data.length
+            ? `${data.length} equipos rastreados · ${pct}% en su lugar`
+            : 'Sin equipos rastreados';
+        $('btnLimpiar').style.display = filterCond ? '' : 'none';
+    }
+
+    // ══ RENDER LISTA ══
+    const ORDEN = { bad:0, warn:1, ok:2 };
+    const PLACEHOLDER = '<div class="ble-row-ph"><i class="fas fa-camera"></i></div>';
+
+    function coincide(e) {
+        return CAMPOS_BUSCAR.some(k => String(e[k] || '').toLowerCase().includes(filterText));
+    }
+
+    // Lo que requiere atencion primero — el orden es parte del diseno,
+    // no un detalle: el usuario no deberia tener que buscar el problema.
+    function ordenar(lista) {
+        return lista.slice().sort((a, b) => {
+            const d = ORDEN[condicion(a)] - ORDEN[condicion(b)];
+            return d !== 0 ? d
+                 : (a.equipo_nombre || '').localeCompare(b.equipo_nombre || '');
+        });
+    }
+
+    function filaHTML(e) {
+        const cond   = condicion(e);
+        const nivel  = nivelSenal(e.rssi_max);
+        const min    = minutosDesde(e.ultima_vez);
+        const viejo  = (min === null || min > MIN_DUDOSO) ? 'viejo' : '';
+        const rowCls = cond === 'ok' ? '' : (cond === 'bad' ? 'es-bad' : 'es-warn');
+        // Sin foto = placeholder CSS, nunca un <img> a un archivo que no
+        // existe. /static/img/no-image.png no esta en el proyecto: cada
+        // fila sin imagen generaba un 404 en cada repintado.
+        const media  = e.imagen
+            ? `<img class="ble-row-img" src="/static/uploads/${esc(e.imagen)}" alt="" loading="lazy">`
+            : PLACEHOLDER;
+
+        // El modelo es el dato con el que se reconoce el aparato al llegar
+        // al area: el nombre puede ser generico ("Monitor") y el numero de
+        // inventario esta en una etiqueta que hay que encontrar primero.
+        const modelo = e.modelo
+            ? `<span class="fila-mod" title="Modelo: ${esc(e.modelo)}">${marcar(e.modelo, filterText)}</span>`
+            : `<span class="fila-mod vacio">Modelo no registrado</span>`;
+
+        const inv = e.numero_inventario
+            ? `<span class="fila-sep">·</span>
+               <span class="ble-row-inv text-truncate">${marcar(e.numero_inventario, filterText)}</span>`
+            : '';
+
+        // Los anchos van en clases, NO en style="" inline: un ancho
+        // inline gana sobre cualquier media query y rompe el movil.
+        return `
+        <div class="ble-row ${rowCls}">
+            ${media}
+
+            <div class="fila-main">
+                <div class="ble-row-nom text-truncate"
+                     title="${esc(e.equipo_nombre || '')}">${marcar(e.equipo_nombre || '—', filterText)}</div>
+                <div class="fila-meta">${modelo}${inv}</div>
+            </div>
+
+            <div class="fila-loc">
+                <div class="ble-row-area text-truncate">
+                    <i class="fas fa-map-marker-alt fila-area-ico"></i>${marcar(e.area_nombre || '—', filterText)}
+                </div>
+                <div class="ble-row-t ${viejo} text-truncate">
+                    ${viejo ? '<i class="fas fa-clock me-1"></i>' : ''}${formatTime(e.ultima_vez)}
+                </div>
+            </div>
+
+            <div class="ble-signal" data-nivel="${nivel}"
+                 title="${LBL_SENAL[nivel]}${e.rssi_max ? ' · ' + e.rssi_max + ' dBm' : ''}">
+                <span></span><span></span><span></span>
+            </div>
+
+            <div class="fila-est">
+                ${etiquetaCondicion(cond, e)}
+            </div>
+
+            <div class="fila-acc">
+                <a href="/localizacion/equipo/${e.equipo_id || ''}"
+                   class="ble-act" title="Ver localización">
+                    <i class="fas fa-map-marker-alt"></i>
+                </a>
+                <a href="/inventario/${e.equipo_id || ''}"
+                   class="ble-act" title="Ver ficha del equipo">
+                    <i class="fas fa-file-medical"></i>
+                </a>
+            </div>
+
+            <div class="fila-corte"></div>
+        </div>`;
+    }
+
+    // Agrupacion por area: la pregunta de piso es "voy al area X, que hay
+    // ahi y como se ve". Las areas con problemas van primero, igual que
+    // las filas sueltas.
+    function grupoHTML(g) {
+        const pendientes = g.items.filter(x => condicion(x) !== 'ok').length;
+        return `
+        <div class="ble-group">
+            <i class="fas fa-map-marker-alt"></i>
+            <span class="ble-group-nom">${marcar(g.nombre, filterText)}</span>
+            ${g.piso != null && g.piso !== '' ? `<span class="ble-group-piso">Piso ${esc(g.piso)}</span>` : ''}
+            ${pendientes ? `<span class="ble-group-flag">${pendientes} por revisar</span>` : ''}
+            <span class="ble-group-n">${g.items.length} equipo${g.items.length === 1 ? '' : 's'}</span>
+        </div>` + ordenar(g.items).map(filaHTML).join('');
+    }
+
+    function agrupar(lista) {
+        const mapa = new Map();
+        lista.forEach(e => {
+            const k = e.area_nombre || 'Sin área asignada';
+            if (!mapa.has(k)) mapa.set(k, { nombre: k, piso: e.piso, items: [] });
+            mapa.get(k).items.push(e);
+        });
+        return [...mapa.values()].sort((a, b) => {
+            const pa = Math.min(...a.items.map(x => ORDEN[condicion(x)]));
+            const pb = Math.min(...b.items.map(x => ORDEN[condicion(x)]));
+            return pa - pb || a.nombre.localeCompare(b.nombre);
+        });
+    }
+
+    function renderLista(data) {
+        const cont = $('listaEquipos');
+
+        let filtered = data;
+        if (filterCond) filtered = filtered.filter(e => condicion(e) === filterCond);
+        if (filterText) filtered = filtered.filter(coincide);
+
+        const hayFiltro = !!(filterCond || filterText);
+        $('listaCount').textContent = !data.length ? ''
+            : hayFiltro ? `${filtered.length} de ${data.length}`
+                        : `${data.length} equipo${data.length === 1 ? '' : 's'}`;
 
         if (!filtered.length) {
-            tbody.innerHTML = `
-                <tr><td colspan="7">
-                    <div class="empty-state">
-                        <i class="fas fa-satellite-dish"></i>
-                        <p class="mb-0">Sin equipos para mostrar</p>
-                    </div>
-                </td></tr>`;
+            cont.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-satellite-dish"></i>
+                    <p class="mb-1">${hayFiltro
+                        ? 'Ningún equipo coincide con la búsqueda'
+                        : 'Sin equipos para mostrar'}</p>
+                    ${hayFiltro ? `
+                    <button type="button" class="btn btn-sm btn-link p-0" id="btnResetVacio"
+                            style="font-size:0.8rem;">Quitar filtros</button>` : ''}
+                </div>`;
             return;
         }
 
-        tbody.innerHTML = filtered.map(e => {
-            const pct  = rssiPct(e.rssi_max);
-            const cls  = rssiClass(e.rssi_max);
-            const lbl  = rssiLabel(e.rssi_max);
-            const href = `/localizacion/equipo/${e.equipo_id || ''}`;
-            return `
-            <tr>
-                <td>
-                    <span class="fw-medium">${e.equipo_nombre || '—'}</span><br>
-                    <small class="text-muted">${e.marca || ''} ${e.modelo || ''}</small>
-                </td>
-                <td><code style="font-size:0.78rem;">${e.numero_inventario || '—'}</code></td>
-                <td>
-                    <span>${e.area_nombre || '—'}</span><br>
-                    <small class="text-muted">Piso ${e.piso || '—'}</small>
-                </td>
-                <td>
-                    <div class="rssi-bar-wrap">
-                        <div class="rssi-bar">
-                            <div class="rssi-bar-fill ${cls}" style="width:${pct}%;"></div>
-                        </div>
-                        <small class="text-muted">${lbl} (${e.rssi_max || '—'} dBm)</small>
-                    </div>
-                </td>
-                <td><small class="text-muted">${formatTime(e.ultima_vez)}</small></td>
-                <td>${badgeEstado(e.estado)}</td>
-                <td>
-                    <a href="${href}" class="btn btn-sm"
-                       style="background:rgba(61,144,174,0.1); color:var(--hospital-primary);
-                              border-radius:0.4rem; font-size:0.75rem; padding:0.25rem 0.6rem;">
-                        <i class="fas fa-eye"></i>
-                    </a>
-                </td>
-            </tr>`;
-        }).join('');
+        cont.classList.toggle('agrupado', agrupado);
+        cont.innerHTML = agrupado
+            ? agrupar(filtered).map(grupoHTML).join('')
+            : ordenar(filtered).map(filaHTML).join('');
+
+        // Si la BD tiene un nombre de imagen pero el archivo no esta en
+        // disco, se sustituye por el placeholder UNA sola vez. El {once:true}
+        // es lo que evita el bucle: reasignar src dentro de un onerror vuelve
+        // a fallar y se redispara indefinidamente.
+        cont.querySelectorAll('img.ble-row-img').forEach(img => {
+            img.addEventListener('error', function () {
+                const ph = document.createElement('div');
+                ph.className = 'ble-row-ph';
+                ph.innerHTML = '<i class="fas fa-camera"></i>';
+                this.replaceWith(ph);
+            }, { once: true });
+        });
     }
 
     // ══ RENDER ALERTAS ══
@@ -413,42 +692,42 @@
             return;
         }
 
-        badge.textContent  = alertas.length;
+        badge.textContent   = alertas.length;
         badge.style.display = 'inline';
 
-        panel.innerHTML = alertas.slice(0, 8).map(a => {
-            const esSinSenal = (a.estado === 'Sin senal' || a.estado === 'Sin señal');
-            const dotColor   = esSinSenal ? '#ef4444' : '#f59e0b';
-            const icon       = esSinSenal ? 'fa-wifi' : 'fa-battery-quarter';
-            const msg        = esSinSenal
-                ? 'Sin señal detectada'
-                : 'Posible batería baja';
+        const visibles = alertas.slice(0, 8);
+        const resto    = alertas.length - visibles.length;
+
+        panel.innerHTML = visibles.map(a => {
+            // Usar tipo_alerta, que es lo que el backend realmente calcula.
+            // Antes se re-derivaba de a.estado —que vale 'Sin senal' en AMBOS
+            // casos— asi que la clasificacion de bateria nunca se mostraba.
+            const esBateria = (a.tipo_alerta || '').toLowerCase().includes('bateria');
+            const dotColor  = esBateria ? 'var(--ble-warn-line)' : 'var(--ble-bad-line)';
+            const icon      = esBateria ? 'fa-battery-quarter'   : 'fa-wifi';
+            const msg       = esBateria ? 'Posible batería baja' : 'Sin señal detectada';
             return `
             <div class="alerta-item">
                 <span class="alerta-dot" style="background:${dotColor};"></span>
                 <div style="min-width:0;">
-                    <div class="fw-medium text-truncate">${a.equipo_nombre || a.mac || '—'}</div>
+                    <div class="fw-medium text-truncate">${esc(a.equipo_nombre || a.mac || '—')}</div>
                     <div class="text-muted" style="font-size:0.76rem;">
                         <i class="fas ${icon} me-1"></i>${msg}
                         · ${formatTime(a.ultima_vez)}
                     </div>
                 </div>
             </div>`;
-        }).join('');
-    }
-
-    // ══ RENDER TARJETAS ══
-    function renderResumen(r) {
-        $('cntLocalizado').textContent    = r.localizados    ?? '—';
-        $('cntSinSenal').textContent      = r.sin_senal      ?? '—';
-        $('cntMantenimiento').textContent = r.mantenimiento  ?? '—';
+        }).join('') + (resto > 0
+            ? `<div class="text-muted text-center py-2" style="font-size:0.76rem;">
+                   y ${resto} más
+               </div>`
+            : '');
     }
 
     // ══ INDICADOR DE POLLING ══
     function setPollingStatus(ok) {
         const dot = $('pollingDot');
         const txt = $('pollingStatus');
-        pollingOk = ok;
         if (ok) {
             dot.classList.remove('error');
             txt.textContent = `Actualizado ${formatTime(new Date().toISOString())}`;
@@ -458,25 +737,48 @@
         }
     }
 
+    // El polling corre cada 10 s, pero los datos casi nunca cambian entre
+    // ciclos. Reconstruir la lista con innerHTML destruye y recrea cada
+    // <img>, y eso se ve como un parpadeo. Con esta firma el DOM solo se
+    // toca cuando algo cambio de verdad. condicion() va incluida a
+    // proposito: depende del reloj, asi que una fila que cruza el umbral
+    // de "Dudoso" si fuerza el repintado aunque el payload sea identico.
+    let firmaAnterior = null;
+
+    function firma(data) {
+        // JSON.stringify en vez de concatenar con separadores: no es
+        // ambiguo y no depende de caracteres de control invisibles en
+        // el fuente, que se pierden con facilidad al copiar o formatear.
+        return JSON.stringify([filterCond, filterText, agrupado, data.map(e => [
+            e.equipo_id, e.equipo_nombre, e.modelo, e.numero_inventario,
+            e.area_nombre, e.piso, e.rssi_max,
+            e.ultima_vez, e.estado, e.imagen, condicion(e)
+        ])]);
+    }
+
+    function repintar() {
+        const f = firma(allEquipos);
+        if (f === firmaAnterior) return;
+        firmaAnterior = f;
+        renderStatusBar(allEquipos);
+        renderLista(allEquipos);
+    }
+
     // ══ FETCH PRINCIPAL ══
     async function fetchPosicion() {
         try {
-            const [rPos, rRes, rAlt] = await Promise.all([
+            const [rPos, rAlt] = await Promise.all([
                 fetch('/api/ble/posicion-actual'),
-                fetch('/api/ble/dashboard/resumen'),
                 fetch('/api/ble/alertas')
             ]);
 
             if (!rPos.ok) throw new Error('API error');
 
-            const [posData, resData, altData] = await Promise.all([
-                rPos.json(), rRes.json(), rAlt.json()
-            ]);
+            const [posData, altData] = await Promise.all([rPos.json(), rAlt.json()]);
 
-            allEquipos = posData;
-            renderTabla(allEquipos);
-            renderResumen(resData);
-            renderAlertas(altData);
+            allEquipos = Array.isArray(posData) ? posData : [];
+            repintar();
+            renderAlertas(Array.isArray(altData) ? altData : []);
             setPollingStatus(true);
 
         } catch (err) {
@@ -485,15 +787,73 @@
         }
     }
 
-    // ══ FILTRO DE BÚSQUEDA EN TABLA ══
+    // ══ EVENTOS ══
+    // Todos los handlers pasan por repintar(), no por renderLista(): asi
+    // la firma queda al dia y el siguiente ciclo de polling no repinta de
+    // nuevo por creer que algo cambio.
+    function aplicarBusqueda(txt) {
+        filterText = txt.trim().toLowerCase();
+        $('searchWrap').classList.toggle('con-texto', filterText !== '');
+        repintar();
+    }
+
     $('searchInput').addEventListener('input', function () {
-        filterText = this.value.trim().toLowerCase();
-        renderTabla(allEquipos);
+        aplicarBusqueda(this.value);
+    });
+
+    $('searchInput').addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape') { this.value = ''; aplicarBusqueda(''); }
+    });
+
+    $('searchClear').addEventListener('click', function () {
+        $('searchInput').value = '';
+        aplicarBusqueda('');
+        $('searchInput').focus();
+    });
+
+    // "/" abre el buscador desde cualquier parte de la pantalla, salvo
+    // que ya se este escribiendo en un campo.
+    document.addEventListener('keydown', function (ev) {
+        if (ev.key !== '/' || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+        const t = ev.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+        ev.preventDefault();
+        $('searchInput').focus();
+    });
+
+    $('btnAgrupar').addEventListener('click', function () {
+        agrupado = !agrupado;
+        localStorage.setItem('ble_agrupar', agrupado ? '1' : '0');
+        this.classList.toggle('activo', agrupado);
+        repintar();
+    });
+
+    $('statusBar').addEventListener('click', function (ev) {
+        const btn = ev.target.closest('button[data-cond]');
+        if (!btn) return;
+        const c = btn.dataset.cond;
+        filterCond = (filterCond === c) ? null : c;   // segundo clic = quitar
+        repintar();
+    });
+
+    $('btnLimpiar').addEventListener('click', function () {
+        filterCond = null;
+        repintar();
+    });
+
+    // El boton vive dentro del estado vacio, que se redibuja completo en
+    // cada render: se delega en el contenedor en vez de re-enlazarlo.
+    $('listaEquipos').addEventListener('click', function (ev) {
+        if (!ev.target.closest('#btnResetVacio')) return;
+        filterCond = null;
+        $('searchInput').value = '';
+        aplicarBusqueda('');
     });
 
     // ══ ARRANQUE ══
-    fetchPosicion();                          // Primera carga inmediata
-    setInterval(fetchPosicion, 10_000);       // Polling cada 10 segundos
+    $('btnAgrupar').classList.toggle('activo', agrupado);
+    fetchPosicion();
+    setInterval(fetchPosicion, 10_000);
 
 })();
 </script>

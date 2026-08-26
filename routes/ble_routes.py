@@ -11,17 +11,59 @@ from flask import (
     Blueprint, request, jsonify,
     render_template, redirect, url_for, flash, current_app
 )
-from flask_login import login_required, current_user
 from database.db import get_connection
 from models.ModelBLE import ModelBLE
+from models.entities.decorators import (
+    requiere_rol,
+    ROL_USUARIO, ROL_BIOMEDICO, ROL_ADMIN,
+)
 
 
 ble_bp = Blueprint('ble', __name__)
 
 
 # ══════════════════════════════════════════════════════════════
+#  PINES DEL VISOR 3D
+#  Indexados por NOMBRE de area de ble_areas, no por id: los ids no son
+#  portables entre la base de pruebas y la de produccion, los nombres si.
+#
+#  Las coordenadas son dato de autoria del modelo pruebaweb.glb, no dato de
+#  negocio: se capturan con el boton "Modo colocar pin" del propio visor y se
+#  pegan aqui. Un area de ble_areas que no aparezca en este diccionario
+#  simplemente no se dibuja (el visor la reporta como "sin pin colocado").
+#
+#  'perimetro' es opcional y solo sirve para encuadrar la camara al cargar.
+# ══════════════════════════════════════════════════════════════
+
+AREAS_3D = {
+    'UCIN': {
+        'descripcion': 'Unidad de Cuidados Intensivos Neonatales',
+        'x': -1.47, 'y': 2.95, 'z': -0.11,
+        'perimetro': [
+            {'x':  -9.76, 'y': 0.00, 'z': -7.00},
+            {'x':  -9.98, 'y': 0.00, 'z': -3.00},
+            {'x': -10.00, 'y': 0.00, 'z':  2.00},
+            {'x': -10.00, 'y': 0.00, 'z':  6.00},
+            {'x':   8.00, 'y': 0.00, 'z': -6.52},
+            {'x':   8.41, 'y': 0.00, 'z': -2.00},
+            {'x':   8.00, 'y': 0.00, 'z':  3.98},
+            {'x':   7.00, 'y': 0.00, 'z': -6.83},
+            {'x':   2.00, 'y': 0.00, 'z': -7.11},
+            {'x':  -2.00, 'y': 0.00, 'z': -6.82},
+            {'x':  -5.00, 'y': 0.00, 'z': -6.54},
+            {'x':  -8.29, 'y': 0.00, 'z': -7.00},
+            {'x':  -7.85, 'y': 0.00, 'z':  7.00},
+            {'x':  -4.17, 'y': 0.00, 'z':  6.00},
+            {'x':   2.73, 'y': 0.00, 'z':  7.00},
+            {'x':   7.13, 'y': 0.00, 'z':  7.00},
+        ],
+    },
+}
+
+
+# ══════════════════════════════════════════════════════════════
 #  API — ESP32 → SERVIDOR
-#  Estas rutas NO usan @login_required (los ESP32 no tienen sesion).
+#  Estas rutas NO llevan control de rol (los ESP32 no tienen sesion).
 #  La seguridad la provee el header X-BLE-Token.
 # ══════════════════════════════════════════════════════════════
 
@@ -197,7 +239,7 @@ def recibir_lecturas():
 # ══════════════════════════════════════════════════════════════
 
 @ble_bp.route('/api/ble/posicion-actual', methods=['GET'])
-@login_required
+@requiere_rol(ROL_USUARIO)
 def api_posicion_actual():
     """
     Todos los equipos con su ubicacion actual.
@@ -219,7 +261,7 @@ def api_posicion_actual():
 
 
 @ble_bp.route('/api/ble/area/<int:area_id>/equipos', methods=['GET'])
-@login_required
+@requiere_rol(ROL_USUARIO)
 def api_equipos_por_area(area_id):
     """Equipos presentes en un area especifica ahora mismo."""
     db = None
@@ -239,8 +281,33 @@ def api_equipos_por_area(area_id):
             db.close()
 
 
+@ble_bp.route('/api/ble/vista3d/datos', methods=['GET'])
+@requiere_rol(ROL_USUARIO)
+def api_vista3d_datos():
+    """
+    Equipos localizados ahora mismo, agrupados por area, para el visor 3D.
+
+    Devuelve TODAS las areas con actividad, no solo las que tienen pin: el
+    visor pinta las que encuentra en AREAS_3D y lista el resto como pendientes
+    de colocar. Asi, agregar un area nueva es pegar sus coordenadas y ya.
+    """
+    db = None
+    try:
+        db = get_connection()
+        areas = ModelBLE.get_areas_con_equipos(db)
+        return jsonify({"ok": True, "areas": areas}), 200
+
+    except Exception as ex:
+        current_app.logger.error(f"[BLE/api_vista3d_datos] {ex}")
+        return jsonify({"ok": False, "error": "Error al obtener datos del visor"}), 500
+
+    finally:
+        if db:
+            db.close()
+
+
 @ble_bp.route('/api/ble/equipo/<int:equipo_id>/historial', methods=['GET'])
-@login_required
+@requiere_rol(ROL_USUARIO)
 def api_historial_equipo(equipo_id):
     """
     Movimientos del equipo en las ultimas N horas.
@@ -267,7 +334,7 @@ def api_historial_equipo(equipo_id):
 
 
 @ble_bp.route('/api/ble/alertas', methods=['GET'])
-@login_required
+@requiere_rol(ROL_USUARIO)
 def api_alertas():
     """Alertas activas: beacons sin senal o con bateria posiblemente descargada."""
     db = None
@@ -286,7 +353,7 @@ def api_alertas():
 
 
 @ble_bp.route('/api/ble/dashboard/resumen', methods=['GET'])
-@login_required
+@requiere_rol(ROL_USUARIO)
 def api_resumen_dashboard():
     """Contadores para las tarjetas del dashboard."""
     db = None
@@ -305,7 +372,7 @@ def api_resumen_dashboard():
 
 
 @ble_bp.route('/api/ble/areas', methods=['GET'])
-@login_required
+@requiere_rol(ROL_USUARIO)
 def get_areas():
     """Lista todas las areas activas. Usada por area.html para poblar el selector."""
     db = None
@@ -328,7 +395,7 @@ def get_areas():
 # ══════════════════════════════════════════════════════════════
 
 @ble_bp.route('/localizacion')
-@login_required
+@requiere_rol(ROL_USUARIO)
 def dashboard():
     """Dashboard principal del modulo BLE."""
     db = None
@@ -353,7 +420,7 @@ def dashboard():
 
 
 @ble_bp.route('/localizacion/buscar')
-@login_required
+@requiere_rol(ROL_USUARIO)
 def buscar():
     """
     Buscador de equipos por nombre, serie o numero de inventario.
@@ -364,7 +431,7 @@ def buscar():
 
 
 @ble_bp.route('/localizacion/area/<int:area_id>')
-@login_required
+@requiere_rol(ROL_USUARIO)
 def ver_area(area_id):
     """
     Vista de equipos presentes en un area especifica.
@@ -392,7 +459,7 @@ def ver_area(area_id):
 
 
 @ble_bp.route('/localizacion/equipo/<int:equipo_id>')
-@login_required
+@requiere_rol(ROL_USUARIO)
 def ver_equipo(equipo_id):
     """
     Detalle e historial de movimiento de un equipo.
@@ -402,7 +469,7 @@ def ver_equipo(equipo_id):
 
 
 @ble_bp.route('/localizacion/alertas')
-@login_required
+@requiere_rol(ROL_USUARIO)
 def ver_alertas():
     """
     Lista de alertas activas del sistema BLE.
@@ -412,41 +479,37 @@ def ver_alertas():
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  ADMIN BLE — solo Administrador
+#  CONFIGURACIÓN DE LOCALIZACIÓN — Biomédico o superior
+#
+#  Áreas, beacons y reglas de alerta son configuración operativa del
+#  servicio de biomedicina, no administración del sistema. La única
+#  excepción es la purga de lecturas, que sigue siendo del Administrador.
+#
+#  El control va en el decorador de cada ruta, no dentro del cuerpo, para
+#  que la matriz completa de permisos se pueda auditar recorriendo url_map.
 # ═══════════════════════════════════════════════════════════════════
-
-def _require_admin():
-    """Retorna True si el usuario autenticado es Administrador."""
-    return current_user.is_authenticated and current_user.Permiso == 'Administrador'
-
 
 # ── Vista principal admin (renderiza tabs Áreas + Beacons) ──────────
 
 @ble_bp.route('/localizacion/admin')
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def admin_panel():
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     return render_template('ble/admin/admin.html')
 
 
 # ── Formulario crear área ───────────────────────────────────────────
 
 @ble_bp.route('/localizacion/admin/areas/nueva', methods=['GET'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def admin_area_nueva():
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     return render_template('ble/admin/area_form.html', area=None)
 
 
 # ── Formulario editar área ──────────────────────────────────────────
 
 @ble_bp.route('/localizacion/admin/areas/<int:area_id>/editar', methods=['GET'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def admin_area_editar(area_id):
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         db = get_connection()
@@ -464,10 +527,8 @@ def admin_area_editar(area_id):
 # ── API: crear área ─────────────────────────────────────────────────
 
 @ble_bp.route('/api/ble/admin/areas', methods=['POST'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def api_area_crear():
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         data    = request.get_json(force=True) or {}
@@ -500,10 +561,8 @@ def api_area_crear():
 # ── API: editar área ────────────────────────────────────────────────
 
 @ble_bp.route('/api/ble/admin/areas/<int:area_id>', methods=['PUT'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def api_area_editar(area_id):
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         data     = request.get_json(force=True) or {}
@@ -536,10 +595,8 @@ def api_area_editar(area_id):
 # ── API: desactivar / activar área (toggle) ─────────────────────────
 
 @ble_bp.route('/api/ble/admin/areas/<int:area_id>', methods=['DELETE'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def api_area_desactivar(area_id):
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         db    = get_connection()
@@ -567,10 +624,8 @@ def api_area_desactivar(area_id):
 # ── API: crear beacon ───────────────────────────────────────────────
 
 @ble_bp.route('/api/ble/admin/beacons', methods=['POST'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def api_beacon_crear():
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         data   = request.get_json(force=True) or {}
@@ -607,10 +662,8 @@ def api_beacon_crear():
 # ── API: editar nombre de beacon ────────────────────────────────────
 
 @ble_bp.route('/api/ble/admin/beacons/<int:beacon_id>', methods=['PUT'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def api_beacon_editar(beacon_id):
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         data   = request.get_json(force=True) or {}
@@ -633,10 +686,8 @@ def api_beacon_editar(beacon_id):
 # ── API: asignar / desasignar beacon ↔ equipo ───────────────────────
 
 @ble_bp.route('/api/ble/admin/beacons/<int:beacon_id>/asignar', methods=['PUT'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def api_beacon_asignar(beacon_id):
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         data      = request.get_json(force=True) or {}
@@ -661,10 +712,8 @@ def api_beacon_asignar(beacon_id):
 # ── API: desactivar beacon ──────────────────────────────────────────
 
 @ble_bp.route('/api/ble/admin/beacons/<int:beacon_id>', methods=['DELETE'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def api_beacon_desactivar(beacon_id):
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         db = get_connection()
@@ -686,10 +735,8 @@ def api_beacon_desactivar(beacon_id):
 # ── API: todas las áreas para panel admin (activas + inactivas) ─────
 
 @ble_bp.route('/api/ble/admin/areas', methods=['GET'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def api_admin_areas_lista():
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         db = get_connection()
@@ -715,10 +762,8 @@ def api_admin_areas_lista():
 # ── API: todos los beacons para panel admin (activos + inactivos) ───
 
 @ble_bp.route('/api/ble/admin/beacons', methods=['GET'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def api_admin_beacons_lista():
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         db = get_connection()
@@ -745,10 +790,8 @@ def api_admin_beacons_lista():
 # ── API: buscar equipos para asignar beacon ─────────────────────────
 
 @ble_bp.route('/api/ble/admin/equipos/buscar', methods=['GET'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def api_equipos_buscar():
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         q = (request.args.get('q') or '').strip()
@@ -786,20 +829,16 @@ def api_equipos_buscar():
 # ══════════════════════════════════════════════════════════════
 
 @ble_bp.route('/localizacion/admin/reglas')
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def admin_reglas():
     """Vista principal de reglas de alerta."""
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     return render_template('ble/admin/reglas.html')
 
 
 @ble_bp.route('/api/ble/admin/reglas', methods=['GET'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def api_reglas_lista():
     """Todas las reglas — activas e inactivas."""
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         db = get_connection()
@@ -813,11 +852,9 @@ def api_reglas_lista():
 
 
 @ble_bp.route('/api/ble/admin/reglas', methods=['POST'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def api_regla_crear():
     """Crea una regla nueva."""
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         data         = request.get_json(force=True) or {}
@@ -849,11 +886,9 @@ def api_regla_crear():
 
 
 @ble_bp.route('/api/ble/admin/reglas/<int:regla_id>', methods=['PUT'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def api_regla_editar(regla_id):
     """Edita nombre y umbral de una regla."""
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         data         = request.get_json(force=True) or {}
@@ -879,11 +914,9 @@ def api_regla_editar(regla_id):
 
 
 @ble_bp.route('/api/ble/admin/reglas/<int:regla_id>/toggle', methods=['PUT'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def api_regla_toggle(regla_id):
     """Activa o desactiva una regla."""
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         db         = get_connection()
@@ -904,11 +937,9 @@ def api_regla_toggle(regla_id):
 
 
 @ble_bp.route('/api/ble/admin/reglas/<int:regla_id>', methods=['DELETE'])
-@login_required
+@requiere_rol(ROL_BIOMEDICO)
 def api_regla_eliminar(regla_id):
     """Elimina una regla (solo las no-base, id > 3)."""
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         db = get_connection()
@@ -932,15 +963,16 @@ def api_regla_eliminar(regla_id):
 # ══════════════════════════════════════════════════════════════
 
 @ble_bp.route('/api/ble/admin/purgar-lecturas', methods=['POST'])
-@login_required
+@requiere_rol(ROL_ADMIN)
 def api_purgar_lecturas_manual():
     """
     Disparo manual de la purga — para verificar en desarrollo.
     Misma lógica que el job del scheduler.
     Body opcional: { "dias": 30 }
+
+    Reservado al Administrador: borra histórico de lecturas de forma
+    irreversible, no es una tarea operativa del biomédico.
     """
-    if not _require_admin():
-        return jsonify({'error': 'Sin permisos'}), 403
     db = None
     try:
         data = request.get_json(silent=True) or {}
@@ -965,3 +997,14 @@ def api_purgar_lecturas_manual():
         return jsonify({'error': 'Error interno'}), 500
     finally:
         if db: db.close()       
+
+@ble_bp.route('/localizacion/vista3d')
+@requiere_rol(ROL_USUARIO)
+def vista_3d():
+    """
+    Visor 3D del hospital con los equipos que la localizacion BLE reporta.
+
+    Solo entrega las coordenadas de los pines; los equipos los pide el propio
+    visor a /api/ble/vista3d/datos y los refresca cada 10 segundos.
+    """
+    return render_template('ble/vista3d.html', areas_3d=AREAS_3D)

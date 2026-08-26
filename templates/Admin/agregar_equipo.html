@@ -1,8 +1,11 @@
 {% extends './base.html' %}
+{% from 'admin/_firma_pad.html' import firma_pendiente %}
 
 {% block title %}Agregar Equipo — Hospital Galenia{% endblock %}
 
+
 {% block customCSS %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/firma_pad.css') }}">
 <style>
 :root {
   --adm-accent:        #3D90AE;
@@ -94,6 +97,17 @@
   display:flex; align-items:center; gap:6px;
 }
 .adm-section-label i { color:var(--adm-accent); font-size:0.75rem; }
+
+/* ══ CONTADOR DE CARACTERES ══
+   Los campos de texto libre tienen tope para que el bloque correspondiente
+   del PDF conserve siempre el mismo alto. */
+.char-counter {
+  font-size:0.68rem; color:var(--adm-muted);
+  text-align:right; margin-top:4px;
+  font-variant-numeric:tabular-nums;
+}
+.char-counter.cerca { color:var(--adm-yellow, #d97706); font-weight:700; }
+.char-counter.tope  { color:var(--adm-red, #dc2626);   font-weight:700; }
 
 /* ══ FORM ══ */
 .adm-form-grid {
@@ -345,18 +359,38 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
 
             {# Selector de prefijo #}
             <div class="adm-section-label"><i class="fas fa-tag"></i> Tipo de equipo</div>
-            <div class="prefijo-selector">
-              <div class="prefijo-btn active" id="btn-eqme" onclick="seleccionarPrefijo('EQ-ME')">
-                <span class="pref-code">EQ-ME</span>
-                <span class="pref-label">Equipo del hospital</span>
-                <span class="pref-num" id="num-eqme">→ {{ num_eqme or '—' }}</span>
+              <div class="prefijo-selector">
+                <div class="prefijo-btn active" id="btn-eqme" onclick="seleccionarPrefijo('EQ-ME')">
+                  <span class="pref-code">EQ-ME</span>
+                  <span class="pref-label">Equipo del hospital</span>
+                  <span class="pref-num" id="num-eqme">→ {{ num_eqme or '—' }}</span>
+                </div>
+                <div class="prefijo-btn" id="btn-amco" onclick="seleccionarPrefijo('AM-CO')">
+                  <span class="pref-code">AM-CO</span>
+                  <span class="pref-label">Equipo en acomodato</span>
+                  <span class="pref-num" id="num-amco">→ {{ num_amco or '—' }}</span>
+                </div>
+                <div class="prefijo-btn" id="btn-manual" onclick="seleccionarPrefijo('MANUAL')">
+                  <span class="pref-code">OTRO</span>
+                  <span class="pref-label">Número personalizado</span>
+                  <span class="pref-num">→ digitar manualmente</span>
+                </div>
               </div>
-              <div class="prefijo-btn" id="btn-amco" onclick="seleccionarPrefijo('AM-CO')">
-                <span class="pref-code">AM-CO</span>
-                <span class="pref-label">Equipo en acomodato</span>
-                <span class="pref-num" id="num-amco">→ {{ num_amco or '—' }}</span>
+
+              {# Input manual — visible solo cuando se elige OTRO #}
+              <div id="manualWrap" style="display:none; margin-bottom:1.25rem;">
+                <div class="adm-form-group">
+                  <label class="adm-form-label">
+                    Número de inventario personalizado <span class="req">*</span>
+                  </label>
+                  <input type="text" name="numero_inventario_manual" id="inputNumManual"
+                        class="adm-form-control"
+                        maxlength="{{ limites.numero_inventario }}"
+                        placeholder="Ej. EQ-ME0042 o cualquier formato existente"
+                        oninput="document.getElementById('previewNumInv').textContent = this.value || 'EQ-XXXXX'">
+                </div>
               </div>
-            </div>
+              <input type="hidden" name="numero_manual_activo" id="inputManualActivo" value="0">
 
             {# Número que se asignará #}
             <div class="num-inventario-display">
@@ -385,6 +419,7 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
                 <div class="ac-wrap">
                   <input type="text" name="equipo_unidad" id="acEquipo"
                          class="adm-form-control required"
+                         maxlength="{{ limites.equipo_unidad }}"
                          placeholder="Ej. Monitor de Signos Vitales"
                          autocomplete="off" required>
                   <div class="ac-list" id="acEquipoList"></div>
@@ -397,6 +432,7 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
                 <div class="ac-wrap">
                   <input type="text" name="marca" id="acMarca"
                          class="adm-form-control"
+                         maxlength="{{ limites.marca }}"
                          placeholder="Ej. Mindray"
                          autocomplete="off">
                   <div class="ac-list" id="acMarcaList"></div>
@@ -409,6 +445,7 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
                 <div class="ac-wrap">
                   <input type="text" name="modelo" id="acModelo"
                          class="adm-form-control"
+                         maxlength="{{ limites.modelo }}"
                          placeholder="Ej. BeneVision N15"
                          autocomplete="off">
                   <div class="ac-list" id="acModeloList"></div>
@@ -420,15 +457,30 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
                 <label class="adm-form-label">Número de serie</label>
                 <input type="text" name="numero_serie"
                        class="adm-form-control"
+                       maxlength="{{ limites.numero_serie }}"
                        placeholder="Ej. SN-2024-001234">
               </div>
 
               {# Área #}
               <div class="adm-form-group">
-                <label class="adm-form-label">Área</label>
-                <input type="text" name="area"
-                       class="adm-form-control"
-                       placeholder="Ej. Piso 2 Ala Norte">
+                <label class="adm-form-label">Área <span class="req">*</span></label>
+                <select name="area" id="selectArea"
+                        class="adm-form-control required"
+                        onchange="actualizarPreviewDepto(this.value)" required>
+                  <option value="">— Seleccionar área —</option>
+                  {% for a in areas %}
+                  <option value="{{ a }}">{{ a }}</option>
+                  {% endfor %}
+                  <option value="__otro__">+ Otra (escribir nueva)</option>
+                </select>
+              </div>
+              <div class="adm-form-group" id="areaOtroWrap" style="display:none;">
+                <label class="adm-form-label">Nueva área <span class="req">*</span></label>
+                <input type="text" name="area_nueva" id="areaOtroInput"
+                      class="adm-form-control"
+                      maxlength="{{ limites.area }}"
+                      placeholder="Escribe el nombre del área"
+                      oninput="actualizarPreviewDepto(this.value)">
               </div>
 
             </div>
@@ -454,6 +506,7 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
                 <label class="adm-form-label">Nuevo departamento <span class="req">*</span></label>
                 <input type="text" name="departamento_nuevo" id="deptoOtroInput"
                        class="adm-form-control"
+                       maxlength="{{ limites.departamento }}"
                        placeholder="Escribe el nombre del departamento">
               </div>
             </div>
@@ -511,6 +564,7 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
                 <label class="adm-form-label">Nueva propiedad</label>
                 <input type="text" name="propiedad_nueva" id="propiedadOtroInput"
                        class="adm-form-control"
+                       maxlength="{{ limites.propiedad }}"
                        placeholder="Escribe la propiedad">
               </div>
 
@@ -532,9 +586,13 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
 
             {# Observaciones #}
             <div class="adm-section-label"><i class="fas fa-comment-alt"></i> Observaciones</div>
-            <textarea name="observaciones" class="adm-form-control"
+            <textarea name="observaciones" id="txtObservaciones"
+                      class="adm-form-control cuenta-caracteres"
+                      maxlength="{{ limites.observaciones }}"
+                      data-contador="cntObservaciones"
                       placeholder="Notas adicionales sobre el equipo…"
                       rows="3"></textarea>
+            <div class="char-counter"><span id="cntObservaciones">0</span> / {{ limites.observaciones }}</div>
 
           </div>
         </div>
@@ -565,6 +623,10 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
                 <span class="pref-code" style="font-size:0.85rem;">{{ emp }}</span>
               </div>
               {% endfor %}
+              <div class="prefijo-btn" id="btn-emp-5"
+                  onclick="seleccionarEmpresa('N/A', 5)">
+                <span class="pref-code" style="font-size:0.85rem;">N/A</span>
+              </div>
             </div>
             <input type="hidden" name="empresa_responsable" id="inputEmpresa" value="">
 
@@ -602,10 +664,12 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
               <tr class="acc-row">
                 <td style="padding:6px 4px;">
                   <input type="text" name="acc_descripcion"
-                        class="adm-form-control" placeholder="Ej. Cable ECG 5 derivaciones">
+                        class="adm-form-control"
+                        maxlength="{{ limites.acc_descripcion }}"
+                        placeholder="Ej. Cable ECG 5 derivaciones">
                 </td>
                 <td style="padding:6px 4px;">
-                  <input type="number" name="acc_cantidad" min="1" value="1"
+                  <input type="number" name="acc_cantidad" min="1" max="999" value="1"
                         class="adm-form-control" style="text-align:center;">
                 </td>
                 <td style="padding:6px 4px;">
@@ -646,13 +710,38 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
           <span class="adm-panel-title">Observaciones del reporte de alta</span>
         </div>
         <div class="adm-panel-body">
-          <textarea name="obs_reporte" class="adm-form-control"
+          <textarea name="obs_reporte" id="txtObsReporte"
+                    class="adm-form-control cuenta-caracteres"
+                    maxlength="{{ limites.obs_reporte }}"
+                    data-contador="cntObsReporte"
                     placeholder="Notas específicas para el reporte de alta (verificaciones, estado del embalaje, etc.)…"
                     rows="3"></textarea>
+          <div class="char-counter"><span id="cntObsReporte">0</span> / {{ limites.obs_reporte }}</div>
           <p style="font-size:0.7rem;color:var(--adm-muted);margin-top:6px;">
             <i class="fas fa-info-circle me-1"></i>
             Este campo solo aparece en el reporte PDF, no en la ficha del equipo.
           </p>
+        </div>
+      </div>
+
+      {# PANEL — Firmas #}
+      <div class="adm-panel">
+        <div class="adm-panel-header">
+          <i class="fas fa-pen-nib" style="color:rgba(255,255,255,0.8)"></i>
+          <span class="adm-panel-title">Firmas de recepción</span>
+        </div>
+        <div class="adm-panel-body">
+          <p style="font-size:0.75rem;color:var(--adm-muted);margin:0 0 14px;">
+            <i class="fas fa-info-circle me-1"></i>
+            Ambas firmas son opcionales aquí. Lo que no se firme ahora queda
+            <strong>pendiente</strong> y se puede cerrar después desde el reporte del equipo.
+          </p>
+
+          {{ firma_pendiente('entrega', 'Entrega / Responsable',
+                             nombre_prefill=firma_entrega_nombre,
+                             limite=limites.firma_nombre) }}
+          {{ firma_pendiente('recibe', 'Recibe / Responsable de Área',
+                             limite=limites.firma_nombre) }}
         </div>
       </div>
         {# FORM ACTIONS — pie del form #}
@@ -688,7 +777,7 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
               <div class="adm-dropzone-text">
                 Arrastra o <strong>selecciona</strong> imagen
               </div>
-              <div class="adm-dropzone-hint">JPG, PNG, WEBP — máx 2MB</div>
+              <div class="adm-dropzone-hint">JPG, PNG, WEBP — se comprime automáticamente si pesa más de 2MB</div>
               <div class="adm-dropzone-name" id="imgName"></div>
             </div>
 
@@ -771,6 +860,7 @@ textarea.adm-form-control { resize:vertical; min-height:80px; }
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='Js/firma_pad.js') }}"></script>
 <script>
 const AC_DATA = {
   equipos: {{ equipos_ac | tojson }},
@@ -815,12 +905,24 @@ const DEPTO_MAP = {
 
 /* ══ PREFIJO ══ */
 function seleccionarPrefijo(pref) {
-  document.getElementById('inputPrefijo').value = pref;
+  const esManual = pref === 'MANUAL';
+  document.getElementById('inputPrefijo').value         = esManual ? '' : pref;
+  document.getElementById('inputManualActivo').value    = esManual ? '1' : '0';
+  document.getElementById('manualWrap').style.display   = esManual ? 'block' : 'none';
+
   document.getElementById('btn-eqme').classList.toggle('active', pref === 'EQ-ME');
   document.getElementById('btn-amco').classList.toggle('active', pref === 'AM-CO');
-  const num = NUMS[pref] || '—';
-  document.getElementById('numDisplay').textContent = num;
-  document.getElementById('previewNumInv').textContent = num || 'EQ-XXXXX';
+  document.getElementById('btn-manual').classList.toggle('active', esManual);
+
+  if (!esManual) {
+    const num = NUMS[pref] || '—';
+    document.getElementById('numDisplay').textContent       = num;
+    document.getElementById('previewNumInv').textContent    = num || 'EQ-XXXXX';
+    document.getElementById('inputNumManual').value         = '';
+  } else {
+    document.getElementById('numDisplay').textContent       = 'Manual';
+    document.getElementById('previewNumInv').textContent    = 'EQ-XXXXX';
+  }
 }
 
 /* ══ ESTADO ══ */
@@ -852,6 +954,19 @@ function toggleOtro(campo) {
     if (show) inp.focus();
   }
 }
+document.getElementById('selectArea').addEventListener('change', function() {
+  const wrap = document.getElementById('areaOtroWrap');
+  const inp  = document.getElementById('areaOtroInput');
+  const esOtro = this.value === '__otro__';
+  wrap.style.display = esOtro ? 'block' : 'none';
+  inp.required = esOtro;
+  if (esOtro) {
+    inp.focus();
+    actualizarPreviewDepto('');
+  } else {
+    actualizarPreviewDepto(this.value);
+  }
+});
 
 /* ══ PREVIEW TARJETA — departamento ══ */
 function actualizarPreviewDepto(depto) {
@@ -978,11 +1093,8 @@ setupAC('acModelo', 'acModeloList', q => {
 function handleImgChange(input) {
   if (!input.files || !input.files[0]) return;
   const file = input.files[0];
-  if (file.size > 2 * 1024 * 1024) {
-    alert('La imagen supera 2MB. Selecciona una más pequeña.');
-    input.value = '';
-    return;
-  }
+  // Sin bloqueo por tamaño: el servidor comprime automáticamente
+  // igual que en la edición de imagen de un equipo existente.
   const reader = new FileReader();
   reader.onload = e => {
     document.getElementById('imgPreview').src = e.target.result;
@@ -1050,11 +1162,36 @@ function seleccionarEmpresa(valor, idx) {
   document.getElementById('btn-emp-' + idx).classList.add('active');
 }
 
+/* ══ CONTADOR DE CARACTERES ══ */
+document.querySelectorAll('.cuenta-caracteres').forEach(campo => {
+  const salida = document.getElementById(campo.dataset.contador);
+  if (!salida) return;
+  const caja  = salida.parentElement;
+  const tope  = parseInt(campo.getAttribute('maxlength'), 10);
+
+  const pintar = () => {
+    const usados = campo.value.length;
+    salida.textContent = usados;
+    caja.classList.toggle('tope', usados >= tope);
+    caja.classList.toggle('cerca', usados >= tope * 0.9 && usados < tope);
+  };
+  campo.addEventListener('input', pintar);
+  pintar();
+});
+
 /* ══ TABLA ACCESORIOS ══ */
+const MAX_ACCESORIOS = {{ max_accesorios }};
+
 function agregarFila() {
   const tbody = document.getElementById('accesoriosBody');
-  const primera = tbody.querySelector('.acc-row');
-  const nueva = primera.cloneNode(true);
+  const filas = tbody.querySelectorAll('.acc-row');
+  // Tope de filas: más allá de esto el bloque de accesorios se come el
+  // reporte, y el servidor las recorta de todos modos.
+  if (filas.length >= MAX_ACCESORIOS) {
+    alert('Máximo ' + MAX_ACCESORIOS + ' accesorios por reporte de alta.');
+    return;
+  }
+  const nueva = filas[0].cloneNode(true);
   // limpiar valores de la copia
   nueva.querySelector('input[name="acc_descripcion"]').value = '';
   nueva.querySelector('input[name="acc_cantidad"]').value    = '1';

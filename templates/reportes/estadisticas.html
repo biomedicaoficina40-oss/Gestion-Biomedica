@@ -1,0 +1,227 @@
+{% extends 'base.html' %}
+{% import 'reportes/_graficas.html' as g %}
+{% block title %}Estadísticas · Ingeniería Biomédica{% endblock %}
+
+{% block customCSS %}
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   Dashboard de estadísticas.
+
+   Mismos tokens que listado.html (--rep-*, de base.html): es la otra mitad
+   del Centro de Reportes, la que responde "qué pasó" en vez de "qué hay".
+
+   Gráficas como SVG generado por macro (ver _graficas.html), sin librería:
+   un matiz para magnitud, categórico solo donde hay series que distinguir.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.est-wrap { max-width: 1100px; margin: 0 auto; padding: 0 2px; }
+
+.est-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+.est-head-icon {
+  width: 46px; height: 46px; flex: 0 0 46px; border-radius: 12px;
+  background: var(--hospital-primary); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 20px;
+}
+.est-title    { font-size: 1.45rem; font-weight: 700; color: #1f2d3a; margin: 0; line-height: 1.2; }
+.est-subtitle { font-size: .87rem; color: #6b7c8a; margin: 2px 0 0; }
+
+.est-filtros { display: flex; gap: 7px; margin-left: auto; }
+.est-filtro {
+  min-height: 38px; padding: 8px 14px; border-radius: 20px; font-size: .82rem;
+  font-weight: 600; text-decoration: none; color: #6b7c8a;
+  border: 1px solid #e6ecef; background: #fff;
+}
+.est-filtro:hover  { border-color: var(--hospital-primary); color: var(--hospital-primary); }
+.est-filtro.activo { background: var(--hospital-primary); border-color: var(--hospital-primary); color: #fff; }
+
+/* ── KPI ─────────────────────────────────────────────────── */
+.est-kpis { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.est-kpi {
+  flex: 1 1 150px; background: #fff; border: 1px solid #e6ecef; border-radius: 13px;
+  padding: 14px 16px; box-shadow: 0 1px 3px rgba(16,32,45,.06);
+}
+.est-kpi-valor { font-size: 1.6rem; font-weight: 700; color: #1f2d3a; line-height: 1.1;
+                font-variant-numeric: proportional-nums; }
+.est-kpi-label { font-size: .74rem; color: #6b7c8a; text-transform: uppercase;
+                letter-spacing: .3px; margin-top: 4px; }
+.est-kpi-sub   { font-size: .72rem; color: #a8bcc7; margin-top: 2px; }
+
+/* ── Tarjetas de gráfica ─────────────────────────────────── */
+.est-card {
+  background: #fff; border: 1px solid #e6ecef; border-radius: 14px;
+  padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(16,32,45,.06);
+}
+.est-card-tit { font-size: .93rem; font-weight: 700; color: #1f2d3a; margin: 0 0 4px; }
+.est-card-sub { font-size: .78rem; color: #6b7c8a; margin: 0 0 12px; }
+.est-card-vacio { text-align: center; color: #6b7c8a; font-size: .85rem; padding: 20px 0; }
+
+.est-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.est-tabla-mini { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.est-tabla-mini td { padding: 7px 4px; border-bottom: 1px solid #f4f7f9; }
+.est-tabla-mini a { color: #1f2d3a; text-decoration: none; }
+.est-tabla-mini a:hover { color: var(--hospital-primary); }
+.est-tabla-mini .est-num { text-align: right; font-weight: 600; white-space: nowrap; }
+
+.est-aviso {
+  background: var(--ble-warn-bg); color: var(--ble-warn-fg); border-radius: 10px;
+  padding: 11px 14px; font-size: .82rem; margin-bottom: 14px;
+}
+
+@media (max-width: 768px) {
+  .est-title { font-size: 1.2rem; }
+  .est-head-icon { width: 40px; height: 40px; flex-basis: 40px; font-size: 17px; }
+  .est-filtros { margin-left: 0; width: 100%; }
+  .est-filtro { flex: 1; text-align: center; }
+  .est-grid-2 { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="est-wrap">
+
+  <div class="est-head">
+    <div class="est-head-icon"><i class="fas fa-chart-line"></i></div>
+    <div>
+      <h1 class="est-title">Estadísticas</h1>
+      <p class="est-subtitle">Sobre los reportes ya liberados</p>
+    </div>
+    <div class="est-filtros">
+      {% for n in (6, 12, 24) %}
+      <a class="est-filtro {{ 'activo' if meses == n }}"
+         href="{{ url_for('reportes.estadisticas', meses=n) }}">{{ n }} meses</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if not ver_costos %}
+  <div class="est-aviso">
+    <i class="fas fa-circle-info"></i>
+    Las cifras de costo son solo para Biomédico y Administrador. El resto de
+    este dashboard (tiempos de atención, causas, equipos reincidentes) se
+    muestra igual para todos.
+  </div>
+  {% endif %}
+
+  {# ── KPI ──────────────────────────────────────────────── #}
+  <div class="est-kpis">
+    <div class="est-kpi">
+      <div class="est-kpi-valor">{{ snapshot.preventivos }}</div>
+      <div class="est-kpi-label">Preventivos liberados</div>
+    </div>
+    <div class="est-kpi">
+      <div class="est-kpi-valor">{{ snapshot.correctivos }}</div>
+      <div class="est-kpi-label">Correctivos liberados</div>
+    </div>
+    <div class="est-kpi">
+      <div class="est-kpi-valor">
+        {{ '%.1f'|format(mttr.horas) if mttr.horas is not none else '—' }}
+        {%- if mttr.horas is not none %} h{% endif %}
+      </div>
+      <div class="est-kpi-label">MTTR</div>
+      <div class="est-kpi-sub">tiempo de atención promedio{% if mttr.n %} · {{ mttr.n }} correctivos{% endif %}</div>
+    </div>
+    <div class="est-kpi">
+      <div class="est-kpi-valor">
+        {{ '%.0f'|format(mtbf.dias) if mtbf.dias is not none else '—' }}
+        {%- if mtbf.dias is not none %} d{% endif %}
+      </div>
+      <div class="est-kpi-label">MTBF</div>
+      <div class="est-kpi-sub">entre correctivos del mismo equipo</div>
+    </div>
+    {% if ver_costos %}
+    <div class="est-kpi">
+      <div class="est-kpi-valor">{{ g.pesos_compacto(snapshot.costo_total) }}</div>
+      <div class="est-kpi-label">Costo total</div>
+      <div class="est-kpi-sub">últimos {{ meses }} meses</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if ver_costos %}
+  {# ── Costo por período ──────────────────────────────────── #}
+  <div class="est-card">
+    <h2 class="est-card-tit">Costo por período</h2>
+    <p class="est-card-sub">Refacciones, consumibles y mano de obra facturados en reportes liberados</p>
+    {% if costo_periodo and costo_periodo|sum(attribute='total') > 0 %}
+      {{ g.columnas_periodo(costo_periodo, 'total') }}
+    {% else %}
+      <div class="est-card-vacio">Sin costos registrados en este período.</div>
+    {% endif %}
+  </div>
+
+  {# ── Preventivo vs correctivo ────────────────────────────── #}
+  <div class="est-card">
+    <h2 class="est-card-tit">Preventivo vs. correctivo</h2>
+    <p class="est-card-sub">Costo mensual por tipo de mantenimiento</p>
+    {% if maximo_apilado > 1 %}
+      {{ g.columnas_apiladas(costo_prev_vs_corr, [('preventivo', 'Preventivo'), ('correctivo', 'Correctivo')], maximo_apilado) }}
+    {% else %}
+      <div class="est-card-vacio">Sin costos registrados en este período.</div>
+    {% endif %}
+  </div>
+
+  <div class="est-grid-2">
+    <div class="est-card">
+      <h2 class="est-card-tit">Equipos con más costo acumulado</h2>
+      <p class="est-card-sub">Últimos {{ meses }} meses</p>
+      {% if costo_equipo %}
+        {{ g.barras_horizontales(costo_equipo, 'total', 'nombre', formato='pesos') }}
+      {% else %}
+        <div class="est-card-vacio">Sin costos registrados en este período.</div>
+      {% endif %}
+    </div>
+    <div class="est-card">
+      <h2 class="est-card-tit">Costo por clase de gasto</h2>
+      <p class="est-card-sub">Refacción, consumible, mano de obra…</p>
+      {% if costo_clase %}
+        {{ g.barras_horizontales(costo_clase, 'total', 'etiqueta', formato='pesos') }}
+      {% else %}
+        <div class="est-card-vacio">Sin costos registrados en este período.</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="est-grid-2">
+    <div class="est-card">
+      <h2 class="est-card-tit">Causas de demora más frecuentes</h2>
+      <p class="est-card-sub">Correctivos liberados, todo el historial</p>
+      {% if causas_demora %}
+        {{ g.barras_horizontales(causas_demora, 'n', 'nombre') }}
+      {% else %}
+        <div class="est-card-vacio">Sin correctivos con causa de demora registrada.</div>
+      {% endif %}
+    </div>
+    <div class="est-card">
+      <h2 class="est-card-tit">Modo de falla más frecuente</h2>
+      <p class="est-card-sub">Correctivos liberados, todo el historial</p>
+      {% if tipos_falla %}
+        {{ g.barras_horizontales(tipos_falla, 'n', 'nombre') }}
+      {% else %}
+        <div class="est-card-vacio">Sin correctivos con tipo de falla registrado.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Equipos reincidentes ───────────────────────────────── #}
+  <div class="est-card">
+    <h2 class="est-card-tit">Equipos reincidentes</h2>
+    <p class="est-card-sub">Más de un correctivo en los últimos {{ meses }} meses</p>
+    {% if reincidentes %}
+    <table class="est-tabla-mini">
+      {% for eq in reincidentes %}
+      <tr>
+        <td><a href="{{ url_for('reportes.expediente', equipo_id=eq.id) }}">{{ eq.nombre }}</a>
+          <span style="color:#a8bcc7;font-size:.78rem"> · {{ eq.inventario }}</span></td>
+        <td class="est-num">{{ eq.n }} correctivos</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <div class="est-card-vacio">Ningún equipo tuvo más de un correctivo en este período.</div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

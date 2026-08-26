@@ -1,0 +1,37 @@
+{% extends 'reportes/pdf/_base_pdf.html' %}
+{% import 'reportes/pdf/_macros.html' as m %}
+
+{% block titulo_doc %}Reporte de Mantenimiento {{ tipo_servicio_txt or 'Preventivo' }}{% endblock %}
+
+{% block cuerpo %}
+{# Las secciones marcadas .blq se numeran en orden para que el motor pueda
+   decidir antes de cuál cortar y repartir el contenido entre las hojas. El
+   contador solo avanza con lo que REALMENTE se imprime, así que el índice N
+   siempre es el N-ésimo bloque del documento. #}
+{% set ns = namespace(blq=0) %}
+
+{# ── Meta: fecha, tipo de servicio y área ── #}
+<table class="meta-row">
+  <tr>
+    <td style="width:34%">
+      <div class="meta-lbl">Fecha del servicio</div>
+      <div class="meta-val">{{ fecha_txt or ph }}</div>
+    </td>
+    <td style="width:33%">
+      <div class="meta-lbl">Tipo de servicio</div>
+      <div class="meta-val">{{ tipo_servicio_txt or 'Preventivo' }}</div>
+    </td>
+    <td style="width:33%">
+      <div class="meta-lbl">Área</div>
+      <div class="meta-val">{{ area_nombre or eq.area or ph }}</div>
+    </td>
+  </tr>
+</table>
+
+{{ m.identificacion_equipo(ns, corte_en, eq, ph) }}
+{{ m.texto_largo(ns, corte_en, 'Descripción del trabajo realizado', descripcion_trabajo, relleno) }}
+{{ m.refacciones(ns, corte_en, lineas, ver_costos, totales) }}
+{{ m.texto_largo(ns, corte_en, 'Observaciones', observaciones, relleno) }}
+{{ m.notas(ns, corte_en, notas_pdf) }}
+{{ m.resultado(ns, corte_en, resultado_txt) }}
+{% endblock %}

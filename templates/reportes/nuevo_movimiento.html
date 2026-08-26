@@ -1,0 +1,334 @@
+{% extends 'base.html' %}
+{% block title %}{{ etiqueta }}{% endblock %}
+
+{% block customCSS %}
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   Apertura de una entrada o salida.
+
+   Se parece a nuevo.html (mismo patrón: buscar, elegir, abrir) con una
+   diferencia real: aquí se puede elegir MÁS de un equipo. Generalmente es
+   uno solo —por eso el buscador se ve igual de simple—, pero un lote que sale
+   completo a servicio externo necesita anotarlos todos bajo un solo folio.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.nv-wrap { max-width: 640px; margin: 0 auto; }
+
+.nv-head { display: flex; align-items: center; gap: 13px; margin-bottom: 20px; }
+.nv-head-icon {
+  width: 44px; height: 44px; flex: 0 0 44px; border-radius: 11px;
+  background: var(--hospital-primary); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 19px;
+}
+.nv-title { font-size: 1.3rem; font-weight: 700; color: #1f2d3a; margin: 0; }
+.nv-sub   { font-size: .86rem; color: #6b7c8a; margin: 2px 0 0; }
+
+.nv-card {
+  background: #fff; border: 1px solid #e6ecef; border-radius: 14px;
+  padding: 18px; box-shadow: 0 1px 3px rgba(16,32,45,.06);
+}
+.nv-label { display: block; font-size: .74rem; font-weight: 600; color: #6b7c8a;
+            text-transform: uppercase; letter-spacing: .3px; margin-bottom: 5px; }
+
+.nv-buscar-wrap { position: relative; }
+.nv-buscar {
+  width: 100%; min-height: 48px; padding: 12px 14px;
+  border: 1px solid #e6ecef; border-radius: 9px; font-size: 1rem;
+  background: #fbfdfe; color: #1f2d3a;
+}
+.nv-buscar:focus { outline: none; border-color: var(--hospital-primary);
+                   box-shadow: 0 0 0 3px rgba(61,144,174,.13); background: #fff; }
+
+.nv-sugerencias {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 30;
+  background: #fff; border: 1px solid #e6ecef; border-radius: 9px;
+  margin-top: 4px; max-height: 320px; overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(16,32,45,.14); display: none;
+}
+.nv-sugerencias.abierto { display: block; }
+.nv-sug {
+  display: block; width: 100%; text-align: left; border: none; background: none;
+  padding: 11px 13px; border-bottom: 1px solid #f4f7f9; cursor: pointer;
+  min-height: 52px;
+}
+.nv-sug:last-child { border-bottom: none; }
+.nv-sug:hover, .nv-sug.marcado { background: #f0f9fc; }
+.nv-sug-nom { font-weight: 500; color: #1f2d3a; font-size: .93rem; }
+.nv-sug-meta { font-size: .78rem; color: #6b7c8a; margin-top: 2px; }
+.nv-sug-inv { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.nv-sug-vacio { padding: 16px 13px; color: #6b7c8a; font-size: .87rem; text-align: center; }
+.nv-sug.nv-sug-agregado { opacity: .4; cursor: default; }
+
+/* ── Equipos elegidos: lista, no una sola tarjeta ───────────── */
+.nv-elegidos { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.nv-chip {
+  display: flex; align-items: center; gap: 12px; padding: 11px 13px;
+  border: 1px solid var(--ble-ok-fg); border-radius: 10px; background: var(--ble-ok-bg);
+}
+.nv-chip-img { width: 44px; height: 44px; border-radius: 8px; object-fit: cover;
+               flex: 0 0 44px; background: #fff; border: 1px solid #d7e3e8; }
+.nv-chip-ph  { width: 44px; height: 44px; border-radius: 8px; flex: 0 0 44px;
+               background: #fff; border: 1px solid #d7e3e8; display: flex;
+               align-items: center; justify-content: center; color: #a8bcc7; }
+.nv-chip-nom { font-weight: 600; color: #065f46; font-size: .93rem; }
+.nv-chip-meta{ font-size: .78rem; color: #047857; margin-top: 1px; }
+.nv-chip-quitar { margin-left: auto; background: none; border: none; color: #065f46;
+                  font-size: 1.05rem; cursor: pointer; min-width: 44px; min-height: 44px; }
+.nv-sin-equipos { font-size: .85rem; color: #6b7c8a; padding: 12px 0; text-align: center; }
+
+.nv-campos { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.nv-campo  { flex: 1 1 180px; min-width: 0; }
+.nv-select {
+  width: 100%; min-height: 44px; padding: 9px 11px;
+  border: 1px solid #e6ecef; border-radius: 9px; font-size: .9rem; background: #fff;
+}
+
+.nv-acciones { display: flex; gap: 9px; margin-top: 20px; }
+.nv-btn {
+  min-height: 48px; padding: 12px 20px; border-radius: 9px; font-size: .93rem;
+  font-weight: 600; cursor: pointer; border: 1px solid #e6ecef; background: #fff;
+  color: #1f2d3a; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+.nv-btn-primary { background: var(--hospital-primary); border-color: var(--hospital-primary); color: #fff; flex: 1; }
+.nv-btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+.nv-btn-primary:hover:not(:disabled) { color: #fff; opacity: .93; }
+
+.nv-hint { font-size: .82rem; color: #6b7c8a; margin-top: 9px; }
+
+@media (max-width: 768px) {
+  .nv-title { font-size: 1.12rem; }
+  .nv-campo { flex: 1 1 100%; }
+  .nv-acciones { flex-direction: column-reverse; }
+  .nv-btn { width: 100%; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="nv-wrap">
+
+  <div class="nv-head">
+    <div class="nv-head-icon">
+      <i class="fas fa-{{ 'right-to-bracket' if tipo == 'entrada' else 'right-from-bracket' }}"></i>
+    </div>
+    <div>
+      <h1 class="nv-title">Abrir {{ etiqueta|lower }}</h1>
+      <p class="nv-sub">Agrega el equipo o los equipos del movimiento</p>
+    </div>
+  </div>
+
+  <form method="POST" class="nv-card" id="nvForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div id="nvOcultos">
+      {% if equipo_inicial %}
+      <input type="hidden" name="equipo_ids" value="{{ equipo_inicial.id }}">
+      {% endif %}
+    </div>
+
+    <label class="nv-label" for="nvBuscar">Buscar equipo</label>
+    <div class="nv-buscar-wrap">
+      <input type="search" id="nvBuscar" class="nv-buscar" autocomplete="off"
+             placeholder="Número de inventario, serie o nombre del equipo"
+             aria-label="Buscar equipo" aria-autocomplete="list">
+      <div class="nv-sugerencias" id="nvSugerencias" role="listbox"></div>
+    </div>
+    <p class="nv-hint">
+      Agrega uno o varios. Generalmente es uno solo; si el movimiento es de un
+      lote completo, sigue buscando y agregando.
+    </p>
+
+    <div class="nv-elegidos" id="nvElegidos">
+      {% if equipo_inicial %}
+      <div class="nv-chip" data-chip="{{ equipo_inicial.id }}">
+        {% if equipo_inicial.imagen %}
+          <img class="nv-chip-img"
+               src="{{ url_for('static', filename='uploads/' ~ equipo_inicial.imagen) }}" alt="">
+        {% else %}
+          <div class="nv-chip-ph"><i class="fas fa-cube"></i></div>
+        {% endif %}
+        <div>
+          <div class="nv-chip-nom">{{ equipo_inicial.equipo_unidad }}</div>
+          <div class="nv-chip-meta">
+            {{ equipo_inicial.numero_inventario }}
+            {%- if equipo_inicial.marca %} · {{ equipo_inicial.marca }}{% endif %}
+          </div>
+        </div>
+        <button type="button" class="nv-chip-quitar" data-quitar-chip aria-label="Quitar equipo">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      {% else %}
+      <div class="nv-sin-equipos" id="nvSinEquipos">Sin equipos agregados todavía.</div>
+      {% endif %}
+    </div>
+
+    <div class="nv-campos">
+      <div class="nv-campo">
+        <label class="nv-label" for="nvArea">Área</label>
+        <select class="nv-select" name="area_id" id="nvArea">
+          <option value="">La del equipo</option>
+          {% for area in catalogos.areas %}
+            <option value="{{ area.id }}">{{ area.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="nv-campo">
+        <label class="nv-label" for="nvTecnico">Técnico</label>
+        <select class="nv-select" name="tecnico_id" id="nvTecnico">
+          <option value="">Sin asignar</option>
+          {% for tecnico in catalogos.tecnicos %}
+            <option value="{{ tecnico.id }}">{{ tecnico.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="nv-acciones">
+      <a class="nv-btn" href="{{ url_for('reportes.centro') }}">Cancelar</a>
+      <button type="submit" class="nv-btn nv-btn-primary" id="nvAbrir"
+              {{ 'disabled' if not equipo_inicial }}>
+        <i class="fas fa-folder-plus"></i> Abrir expediente
+      </button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+
+  const campo    = document.getElementById('nvBuscar');
+  const lista    = document.getElementById('nvSugerencias');
+  const elegidos = document.getElementById('nvElegidos');
+  const ocultos  = document.getElementById('nvOcultos');
+  const abrir    = document.getElementById('nvAbrir');
+  const sinEquipos = document.getElementById('nvSinEquipos');
+
+  let temporizador, marcado = -1, resultados = [];
+
+  const esc = t => String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const yaElegido = id => !!elegidos.querySelector('[data-chip="' + id + '"]');
+
+  function refrescarBoton() {
+    abrir.disabled = !elegidos.querySelector('[data-chip]');
+  }
+
+  function pintar(items) {
+    resultados = items;
+    marcado = -1;
+    if (!items.length) {
+      lista.innerHTML = '<div class="nv-sug-vacio">Sin coincidencias</div>';
+      lista.classList.add('abierto');
+      return;
+    }
+    lista.innerHTML = items.map((eq, i) => `
+      <button type="button" class="nv-sug${yaElegido(eq.id) ? ' nv-sug-agregado' : ''}"
+              data-i="${i}" role="option">
+        <div class="nv-sug-nom">${esc(eq.equipo_unidad)}</div>
+        <div class="nv-sug-meta">
+          <span class="nv-sug-inv">${esc(eq.numero_inventario)}</span>
+          ${eq.marca ? ' · ' + esc(eq.marca) : ''}
+          ${eq.modelo ? ' ' + esc(eq.modelo) : ''}
+          ${eq.area ? ' · ' + esc(eq.area) : ''}
+          ${yaElegido(eq.id) ? ' · ya agregado' : ''}
+        </div>
+      </button>`).join('');
+    lista.classList.add('abierto');
+    lista.querySelectorAll('.nv-sug').forEach(b => {
+      b.addEventListener('click', () => agregar(resultados[+b.dataset.i]));
+    });
+  }
+
+  function agregar(eq) {
+    if (yaElegido(eq.id)) return;
+    if (sinEquipos) sinEquipos.remove();
+
+    const oculto = document.createElement('input');
+    oculto.type = 'hidden';
+    oculto.name = 'equipo_ids';
+    oculto.value = eq.id;
+    ocultos.appendChild(oculto);
+
+    const chip = document.createElement('div');
+    chip.className = 'nv-chip';
+    chip.dataset.chip = eq.id;
+    chip.innerHTML =
+      '<div class="nv-chip-ph"><i class="fas fa-cube"></i></div>' +
+      '<div><div class="nv-chip-nom">' + esc(eq.equipo_unidad) + '</div>' +
+      '<div class="nv-chip-meta">' + esc(eq.numero_inventario) +
+      (eq.marca ? ' · ' + esc(eq.marca) : '') + '</div></div>' +
+      '<button type="button" class="nv-chip-quitar" aria-label="Quitar equipo">' +
+      '<i class="fas fa-times"></i></button>';
+    chip.querySelector('[aria-label="Quitar equipo"]').addEventListener('click', () => quitar(eq.id));
+    elegidos.appendChild(chip);
+
+    refrescarBoton();
+    lista.classList.remove('abierto');
+    campo.value = '';
+    campo.focus();
+  }
+
+  function quitar(id) {
+    const chip = elegidos.querySelector('[data-chip="' + id + '"]');
+    if (chip) chip.remove();
+    const oculto = ocultos.querySelector('input[value="' + id + '"]');
+    if (oculto) oculto.remove();
+    if (!elegidos.querySelector('[data-chip]')) {
+      const vacio = document.createElement('div');
+      vacio.className = 'nv-sin-equipos';
+      vacio.textContent = 'Sin equipos agregados todavía.';
+      elegidos.appendChild(vacio);
+    }
+    refrescarBoton();
+  }
+
+  elegidos.querySelectorAll('[data-quitar-chip]').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const id = boton.closest('[data-chip]').dataset.chip;
+      quitar(id);
+    });
+  });
+
+  campo.addEventListener('input', () => {
+    clearTimeout(temporizador);
+    const termino = campo.value.trim();
+    if (termino.length < 2) { lista.classList.remove('abierto'); return; }
+    temporizador = setTimeout(() => {
+      fetch('{{ url_for("reportes.api_equipo") }}?q=' + encodeURIComponent(termino))
+        .then(r => r.json())
+        .then(pintar)
+        .catch(() => lista.classList.remove('abierto'));
+    }, 300);
+  });
+
+  campo.addEventListener('keydown', e => {
+    const opciones = lista.querySelectorAll('.nv-sug');
+    if (!opciones.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      marcado += (e.key === 'ArrowDown' ? 1 : -1);
+      if (marcado < 0) marcado = opciones.length - 1;
+      if (marcado >= opciones.length) marcado = 0;
+      opciones.forEach((o, i) => o.classList.toggle('marcado', i === marcado));
+      opciones[marcado].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter' && marcado >= 0) {
+      e.preventDefault();
+      agregar(resultados[marcado]);
+    } else if (e.key === 'Escape') {
+      lista.classList.remove('abierto');
+    }
+  });
+
+  document.addEventListener('click', e => {
+    if (!lista.contains(e.target) && e.target !== campo) {
+      lista.classList.remove('abierto');
+    }
+  });
+})();
+</script>
+{% endblock %}

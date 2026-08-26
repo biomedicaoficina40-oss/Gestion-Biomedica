@@ -1,0 +1,826 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard de Mantenimientos — Hospital Galenia{% endblock %}
+
+{% block customCSS %}
+<style>
+    /* ── Contadores superiores ── */
+    .contadores-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.75rem;
+    }
+    .contador-card {
+        background: #fff;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        padding: 1.1rem 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        border-left: 4px solid transparent;
+        cursor: pointer;
+        transition: box-shadow 0.2s, transform 0.15s;
+        text-decoration: none;
+    }
+    .contador-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .contador-card.activo { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+
+    .contador-card.total       { border-left-color: var(--hospital-primary); }
+    .contador-card.al-dia      { border-left-color: #198754; }
+    .contador-card.proximo     { border-left-color: #fd7e14; }
+    .contador-card.vencido     { border-left-color: #dc3545; }
+    .contador-card.sin-registro{ border-left-color: #adb5bd; }
+
+    .contador-numero {
+        font-size: 1.9rem;
+        font-weight: 700;
+        line-height: 1;
+        color: #212529;
+    }
+    .contador-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #6c757d;
+    }
+    .contador-icon {
+        font-size: 1.1rem;
+        margin-bottom: 0.2rem;
+    }
+    .total       .contador-icon { color: var(--hospital-primary); }
+    .al-dia      .contador-icon { color: #198754; }
+    .proximo     .contador-icon { color: #fd7e14; }
+    .vencido     .contador-icon { color: #dc3545; }
+    .sin-registro .contador-icon{ color: #adb5bd; }
+
+    /* ── Trabajo en proceso ── */
+    .proceso-bloque {
+        background: #fff; border: 1px solid #e6ecef; border-left: 3px solid #3b82f6;
+        border-radius: 0.7rem; padding: 0.85rem 0.9rem; margin-bottom: 1rem;
+    }
+    .proceso-cab { display: flex; align-items: center; justify-content: space-between;
+                   gap: 0.6rem; margin-bottom: 0.7rem; }
+    .proceso-tit { font-size: 0.9rem; font-weight: 700; color: #1f2d3a;
+                   display: flex; align-items: center; gap: 0.45rem; }
+    .proceso-tit i { color: #3b82f6; }
+    .proceso-cuenta { background: #dbeafe; color: #1e40af; border-radius: 999px;
+                      padding: 0.05rem 0.5rem; font-size: 0.74rem; }
+    .proceso-todos { font-size: 0.79rem; color: var(--hospital-primary);
+                     text-decoration: none; white-space: nowrap; }
+    .proceso-todos:hover { text-decoration: underline; }
+    /* Tira horizontal: en un teléfono caben dos y se arrastra; apilarlas
+       empujaría la lista de pendientes fuera de la primera pantalla. */
+    .proceso-tira { display: flex; gap: 0.55rem; overflow-x: auto;
+                    padding-bottom: 0.25rem; -webkit-overflow-scrolling: touch; }
+    .proceso-card {
+        flex: 0 0 auto; min-width: 190px; max-width: 240px;
+        border: 1px solid #e6ecef; border-radius: 0.6rem; padding: 0.6rem 0.7rem;
+        text-decoration: none; display: flex; flex-direction: column; gap: 0.1rem;
+        background: #f8fbfd;
+    }
+    .proceso-card:hover { border-color: #3b82f6; background: #f0f7ff; }
+    .proceso-folio { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                     font-size: 0.78rem; font-weight: 700; color: #1e40af; }
+    .proceso-equipo { font-size: 0.85rem; color: #1f2d3a; font-weight: 500;
+                      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .proceso-meta { font-size: 0.72rem; color: #6b7c8a; }
+    .proceso-ir { font-size: 0.75rem; font-weight: 600; color: var(--hospital-primary);
+                  margin-top: 0.3rem; }
+
+    /* ── Barra de filtros ── */
+    .filtros-bar {
+        background: #fff;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        flex-wrap: wrap;
+    }
+    .filtros-bar label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+    }
+    .filtros-bar .form-select,
+    .filtros-bar .form-control {
+        font-size: 0.85rem;
+        border-radius: 0.5rem;
+        border: 1.5px solid #dee2e6;
+        padding: 0.4rem 0.75rem;
+        min-width: 160px;
+        transition: border-color 0.2s;
+    }
+    .filtros-bar .form-select:focus,
+    .filtros-bar .form-control:focus {
+        border-color: var(--hospital-primary);
+        box-shadow: 0 0 0 3px rgba(61,144,174,0.15);
+        outline: none;
+    }
+    .btn-filtrar {
+        background: var(--hospital-primary);
+        color: white; border: none;
+        border-radius: 0.5rem;
+        padding: 0.45rem 1rem;
+        font-size: 0.85rem; font-weight: 500;
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        cursor: pointer;
+        transition: background 0.2s;
+        white-space: nowrap;
+    }
+    .btn-filtrar:hover { background: #2e7a96; }
+    .btn-limpiar {
+        background: transparent;
+        color: #6c757d;
+        border: 1.5px solid #dee2e6;
+        border-radius: 0.5rem;
+        padding: 0.45rem 0.85rem;
+        font-size: 0.85rem;
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        text-decoration: none;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+    .btn-limpiar:hover { color: var(--hospital-primary); border-color: var(--hospital-primary); }
+
+    /* ── Tabla ── */
+    .tabla-card {
+        background: #fff;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        overflow: hidden;
+    }
+    .tabla-card-header {
+        padding: 0.9rem 1.25rem;
+        border-bottom: 1px solid rgba(0,0,0,0.06);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .tabla-card-header h5 {
+        font-size: 0.92rem; font-weight: 600;
+        color: #212529; margin: 0;
+        display: flex; align-items: center; gap: 0.5rem;
+    }
+    .tabla-card-header h5 i { color: var(--hospital-primary); }
+    .tabla-total-badge {
+        font-size: 0.78rem;
+        background: rgba(61,144,174,0.1);
+        color: var(--hospital-primary);
+        padding: 0.25rem 0.65rem;
+        border-radius: 999px;
+        font-weight: 600;
+    }
+
+    /* Scroll horizontal en móvil */
+    .tabla-responsive-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    table.mant-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+        min-width: 700px;
+    }
+    table.mant-table thead th {
+        padding: 0.7rem 1rem;
+        text-align: left;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #6c757d;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        white-space: nowrap;
+    }
+    table.mant-table tbody td {
+        padding: 0.85rem 1rem;
+        border-bottom: 1px solid #f1f3f5;
+        vertical-align: middle;
+        color: #212529;
+    }
+    table.mant-table tbody tr:last-child td { border-bottom: none; }
+    table.mant-table tbody tr:hover { background: rgba(61,144,174,0.03); }
+
+    /* Nombre del equipo en tabla */
+    .equipo-nombre {
+        font-weight: 600;
+        color: #212529;
+        display: block;
+        margin-bottom: 0.1rem;
+    }
+    .equipo-sub {
+        font-size: 0.75rem;
+        color: #adb5bd;
+    }
+
+    /* ── Badges de estado ── */
+    .estado-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.28rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .estado-al_dia        { background: rgba(25,135,84,0.1);   color: #198754; }
+    .estado-proximo       { background: rgba(253,126,20,0.1);  color: #fd7e14; }
+    .estado-vencido       { background: rgba(220,53,69,0.1);   color: #dc3545; }
+    .estado-sin_registro  { background: rgba(108,117,125,0.1); color: #6c757d; }
+
+    /* Días para vencer */
+    .dias-label {
+        font-size: 0.75rem;
+        color: #6c757d;
+        display: block;
+        margin-top: 0.15rem;
+    }
+    .dias-label.vencido { color: #dc3545; font-weight: 600; }
+    .dias-label.proximo { color: #fd7e14; font-weight: 600; }
+
+    /* Botón acción en tabla */
+    .btn-accion {
+        background: transparent;
+        color: var(--hospital-primary);
+        border: 1.5px solid var(--hospital-primary);
+        border-radius: 0.4rem;
+        padding: 0.3rem 0.7rem;
+        font-size: 0.78rem;
+        font-weight: 500;
+        display: inline-flex; align-items: center; gap: 0.35rem;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: all 0.2s;
+    }
+    .btn-accion:hover {
+        background: var(--hospital-primary);
+        color: white;
+    }
+
+    /* "Realizar" va sólido y el resto en contorno: de las dos acciones de la
+       fila, levantar el reporte es la que se usa a diario; editar el programa
+       es ocasional. La jerarquía visual debe reflejar eso. */
+    .btn-accion-hacer {
+        background: var(--hospital-primary);
+        color: #fff;
+        /* 36px para que se pueda tocar con el pulgar sin ampliar la fila. */
+        min-height: 36px;
+    }
+    .btn-accion-hacer:hover {
+        background: #2f7690;
+        border-color: #2f7690;
+        color: #fff;
+    }
+
+    /* ── Estado vacío tabla ── */
+    .tabla-empty {
+        text-align: center;
+        padding: 3.5rem 1rem;
+        color: #6c757d;
+    }
+    .tabla-empty i {
+        font-size: 2.5rem;
+        color: #dee2e6;
+        display: block;
+        margin-bottom: 0.85rem;
+    }
+    .tabla-empty p { font-size: 0.88rem; margin: 0; }
+
+    /* ── Cards móvil (reemplazan tabla en pantallas pequeñas) ── */
+    .mant-mobile-cards { display: none; }
+    .mant-mobile-card {
+        background: #fff;
+        border-radius: 0.65rem;
+        box-shadow: 0 1px 8px rgba(0,0,0,0.07);
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        border-left: 4px solid #dee2e6;
+    }
+    .mant-mobile-card.estado-al_dia     { border-left-color: #198754; }
+    .mant-mobile-card.estado-proximo    { border-left-color: #fd7e14; }
+    .mant-mobile-card.estado-vencido    { border-left-color: #dc3545; }
+    .mant-mobile-card.estado-sin_registro { border-left-color: #adb5bd; }
+
+    .mmc-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.65rem;
+        gap: 0.5rem;
+    }
+    .mmc-nombre {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #212529;
+        flex: 1;
+        min-width: 0;
+    }
+    .mmc-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem 1rem;
+        margin-bottom: 0.75rem;
+    }
+    .mmc-dato-label {
+        font-size: 0.68rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #adb5bd;
+        display: block;
+        margin-bottom: 0.1rem;
+    }
+    .mmc-dato-value {
+        font-size: 0.82rem;
+        color: #495057;
+    }
+    .mmc-footer {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    @media (max-width: 767px) {
+        .tabla-card .tabla-responsive-wrap { display: none; }
+        .tabla-card-header                 { display: none; }
+        .mant-mobile-cards                 { display: block; }
+        .filtros-bar { gap: 0.6rem; }
+        .filtros-bar .form-select,
+        .filtros-bar .form-control { min-width: 100%; }
+        .contadores-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 380px) {
+        .contadores-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Paginación ── */
+    .mant-pagination {
+        display: flex; justify-content: space-between; align-items: center;
+        background: #fff; border-radius: 0.75rem; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        padding: 0.85rem 1.1rem; margin-top: 1rem;
+        flex-wrap: wrap; gap: 0.6rem;
+    }
+    .mant-pagination-info { font-size: 0.8rem; color: #6c757d; }
+    .mant-pagination-info strong { color: #212529; }
+    .mant-pagination-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+    .mant-pg-btn {
+        min-width: 32px; height: 32px; padding: 0 7px;
+        display: inline-flex; align-items: center; justify-content: center;
+        border: 1px solid #e9ecef; border-radius: 0.5rem;
+        background: #fff; font-size: 0.8rem; font-weight: 500;
+        cursor: pointer; text-decoration: none; color: #212529;
+        transition: all 0.12s;
+    }
+    .mant-pg-btn:hover    { background: rgba(61,144,174,0.08); border-color: var(--hospital-primary); color: var(--hospital-primary); }
+    .mant-pg-btn.active   { background: var(--hospital-primary); border-color: var(--hospital-primary); color: #fff; font-weight: 700; pointer-events: none; }
+    .mant-pg-btn.disabled { opacity: 0.35; pointer-events: none; }
+
+    @media (max-width: 767px) {
+        .mant-pagination { justify-content: center; text-align: center; }
+        .mant-pagination-info { width: 100%; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+
+{# ── Título ── #}
+<div class="d-flex align-items-center gap-2 mb-4 flex-wrap">
+    <div style="width:42px;height:42px;border-radius:0.55rem;background:rgba(61,144,174,0.1);
+                color:var(--hospital-primary);display:flex;align-items:center;
+                justify-content:center;font-size:1.2rem;flex-shrink:0;">
+        <i class="fas fa-calendar-check"></i>
+    </div>
+    <div>
+        <h1 style="font-size:1.15rem;font-weight:700;color:#212529;margin:0;">
+            Dashboard de Mantenimientos
+        </h1>
+        <p style="font-size:0.78rem;color:#6c757d;margin:0;">
+            Ingeniería Biomédica — Hospital Galenia
+        </p>
+    </div>
+</div>
+
+{# ── Flash messages ── #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show mb-3" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+{# ── Contadores ── #}
+<div class="contadores-grid">
+    <a href="{{ url_for('mantenimientos.dashboard') }}"
+       class="contador-card total {{ 'activo' if not filtro_estado }}">
+        <i class="fas fa-list-ul contador-icon"></i>
+        <span class="contador-numero">{{ contadores.total }}</span>
+        <span class="contador-label">Total equipos</span>
+    </a>
+    <a href="{{ url_for('mantenimientos.dashboard', estado='al_dia',
+                        departamento=filtro_departamento) }}"
+       class="contador-card al-dia {{ 'activo' if filtro_estado == 'al_dia' }}">
+        <i class="fas fa-check-circle contador-icon"></i>
+        <span class="contador-numero">{{ contadores.al_dia }}</span>
+        <span class="contador-label">Al día</span>
+    </a>
+    <a href="{{ url_for('mantenimientos.dashboard', estado='proximo',
+                        departamento=filtro_departamento) }}"
+       class="contador-card proximo {{ 'activo' if filtro_estado == 'proximo' }}">
+        <i class="fas fa-exclamation-circle contador-icon"></i>
+        <span class="contador-numero">{{ contadores.proximo }}</span>
+        <span class="contador-label">Próximos</span>
+    </a>
+    <a href="{{ url_for('mantenimientos.dashboard', estado='vencido',
+                        departamento=filtro_departamento) }}"
+       class="contador-card vencido {{ 'activo' if filtro_estado == 'vencido' }}">
+        <i class="fas fa-times-circle contador-icon"></i>
+        <span class="contador-numero">{{ contadores.vencido }}</span>
+        <span class="contador-label">Vencidos</span>
+    </a>
+    <a href="{{ url_for('mantenimientos.dashboard', estado='sin_registro',
+                        departamento=filtro_departamento) }}"
+       class="contador-card sin-registro {{ 'activo' if filtro_estado == 'sin_registro' }}">
+        <i class="fas fa-question-circle contador-icon"></i>
+        <span class="contador-numero">{{ contadores.sin_registro }}</span>
+        <span class="contador-label">Sin registro</span>
+    </a>
+</div>
+
+{# ── Trabajo en proceso ──
+   Va antes de los filtros a propósito: un expediente empezado y sin liberar es
+   más urgente que cualquier pendiente de la lista, y era lo único del módulo
+   que no se veía desde ninguna pantalla. Sin esto, salir del formulario de
+   captura dejaba el trabajo sin puerta de regreso. #}
+{% if en_proceso and puede(ROL_BIOMEDICO) %}
+<div class="proceso-bloque">
+    <div class="proceso-cab">
+        <span class="proceso-tit">
+            <i class="fas fa-pen-to-square"></i>
+            Trabajo en proceso
+            <span class="proceso-cuenta">{{ en_proceso|length }}</span>
+        </span>
+        <a class="proceso-todos" href="{{ url_for('reportes.centro', estado='en_proceso') }}">
+            Ver todos
+        </a>
+    </div>
+    <div class="proceso-tira">
+        {% for r in en_proceso %}
+        <a class="proceso-card" href="{{ url_for('reportes.editar', reporte_id=r.id) }}">
+            <span class="proceso-folio">{{ r.folio }}</span>
+            <span class="proceso-equipo">{{ r.equipo_unidad or 'Sin equipo' }}</span>
+            <span class="proceso-meta">
+                {% if r.numero_inventario %}{{ r.numero_inventario }}{% endif %}
+                {% if r.fecha_apertura %} · {{ r.fecha_apertura.strftime('%d/%m') }}{% endif %}
+            </span>
+            <span class="proceso-ir">Continuar <i class="fas fa-arrow-right"></i></span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Filtros ── #}
+<form method="GET" action="{{ url_for('mantenimientos.dashboard') }}" class="filtros-bar">
+    <label><i class="fas fa-filter me-1"></i>Filtrar</label>
+
+    <select name="estado" class="form-select" style="max-width:180px;">
+        <option value="" {{ 'selected' if not filtro_estado }}>Todos los estados</option>
+        <option value="al_dia"       {{ 'selected' if filtro_estado == 'al_dia' }}>Al día</option>
+        <option value="proximo"      {{ 'selected' if filtro_estado == 'proximo' }}>Próximos</option>
+        <option value="vencido"      {{ 'selected' if filtro_estado == 'vencido' }}>Vencidos</option>
+        <option value="sin_registro" {{ 'selected' if filtro_estado == 'sin_registro' }}>Sin registro</option>
+    </select>
+
+    <select name="departamento" class="form-select" style="max-width:200px;">
+        <option value="" {{ 'selected' if not filtro_departamento }}>Todos los departamentos</option>
+        {% for dep in departamentos %}
+            <option value="{{ dep }}" {{ 'selected' if filtro_departamento == dep }}>{{ dep }}</option>
+        {% endfor %}
+    </select>
+
+    <button type="submit" class="btn-filtrar">
+        <i class="fas fa-search"></i> Aplicar
+    </button>
+
+    {% if filtro_estado or filtro_departamento %}
+        <a href="{{ url_for('mantenimientos.dashboard') }}" class="btn-limpiar">
+            <i class="fas fa-times"></i> Limpiar
+        </a>
+    {% endif %}
+</form>
+
+{# ══════════════════════════════════════════
+   TABLA — desktop / tablet
+════════════════════════════════════════════ #}
+<div class="tabla-card">
+    <div class="tabla-card-header">
+        <h5>
+            <i class="fas fa-table"></i>
+            Equipos
+        </h5>
+        <span class="tabla-total-badge">{{ total }} resultado{{ 's' if total != 1 }}</span>
+    </div>
+
+    <div class="tabla-responsive-wrap">
+        {% if equipos %}
+        <table class="mant-table">
+            <thead>
+                <tr>
+                    <th>Equipo</th>
+                    <th>Departamento</th>
+                    <th>Tipo</th>
+                    <th>Frecuencia</th>
+                    <th>Último mant.</th>
+                    <th>Próximo mant.</th>
+                    <th>Estado</th>
+                    <th>Responsable</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in equipos %}
+                <tr>
+                    {# Equipo #}
+                    <td>
+                        <span class="equipo-nombre">{{ e.equipo_unidad }}</span>
+                        <span class="equipo-sub">{{ e.marca }} {{ e.modelo }}</span>
+                        <span class="equipo-sub">N° {{ e.numero_inventario }}</span>
+                    </td>
+
+                    {# Departamento #}
+                    <td style="color:#6c757d; font-size:0.82rem;">
+                        {{ e.departamento or '—' }}
+                    </td>
+
+                    {# Tipo #}
+                    <td>{{ e.tipo_mantenimiento or '—' }}</td>
+
+                    {# Frecuencia #}
+                    <td>
+                        {% if e.frecuencia_meses %}
+                            {{ e.frecuencia_meses }} meses
+                        {% else %}—{% endif %}
+                    </td>
+
+                    {# Último #}
+                    <td style="font-size:0.82rem;">
+                        {% if e.ultimo_mantenimiento %}
+                            {{ e.ultimo_mantenimiento.strftime('%d %b %Y')
+                               if e.ultimo_mantenimiento is not string
+                               else e.ultimo_mantenimiento }}
+                        {% else %}
+                            <span style="color:#adb5bd;">—</span>
+                        {% endif %}
+                    </td>
+
+                    {# Próximo #}
+                    <td style="font-size:0.82rem;">
+                        {% if e.proximo_mantenimiento %}
+                            {{ e.proximo_mantenimiento.strftime('%d %b %Y')
+                               if e.proximo_mantenimiento is not string
+                               else e.proximo_mantenimiento }}
+                            {% if e.dias_para_vencer is not none %}
+                                <span class="dias-label {{ e.estado_mant if e.estado_mant in ['vencido','proximo'] else '' }}">
+                                    {% if e.dias_para_vencer < 0 %}
+                                        Venció hace {{ e.dias_para_vencer | abs }} días
+                                    {% elif e.dias_para_vencer == 0 %}
+                                        Vence hoy
+                                    {% else %}
+                                        En {{ e.dias_para_vencer }} días
+                                    {% endif %}
+                                </span>
+                            {% endif %}
+                        {% else %}
+                            <span style="color:#adb5bd;">—</span>
+                        {% endif %}
+                    </td>
+
+                    {# Estado #}
+                    <td>
+                        <span class="estado-badge estado-{{ e.estado_mant }}">
+                            {% if e.estado_mant == 'al_dia' %}
+                                <i class="fas fa-check-circle"></i> Al día
+                            {% elif e.estado_mant == 'proximo' %}
+                                <i class="fas fa-exclamation-circle"></i> Próximo
+                            {% elif e.estado_mant == 'vencido' %}
+                                <i class="fas fa-times-circle"></i> Vencido
+                            {% else %}
+                                <i class="fas fa-question-circle"></i> Sin registro
+                            {% endif %}
+                        </span>
+                    </td>
+
+                    {# Responsable #}
+                    <td style="font-size:0.82rem; color:#6c757d; max-width:140px;
+                               overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        {{ e.responsable or '—' }}
+                    </td>
+
+                    {# Acción #}
+                    <td>
+                        <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                            {# Este es el atajo que más se va a usar: se ve qué
+                               toca y se levanta el reporte sin ir a buscar el
+                               equipo. El de "Editar" cambia el programa; este
+                               documenta el trabajo. #}
+                            {% if puede(ROL_BIOMEDICO) and e.equipo_id %}
+                            <a href="{{ url_for('reportes.nuevo', tipo='preventivo',
+                                                equipo=e.equipo_id) }}"
+                               class="btn-accion btn-accion-hacer"
+                               title="Levantar el reporte de mantenimiento">
+                                <i class="fas fa-screwdriver-wrench"></i>
+                                Realizar
+                            </a>
+                            {% endif %}
+                            <a href="{{ url_for('mantenimientos.editar_mantenimiento',
+                                                numero_inventario=e.numero_inventario) }}"
+                               class="btn-accion">
+                                <i class="fas fa-pen"></i>
+                                {{ 'Editar' if e.mant_id else 'Registrar' }}
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% else %}
+        <div class="tabla-empty">
+            <i class="fas fa-calendar-times"></i>
+            <p>No se encontraron equipos con los filtros seleccionados.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# ══════════════════════════════════════════
+   CARDS — móvil (< 768px)
+════════════════════════════════════════════ #}
+<div class="mant-mobile-cards">
+
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <span style="font-size:0.8rem;color:#6c757d;font-weight:600;">
+            {{ total }} resultado{{ 's' if total != 1 }}
+        </span>
+    </div>
+
+    {% if equipos %}
+        {% for e in equipos %}
+        <div class="mant-mobile-card estado-{{ e.estado_mant }}">
+
+            <div class="mmc-header">
+                <div class="mmc-nombre">{{ e.equipo_unidad }}</div>
+                <span class="estado-badge estado-{{ e.estado_mant }}" style="flex-shrink:0;">
+                    {% if e.estado_mant == 'al_dia' %}
+                        <i class="fas fa-check-circle"></i> Al día
+                    {% elif e.estado_mant == 'proximo' %}
+                        <i class="fas fa-exclamation-circle"></i> Próximo
+                    {% elif e.estado_mant == 'vencido' %}
+                        <i class="fas fa-times-circle"></i> Vencido
+                    {% else %}
+                        <i class="fas fa-question-circle"></i> Sin reg.
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="mmc-grid">
+                <div>
+                    <span class="mmc-dato-label">Marca / Modelo</span>
+                    <span class="mmc-dato-value">{{ e.marca }} {{ e.modelo }}</span>
+                </div>
+                <div>
+                    <span class="mmc-dato-label">Departamento</span>
+                    <span class="mmc-dato-value">{{ e.departamento or '—' }}</span>
+                </div>
+                <div>
+                    <span class="mmc-dato-label">Último mant.</span>
+                    <span class="mmc-dato-value">
+                        {% if e.ultimo_mantenimiento %}
+                            {{ e.ultimo_mantenimiento.strftime('%d %b %Y')
+                               if e.ultimo_mantenimiento is not string
+                               else e.ultimo_mantenimiento }}
+                        {% else %}—{% endif %}
+                    </span>
+                </div>
+                <div>
+                    <span class="mmc-dato-label">Próximo mant.</span>
+                    <span class="mmc-dato-value">
+                        {% if e.proximo_mantenimiento %}
+                            {{ e.proximo_mantenimiento.strftime('%d %b %Y')
+                               if e.proximo_mantenimiento is not string
+                               else e.proximo_mantenimiento }}
+                            {% if e.dias_para_vencer is not none %}
+                                <span class="dias-label {{ e.estado_mant if e.estado_mant in ['vencido','proximo'] else '' }}">
+                                    {% if e.dias_para_vencer < 0 %}
+                                        Venció hace {{ e.dias_para_vencer | abs }} días
+                                    {% elif e.dias_para_vencer == 0 %}
+                                        Hoy
+                                    {% else %}
+                                        En {{ e.dias_para_vencer }} días
+                                    {% endif %}
+                                </span>
+                            {% endif %}
+                        {% else %}—{% endif %}
+                    </span>
+                </div>
+                <div>
+                    <span class="mmc-dato-label">Tipo</span>
+                    <span class="mmc-dato-value">{{ e.tipo_mantenimiento or '—' }}</span>
+                </div>
+                <div>
+                    <span class="mmc-dato-label">Frecuencia</span>
+                    <span class="mmc-dato-value">
+                        {{ e.frecuencia_meses ~ ' meses' if e.frecuencia_meses else '—' }}
+                    </span>
+                </div>
+            </div>
+
+            <div class="mmc-footer" style="display:flex; gap:6px; flex-wrap:wrap;">
+                {% if puede(ROL_BIOMEDICO) and e.equipo_id %}
+                <a href="{{ url_for('reportes.nuevo', tipo='preventivo',
+                                    equipo=e.equipo_id) }}"
+                   class="btn-accion btn-accion-hacer">
+                    <i class="fas fa-screwdriver-wrench"></i>
+                    Realizar
+                </a>
+                {% endif %}
+                <a href="{{ url_for('mantenimientos.editar_mantenimiento',
+                                    numero_inventario=e.numero_inventario) }}"
+                   class="btn-accion">
+                    <i class="fas fa-pen"></i>
+                    {{ 'Editar' if e.mant_id else 'Registrar' }}
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+
+    {% else %}
+        <div class="tabla-empty">
+            <i class="fas fa-calendar-times"></i>
+            <p>No se encontraron equipos con los filtros seleccionados.</p>
+        </div>
+    {% endif %}
+</div>
+
+{# ══════════════════════════════════════════
+   PAGINACIÓN — compartida (debajo de tabla o cards)
+════════════════════════════════════════════ #}
+{% set total_pages = (total / per_page) | round(0, 'ceil') | int %}
+{% if total_pages > 1 %}
+<div class="mant-pagination">
+    <span class="mant-pagination-info">
+        Mostrando
+        <strong>{{ ((page-1)*per_page)+1 }}–{{ [page*per_page, total]|min }}</strong>
+        de <strong>{{ total }}</strong> equipos
+    </span>
+    <div class="mant-pagination-btns">
+        {% if page > 1 %}
+            <a class="mant-pg-btn" href="{{ url_for('mantenimientos.dashboard', estado=filtro_estado, departamento=filtro_departamento, page=page-1) }}"><i class="fas fa-chevron-left"></i></a>
+        {% else %}
+            <span class="mant-pg-btn disabled"><i class="fas fa-chevron-left"></i></span>
+        {% endif %}
+
+        {% for p in range(1, total_pages + 1) %}
+            {% if p == 1 or p == total_pages or (p >= page-1 and p <= page+1) %}
+                <a class="mant-pg-btn {{ 'active' if p == page else '' }}"
+                   href="{{ url_for('mantenimientos.dashboard', estado=filtro_estado, departamento=filtro_departamento, page=p) }}">{{ p }}</a>
+            {% elif p == 2 and page > 3 %}
+                <span class="mant-pg-btn disabled">…</span>
+            {% elif p == total_pages - 1 and page < total_pages - 2 %}
+                <span class="mant-pg-btn disabled">…</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if page < total_pages %}
+            <a class="mant-pg-btn" href="{{ url_for('mantenimientos.dashboard', estado=filtro_estado, departamento=filtro_departamento, page=page+1) }}"><i class="fas fa-chevron-right"></i></a>
+        {% else %}
+            <span class="mant-pg-btn disabled"><i class="fas fa-chevron-right"></i></span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

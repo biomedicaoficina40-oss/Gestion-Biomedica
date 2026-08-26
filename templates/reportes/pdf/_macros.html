@@ -1,0 +1,185 @@
+{# ═══════════════════════════════════════════════════════════════════════════
+   Secciones que comparten preventivo y correctivo (y que compartirán entrada/
+   salida y tecnovigilancia cuando les toque). Un tipo nuevo escribe solo lo
+   que lo hace distinto y llama a estos macros para el resto — así un ajuste al
+   maquetado de "Refacciones" se hace una vez y no en cada plantilla de tipo.
+
+   Cada macro recibe `ns` (el namespace del contador de bloques) y hace
+   `{% set ns.blq = ns.blq + 1 %}` él mismo: como `ns` es un objeto, la
+   mutación se ve también en quien llama, aunque el macro tenga su propio
+   scope. Por eso el llamador no necesita (ni puede) recibir un valor de
+   vuelta — el conteo vive en el objeto, no en el resultado del macro.
+   ═══════════════════════════════════════════════════════════════════════════ #}
+
+{% macro identificacion_equipo(ns, corte_en, eq, ph) %}
+{% set ns.blq = ns.blq + 1 %}
+<div class="section blq {{ 'corte-antes' if corte_en == ns.blq }}">
+  <div class="sec-hd">Identificación del equipo</div>
+  <table class="campos">
+    <tr>
+      <td style="width:50%">
+        <div class="f-lbl">Equipo</div>
+        <div class="f-box">{{ eq.equipo_unidad or ph }}</div>
+      </td>
+      <td style="width:25%">
+        <div class="f-lbl">Marca</div>
+        <div class="f-box">{{ eq.marca or ph }}</div>
+      </td>
+      <td style="width:25%" class="last">
+        <div class="f-lbl">Modelo</div>
+        <div class="f-box">{{ eq.modelo or ph }}</div>
+      </td>
+    </tr>
+    <tr>
+      <td style="width:50%">
+        <div class="f-lbl">Número de serie</div>
+        <div class="f-box">{{ eq.numero_serie or ph }}</div>
+      </td>
+      <td style="width:25%">
+        <div class="f-lbl">Número de inventario</div>
+        <div class="f-box">{{ eq.numero_inventario or ph }}</div>
+      </td>
+      <td style="width:25%" class="last">
+        <div class="f-lbl">Ubicación</div>
+        <div class="f-box">{{ eq.departamento or eq.area or ph }}</div>
+      </td>
+    </tr>
+  </table>
+</div>
+{% endmacro %}
+
+
+{% macro equipos_movimiento(ns, corte_en, equipos, ph) %}
+{# Entrada/salida puede ser de varios equipos a la vez (un lote en masa); una
+   tabla en vez de la tarjeta de `identificacion_equipo` es lo que escala sin
+   cambiar de forma cuando pasa de 1 a 20 renglones. #}
+{% if equipos %}
+{% set ns.blq = ns.blq + 1 %}
+<div class="section section-flow blq {{ 'corte-antes' if corte_en == ns.blq }}">
+  <div class="sec-hd">
+    {{ 'Equipo' if equipos|length == 1 else 'Equipos (' ~ equipos|length ~ ')' }}
+  </div>
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th style="width:34%">Equipo</th>
+        <th style="width:22%">Marca / Modelo</th>
+        <th style="width:22%">Serie</th>
+        <th style="width:22%">Inventario</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for eq in equipos %}
+      <tr>
+        <td>{{ eq.equipo_unidad or ph }}</td>
+        <td>{{ [eq.marca, eq.modelo]|select|join(' ') or ph }}</td>
+        <td>{{ eq.numero_serie or ph }}</td>
+        <td>{{ eq.numero_inventario or ph }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endmacro %}
+
+
+{% macro texto_largo(ns, corte_en, titulo, texto, relleno) %}
+{# Sirve para "Descripción del trabajo" y "Observaciones": misma caja, mismo
+   comportamiento de relleno para la vista previa, solo cambia el título. #}
+{% if texto or relleno %}
+{% set ns.blq = ns.blq + 1 %}
+<div class="section blq {{ 'corte-antes' if corte_en == ns.blq }}">
+  <div class="sec-hd">{{ titulo }}</div>
+  <div class="obs-box" {% if not texto and relleno %}style="min-height:{{ relleno * 14 }}px"{% endif %}>{{ texto or '' }}</div>
+</div>
+{% endif %}
+{% endmacro %}
+
+
+{% macro refacciones(ns, corte_en, lineas, ver_costos, totales) %}
+{# La columna de importes solo se imprime si quien descarga el PDF puede ver
+   costos. Ocultarla en pantalla no serviría de nada si el archivo la trae. #}
+{% if lineas %}
+{% set ns.blq = ns.blq + 1 %}
+<div class="section section-flow blq {{ 'corte-antes' if corte_en == ns.blq }}">
+  <div class="sec-hd">Refacciones y consumibles utilizados</div>
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th style="width:{{ '52%' if ver_costos else '76%' }}">Descripción</th>
+        <th style="width:16%">Clase</th>
+        <th style="width:8%" class="num">Cant.</th>
+        {% if ver_costos %}
+        <th style="width:12%" class="num">P. unit.</th>
+        <th style="width:12%" class="num">Importe</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for linea in lineas %}
+      <tr>
+        <td>{{ linea.descripcion }}</td>
+        <td>{{ linea.clase_txt }}</td>
+        <td class="num">{{ '%g'|format(linea.cantidad) }}</td>
+        {% if ver_costos %}
+        <td class="num">
+          {%- if linea.precio_unitario is not none -%}
+            ${{ '{:,.2f}'.format(linea.precio_unitario) }}
+          {%- else -%}—{%- endif -%}
+        </td>
+        <td class="num">
+          {%- if linea.importe is not none -%}
+            ${{ '{:,.2f}'.format(linea.importe) }}
+          {%- else -%}—{%- endif -%}
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+    {% if ver_costos and totales %}
+    <tfoot>
+      <tr>
+        <td colspan="4" class="num">Total</td>
+        <td class="num">${{ '{:,.2f}'.format(totales.total) }}</td>
+      </tr>
+      {% if totales.sin_costear %}
+      <tr>
+        <td colspan="5" style="font-weight:400; font-size:8px; color:#6b7280">
+          {{ totales.sin_costear }} renglón{{ 'es' if totales.sin_costear != 1 }} sin costear:
+          el total refleja solo lo capturado.
+        </td>
+      </tr>
+      {% endif %}
+    </tfoot>
+    {% endif %}
+  </table>
+</div>
+{% endif %}
+{% endmacro %}
+
+
+{% macro notas(ns, corte_en, notas_pdf) %}
+{# Vienen apagadas por omisión: la mayoría son de trabajo interno. Solo salen
+   las que alguien marcó explícitamente. #}
+{% if notas_pdf %}
+{% set ns.blq = ns.blq + 1 %}
+<div class="section section-flow blq {{ 'corte-antes' if corte_en == ns.blq }}">
+  <div class="sec-hd">Anotaciones</div>
+  {% for nota in notas_pdf %}
+  <div class="obs-box" style="margin-bottom:4px">{{ nota.texto }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+
+{% macro resultado(ns, corte_en, resultado_txt) %}
+{% if resultado_txt %}
+{% set ns.blq = ns.blq + 1 %}
+<div class="section blq {{ 'corte-antes' if corte_en == ns.blq }}">
+  <div class="sec-hd">Estado del equipo al término del servicio</div>
+  <div class="f-box" style="font-weight:600">{{ resultado_txt }}</div>
+</div>
+{% endif %}
+{% endmacro %}

@@ -324,7 +324,14 @@ class ModelBLE:
         """
         cursor = None
         try:
-            desde = datetime.utcnow() - timedelta(hours=horas)
+            # datetime.now() (hora local), NO utcnow(): el resto del modulo
+            # —upsert_posicion_actual, marcar_sin_senal y sobre todo
+            # purgar_lecturas_antiguas, que filtra esta misma columna—
+            # compara ble_lecturas.timestamp contra hora local. Con utcnow()
+            # el corte quedaba desfasado el offset de la zona (6 h en Mexico)
+            # y los filtros de 6/12/24/48 h mostraban una ventana mas corta
+            # que la pedida.
+            desde = datetime.now() - timedelta(hours=horas)
             cursor = db.cursor()
             cursor.execute(
                 f"SELECT a.nombre, a.piso, l.rssi, l.timestamp "
@@ -366,21 +373,25 @@ class ModelBLE:
                             area_id: int, rssi: int) -> bool:
         """
         Actualiza la posición actual del beacon.
-        - Si ya existe en la misma área: refresca ultima_vez y rssi_max si mejora.
-        - Si existe en área distinta: solo mueve si el nuevo RSSI supera en ≥5 dBm
-        al mejor registrado (anti-parpadeo entre áreas adyacentes).
+        - Si ya existe en la misma área: refresca ultima_vez y rssi_max siempre
+        con el valor más reciente (no un máximo histórico).
+        - Si existe en área distinta:
+            - Si el área asignada ya no confirma al beacon desde hace más del
+              umbral de 'Sin señal' (quedó obsoleta), se mueve sin exigir
+              margen de RSSI — ya no hay nada confiable reclamando esa área.
+            - Si el área asignada sigue vigente, solo se mueve si el nuevo
+              RSSI supera en ≥5 dBm al último registrado (anti-parpadeo
+              entre áreas adyacentes con cobertura solapada).
         - Si no existe: inserta.
-        En TODOS los casos donde el beacon ya existe actualiza ultima_vez
-        para evitar falsos 'Sin señal'.
         """
         cursor = None
         try:
-            ahora = datetime.utcnow()
+            ahora = datetime.now()
             cursor = db.cursor()
 
             # ── 1. Leer estado actual ─────────────────────────────────
             cursor.execute(
-                f"SELECT area_id, rssi_max "
+                f"SELECT area_id, rssi_max, ultima_vez "
                 f"FROM {cls.T_POS} "
                 f"WHERE beacon_id = ?",
                 (beacon_id,)
@@ -397,38 +408,62 @@ class ModelBLE:
                 )
 
             else:
-                area_actual  = row[0]
-                rssi_max_act = row[1] if row[1] is not None else -100
+                area_actual, rssi_max_act, ultima_vez_act = row
+                rssi_max_act = rssi_max_act if rssi_max_act is not None else -100
 
                 if area_actual == area_id:
-                    # ── 2b. Misma área: refrescar siempre ────────────
-                    nuevo_rssi_max = rssi if rssi > rssi_max_act else rssi_max_act
+                    # ── 2b. Misma área: refrescar siempre con el RSSI
+                    #        mas reciente (NO acumular un maximo historico:
+                    #        un solo pico de señal —ej. el equipo pasando
+                    #        justo al lado del ESP32— quedaba grabado para
+                    #        siempre y volvia matematicamente imposible que
+                    #        otra área lo superara por 5 dBm mas adelante,
+                    #        dejando el equipo "pegado" en esa área aunque
+                    #        se hubiera ido hace dias) ────────────────────
+                    nuevo_rssi_max = rssi
                     cursor.execute(
                         f"UPDATE {cls.T_POS} "
                         f"SET rssi_max = ?, ultima_vez = ?, estado = 'Localizado' "
                         f"WHERE beacon_id = ?",
                         (nuevo_rssi_max, ahora, beacon_id)
                     )
-                elif rssi > (rssi_max_act - 5):
-                    # ── 2c. Área distinta con señal suficientemente mejor:
-                    #        mover el beacon (y actualizar ultima_vez) ──────
-                    cursor.execute(
-                        f"UPDATE {cls.T_POS} "
-                        f"SET area_id = ?, rssi_max = ?, "
-                        f"    ultima_vez = ?, estado = 'Localizado' "
-                        f"WHERE beacon_id = ?",
-                        (area_id, rssi, ahora, beacon_id)
-                    )
                 else:
-                    # ── 2d. Área distinta con señal débil: NO mover,
-                    #        pero SÍ refrescar ultima_vez para no marcar
-                    #        como 'Sin señal' un beacon que sigue activo ──
-                    cursor.execute(
-                        f"UPDATE {cls.T_POS} "
-                        f"SET ultima_vez = ?, estado = 'Localizado' "
-                        f"WHERE beacon_id = ?",
-                        (ahora, beacon_id)
+                    # ── ¿El área asignada quedó obsoleta? ─────────────
+                    # Reutiliza el mismo umbral configurado para 'Sin señal':
+                    # si el área actual no confirma al beacon desde hace más
+                    # de ese tiempo, ya no es una referencia confiable y no
+                    # debe exigirse el margen de 5 dBm para moverlo — de lo
+                    # contrario un área vieja que dejó de oír al beacon por
+                    # completo puede quedar con un rssi_max_act que ninguna
+                    # otra área real vuelve a superar nunca (equipo "pegado").
+                    minutos_timeout = (
+                        cls.get_regla_activa_por_tipo(db, 'sin_senal')
+                        or cls.TIMEOUT_SIN_SENAL
                     )
+                    area_obsoleta = (
+                        ultima_vez_act is None or
+                        (ahora - ultima_vez_act) > timedelta(minutes=minutos_timeout)
+                    )
+
+                    if area_obsoleta or rssi > (rssi_max_act - 5):
+                        # ── 2c. Área obsoleta, o señal suficientemente
+                        #        mejor: mover el beacon ─────────────────
+                        cursor.execute(
+                            f"UPDATE {cls.T_POS} "
+                            f"SET area_id = ?, rssi_max = ?, "
+                            f"    ultima_vez = ?, estado = 'Localizado' "
+                            f"WHERE beacon_id = ?",
+                            (area_id, rssi, ahora, beacon_id)
+                        )
+                    else:
+                        # ── 2d. Área distinta, vigente, con señal débil:
+                        #        NO mover Y NO tocar ultima_vez/estado. Si se
+                        #        refrescara aquí, un vecino captando ruido
+                        #        débil "resucitaría" indefinidamente el
+                        #        beacon y marcar_sin_senal()/get_alertas_activas()
+                        #        nunca detectarían que el área real dejó de
+                        #        reportarlo. ──────────────────────────────
+                        pass
 
             db.commit()
             return True
@@ -455,7 +490,7 @@ class ModelBLE:
         cursor = None
         try:
             minutos_timeout = cls.get_regla_activa_por_tipo(db, 'sin_senal') or cls.TIMEOUT_SIN_SENAL
-            limite = datetime.utcnow() - timedelta(minutes=minutos_timeout)
+            limite = datetime.now() - timedelta(minutes=minutos_timeout)
             cursor = db.cursor()
             cursor.execute(
                 f"UPDATE {cls.T_POS} "
@@ -495,11 +530,20 @@ class ModelBLE:
                 f"  e.equipo_unidad, "
                 f"  e.numero_inventario, "
                 f"  e.departamento, "
+                f"  e.modelo, "
+                f"  e.imagen, "
                 f"  a.nombre       AS area_nombre, "
                 f"  a.piso, "
                 f"  p.rssi_max, "
                 f"  p.ultima_vez, "
-                f"  p.estado "
+                f"  p.estado, "
+                f"  p.area_id, "
+                f"  e.marca, "
+                f"  e.numero_serie, "
+                # Alias obligatorio: 'estado' ya lo ocupa p.estado (Localizado/Sin senal),
+                # este es el estado de inventario (Operativo/Fuera de servicio).
+                f"  e.estado       AS estado_equipo, "
+                f"  b.bateria_pct "
                 f"FROM {cls.T_POS} p "
                 f"JOIN {cls.T_BEACONS} b ON b.id = p.beacon_id "
                 f"JOIN {cls.T_AREAS}   a ON a.id = p.area_id "
@@ -517,11 +561,18 @@ class ModelBLE:
                     "equipo_nombre":       r[4] or "Sin asignar",
                     "numero_inventario":   r[5] or "",
                     "departamento":        r[6] or "",
-                    "area_nombre":         r[7],
-                    "piso":                r[8],
-                    "rssi_max":            r[9],
-                    "ultima_vez":          r[10].isoformat() if r[10] else None,
-                    "estado":              r[11],
+                    "modelo":              r[7] or "",
+                    "imagen":              r[8] or "",
+                    "area_nombre":         r[9],
+                    "piso":                r[10],
+                    "rssi_max":            r[11],
+                    "ultima_vez":          r[12].isoformat() if r[12] else None,
+                    "estado":              r[13],
+                    "area_id":             r[14],
+                    "marca":               r[15] or "",
+                    "numero_serie":        r[16] or "",
+                    "estado_equipo":       r[17] or "",
+                    "bateria_pct":         r[18],
                 }
                 for r in rows
             ]
@@ -533,6 +584,61 @@ class ModelBLE:
         finally:
             if cursor:
                 cursor.close()
+
+    @classmethod
+    def get_areas_con_equipos(cls, db) -> list[dict]:
+        """
+        Las mismas filas que ve el dashboard, pero agrupadas por area.
+
+        Alimenta el visor 3D: cada area que aqui aparezca se pinta sobre su pin
+        si hay coordenadas para ella (ver AREAS_3D en routes/ble_routes.py).
+        Reutiliza get_posicion_actual_todos para que el visor y el dashboard no
+        puedan contradecirse: es literalmente la misma consulta.
+        """
+        filas = cls.get_posicion_actual_todos(db)
+
+        areas: dict[int, dict] = {}
+        for f in filas:
+            area_id = f["area_id"]
+            if area_id not in areas:
+                areas[area_id] = {
+                    "area_id":     area_id,
+                    "area_nombre": f["area_nombre"],
+                    "piso":        f["piso"],
+                    "total":       0,
+                    "localizados": 0,
+                    "sin_senal":   0,
+                    "sin_asignar": 0,
+                    "equipos":     [],
+                }
+
+            area = areas[area_id]
+            area["equipos"].append(f)
+
+            # Un beacon activo sin equipo vinculado se lista, pero no cuenta en
+            # los contadores: estos hablan de equipos, no de hardware suelto.
+            # Suele pasar cuando el ESP32 auto-registra un beacon nuevo
+            # (registrar_beacon_auto) y todavia nadie lo asigno.
+            if f["equipo_id"] is None:
+                area["sin_asignar"] += 1
+                continue
+
+            area["total"] += 1
+            if f["estado"] == "Localizado":
+                area["localizados"] += 1
+            elif f["estado"] in ("Sin senal", "Sin señal"):
+                area["sin_senal"] += 1
+
+        for area in areas.values():
+            area["equipos"].sort(
+                key=lambda e: e["rssi_max"] if e["rssi_max"] is not None else -999,
+                reverse=True
+            )
+
+        return sorted(
+            areas.values(),
+            key=lambda a: (a["piso"] if a["piso"] is not None else 0, a["area_nombre"] or "")
+        )
 
     @classmethod
     def get_posicion_actual_por_area(cls, db, area_id: int) -> list[dict]:
@@ -547,6 +653,8 @@ class ModelBLE:
                 f"  e.id           AS equipo_id, "
                 f"  e.equipo_unidad, "
                 f"  e.numero_inventario, "
+                f"  e.modelo, "
+                f"  e.imagen, "
                 f"  p.rssi_max, "
                 f"  p.ultima_vez, "
                 f"  p.estado "
@@ -565,9 +673,11 @@ class ModelBLE:
                     "equipo_id":         r[2],
                     "equipo_nombre":     r[3] or "Sin asignar",
                     "numero_inventario": r[4] or "",
-                    "rssi_max":          r[5],
-                    "ultima_vez":        r[6].isoformat() if r[6] else None,
-                    "estado":            r[7],
+                    "modelo":            r[5] or "",
+                    "imagen":            r[6] or "",
+                    "rssi_max":          r[7],
+                    "ultima_vez":        r[8].isoformat() if r[8] else None,
+                    "estado":            r[9],
                 }
                 for r in rows
             ]
@@ -593,7 +703,7 @@ class ModelBLE:
         try:
 # DESPUÉS
             minutos_bateria = cls.get_regla_activa_por_tipo(db, 'bateria') or cls.TIMEOUT_BATERIA
-            limite_bateria  = datetime.utcnow() - timedelta(minutes=minutos_bateria)
+            limite_bateria  = datetime.now() - timedelta(minutes=minutos_bateria)
 
             cursor = db.cursor()
             cursor.execute(
@@ -1173,7 +1283,7 @@ class ModelBLE:
         """
         cursor = None
         try:
-            limite = datetime.utcnow() - timedelta(days=dias)
+            limite = datetime.now() - timedelta(days=dias)
             cursor = db.cursor()
             cursor.execute(
                 f"DELETE FROM {cls.T_LECTURAS} "

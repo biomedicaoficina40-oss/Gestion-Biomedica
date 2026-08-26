@@ -273,6 +273,125 @@
                 font-weight: 500;
                 letter-spacing: 0.03em;
             }
+
+        /* ══════════════════════════════════════════════════════
+           LOCALIZACION BLE — sistema visual compartido
+           Fuente unica para las vistas del modulo. Antes cada
+           plantilla redefinia estas reglas por su cuenta:
+           badge-localizado estaba duplicado 4 veces con sintaxis
+           divergente, y alertas.html ni siquiera lo definia.
+
+           REGLA DE COLOR: verde/ambar/rojo se reservan para el
+           ESTADO — "¿requiere atencion?". La calidad de senal es
+           un dato tecnico y se dibuja SIEMPRE en gris neutro,
+           para que una senal debil (que es normal) no se lea
+           como una alarma junto a un badge verde que dice que
+           todo esta bien.
+           ══════════════════════════════════════════════════════ */
+        :root {
+            --ble-ok-bg:     #d1fae5;
+            --ble-ok-fg:     #065f46;
+            --ble-warn-bg:   #fef3c7;
+            --ble-warn-fg:   #92400e;
+            --ble-warn-line: #f59e0b;
+            --ble-bad-bg:    #fee2e2;
+            --ble-bad-fg:    #991b1b;
+            --ble-bad-line:  #ef4444;
+            --ble-line:      #eef1f4;
+        }
+
+        .ble-badge {
+            display: inline-block;
+            font-size: 0.74rem;
+            font-weight: 500;
+            padding: 0.2rem 0.65rem;
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+        .ble-badge-ok   { background: var(--ble-ok-bg);   color: var(--ble-ok-fg); }
+        .ble-badge-warn { background: var(--ble-warn-bg); color: var(--ble-warn-fg); }
+        .ble-badge-bad  { background: var(--ble-bad-bg);  color: var(--ble-bad-fg); }
+        /* Estado normal = sin color. Un dashboard sano se ve aburrido. */
+        .ble-badge-mute { color: #9ca3af; font-size: 0.78rem; }
+
+        /* Nombres heredados — los emiten buscar/area/equipo/alertas */
+        .badge-localizado    { background: var(--ble-ok-bg);  color: var(--ble-ok-fg); }
+        .badge-sin-senal     { background: var(--ble-bad-bg); color: var(--ble-bad-fg); }
+        .badge-mantenimiento { background: #fef9c3;           color: #854d0e; }
+
+        /* ── Senal: neutra por diseno, nunca semaforo ───────── */
+        .ble-signal      { display: inline-flex; align-items: flex-end; gap: 2px; height: 13px; }
+        .ble-signal span { display: block; width: 3px; border-radius: 1px; background: #e5e7eb; }
+        .ble-signal span:nth-child(1) { height: 5px; }
+        .ble-signal span:nth-child(2) { height: 9px; }
+        .ble-signal span:nth-child(3) { height: 13px; }
+        .ble-signal[data-nivel="1"] span:nth-child(1),
+        .ble-signal[data-nivel="2"] span:nth-child(-n+2),
+        .ble-signal[data-nivel="3"] span { background: #6b7280; }
+
+        /* ── Barra de estado (reemplaza las 3 tarjetas) ─────── */
+        .ble-statusbar {
+            display: flex; height: 40px;
+            border-radius: 0.55rem; overflow: hidden;
+            background: var(--ble-line);
+        }
+        .ble-statusbar button {
+            border: none; min-width: 0; padding: 0 0.6rem;
+            display: flex; align-items: center; justify-content: center;
+            gap: 0.4rem; font-family: inherit; font-size: 0.78rem;
+            cursor: pointer; transition: filter 0.15s; overflow: hidden;
+        }
+        .ble-statusbar button:hover  { filter: brightness(0.94); }
+        .ble-statusbar button.activo { box-shadow: inset 0 -3px 0 rgba(0,0,0,0.22); }
+        .ble-statusbar b { font-size: 0.95rem; font-weight: 600; }
+
+        /* ── Filas de equipo ────────────────────────────────── */
+        .ble-row {
+            display: flex; align-items: center; gap: 0.85rem;
+            padding: 0.7rem 0.95rem;
+            border-bottom: 1px solid var(--ble-line);
+            border-left: 3px solid transparent;
+            transition: background 0.15s;
+        }
+        .ble-row:last-child { border-bottom: none; }
+        .ble-row:hover      { background: rgba(61,144,174,0.045); }
+        .ble-row.es-warn    { border-left-color: var(--ble-warn-line); }
+        .ble-row.es-bad     { border-left-color: var(--ble-bad-line); }
+
+        .ble-row-img {
+            width: 44px; height: 44px; flex-shrink: 0;
+            object-fit: cover; border-radius: 0.45rem;
+            border: 1px solid #e9ecef; background: #f8f9fa;
+        }
+        /* Placeholder puro CSS. Un equipo sin foto NO debe renderizar un
+           <img> apuntando a un archivo inexistente: eso dispara un 404 en
+           cada repintado y hace parpadear la celda. Sin <img>, no hay
+           peticion de red ni nada que parpadear. */
+        .ble-row-ph {
+            width: 44px; height: 44px; flex-shrink: 0;
+            border-radius: 0.45rem;
+            border: 1px dashed #e2e8f0; background: #f8fafc;
+            display: flex; align-items: center; justify-content: center;
+            color: #cbd5e1; font-size: 0.95rem;
+        }
+        .ble-row-nom     { font-size: 0.88rem; font-weight: 500; color: #1f2937; }
+        .ble-row-inv     { font-size: 0.75rem; color: #9ca3af;
+                           font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .ble-row-area    { font-size: 0.82rem; color: #374151; }
+        .ble-row-t       { font-size: 0.75rem; color: #9ca3af; }
+        .ble-row-t.viejo { color: var(--ble-bad-fg); }
+
+        /* ── Indicador de polling ───────────────────────────── */
+        .ble-polling     { display: inline-flex; align-items: center;
+                           gap: 0.4rem; font-size: 0.75rem; color: #6c757d; }
+        .ble-polling-dot { width: 8px; height: 8px; border-radius: 50%;
+                           background: #10b981;
+                           animation: ble-pulse 2s ease-in-out infinite; }
+        .ble-polling-dot.error { background: #ef4444; animation: none; }
+        @keyframes ble-pulse {
+            0%, 100% { opacity: 1;   transform: scale(1); }
+            50%      { opacity: 0.4; transform: scale(0.8); }
+        }
     </style>
 
     {% block customCSS %}{% endblock %}
@@ -305,7 +424,7 @@
             <div class="sidebar-user-icon"><i class="fas fa-user"></i></div>
             <div class="sidebar-user-info">
                 <h6>{{ current_user.NombreUsuario }}</h6>
-                <p>{{ current_user.Rol }}</p>
+                <p>{{ etiqueta_rol(current_user.Permiso) }}</p>
             </div>
         </div>
 
@@ -320,8 +439,11 @@
                     </a>
                 </li>
 
-                    {% if current_user.Permiso == 'Administrador' %}
-                    <li class="nav-section-label">Administración</li>
+                    {# El menú refleja la matriz de permisos de
+                       models/entities/decorators.py. Ocultar un enlace es solo
+                       cosmética: quien decide es el decorador de la ruta. #}
+                    {% if puede(ROL_USUARIO) %}
+                    <li class="nav-section-label">Inventario</li>
 
                     <li>
                         <button class="nav-link w-100 border-0 bg-transparent"
@@ -339,23 +461,95 @@
                                 <i class="fas fa-list nav-icon"></i>
                                 <span class="nav-link-text">Ver Inventario</span>
                             </a>
+                            {% if puede(ROL_BIOMEDICO) %}
                             <a class="nav-link" href="{{ url_for('admin.agregar_equipo') }}">
                                 <i class="fas fa-plus-circle nav-icon"></i>
                                 <span class="nav-link-text">Agregar Equipo</span>
                             </a>
+                            {% endif %}
                             <a class="nav-link" href="{{ url_for('admin.categorias') }}">
                                 <i class="fas fa-tags nav-icon"></i>
                                 <span class="nav-link-text">Categorías</span>
                             </a>
                         </div>
                     </li>
+                    <li>
+                        <a class="nav-link" href="{{ url_for('mantenimientos.dashboard') }}">
+                            <i class="fas fa-calendar-check nav-icon"></i>
+                            <span class="nav-link-text">Mantenimientos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-link" href="{{ url_for('admin.panel_nfc') }}">
+                            <i class="fas fa-microchip nav-icon"></i>
+                            <span class="nav-link-text">Panel NFC</span>
+                        </a>
+                    </li>
 
+                    <li class="nav-section-label">Reportes</li>
+                    {% if puede(ROL_BIOMEDICO) %}
+                    {# Primero lo que está a medias: es lo que se busca al
+                       volver a la aplicación después de salir de una captura. #}
+                    <li>
+                        <a class="nav-link" href="{{ url_for('reportes.centro', estado='abiertos') }}">
+                            <i class="fas fa-pen-to-square nav-icon"></i>
+                            <span class="nav-link-text">Trabajo en proceso</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a class="nav-link" href="{{ url_for('reportes.centro') }}">
+                            <i class="fas fa-folder-open nav-icon"></i>
+                            <span class="nav-link-text">Todos los reportes</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-link" href="{{ url_for('reportes.estadisticas') }}">
+                            <i class="fas fa-chart-line nav-icon"></i>
+                            <span class="nav-link-text">Estadísticas</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-link" href="{{ url_for('reportes.centro', tipo='preventivo') }}">
+                            <i class="fas fa-screwdriver-wrench nav-icon"></i>
+                            <span class="nav-link-text">Preventivos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-link" href="{{ url_for('reportes.centro', tipo='correctivo') }}">
+                            <i class="fas fa-wrench nav-icon"></i>
+                            <span class="nav-link-text">Correctivos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-link" href="{{ url_for('reportes.centro', tipo='entrada') }}">
+                            <i class="fas fa-right-to-bracket nav-icon"></i>
+                            <span class="nav-link-text">Entradas</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-link" href="{{ url_for('reportes.centro', tipo='salida') }}">
+                            <i class="fas fa-right-from-bracket nav-icon"></i>
+                            <span class="nav-link-text">Salidas</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-link" href="{{ url_for('reportes.centro', tipo='tecnovigilancia') }}">
+                            <i class="fas fa-triangle-exclamation nav-icon"></i>
+                            <span class="nav-link-text">Tecnovigilancia</span>
+                        </a>
+                    </li>
+
+                    {% if puede(ROL_ADMIN) %}
+                    <li class="nav-section-label">Administración</li>
                     <li>
                         <a class="nav-link" href="{{ url_for('admin.ver_usuarios') }}">
                             <i class="fas fa-users nav-icon"></i>
                             <span class="nav-link-text">Usuarios</span>
                         </a>
                     </li>
+                    {% endif %}
+
                     <li class="nav-section-label">Localización BLE</li>
 
                     <li>
@@ -371,6 +565,7 @@
                         </button>
                         <div class="collapse nav-dropdown-menu" id="bleMenu">
 
+                            {% if puede(ROL_BIOMEDICO) %}
                             <a class="nav-link" href="{{ url_for('ble.admin_panel') }}">
                                 <i class="fas fa-cogs nav-icon"></i>
                                 <span class="nav-link-text">Administración</span>
@@ -379,6 +574,7 @@
                                 <i class="fas fa-sliders-h nav-icon"></i>
                                 <span class="nav-link-text">Reglas de Alerta</span>
                             </a>
+                            {% endif %}
                             <a class="nav-link" href="{{ url_for('ble.dashboard') }}">
                                 <i class="fas fa-tachometer-alt nav-icon"></i>
                                 <span class="nav-link-text">Dashboard</span>
@@ -391,6 +587,10 @@
                                 <i class="fas fa-bell nav-icon"></i>
                                 <span class="nav-link-text">Alertas</span>
                             </a>
+                            <a class="nav-link" href="{{ url_for('ble.vista_3d') }}">
+                                <i class="fas fa-cube nav-icon"></i>
+                                <span class="nav-link-text">Visor 3D</span>
+                            </a>
                         </div>
                     </li>
 
@@ -402,10 +602,15 @@
         </nav>
 
         <div class="sidebar-footer">
-            <a href="{{ url_for('auth.logout') }}" class="btn-logout">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>Cerrar Sesión</span>
-            </a>
+            {# POST con token CSRF: por GET, cualquier página externa podía
+               cerrar la sesión con un <img src="/logout">. #}
+            <form action="{{ url_for('auth.logout') }}" method="POST" class="m-0">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-logout w-100 border-0 text-start">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Cerrar Sesión</span>
+                </button>
+            </form>
         </div>
 
     </aside>
@@ -517,18 +722,51 @@
         }
 
             // Active link highlight
+            //
+            // Se marca el enlace MÁS ESPECÍFICO que sea prefijo de la ruta
+            // actual. La comparación exacta que había antes dejaba sin marcar
+            // cualquier subruta, y la navegación se sentía rota justo donde
+            // más se usa.
+            //
+            // Los enlaces que solo difieren en el query string se comparan con
+            // él incluido: dos ítems del menú pueden apuntar a la misma ruta
+            // con distinto filtro, y sin eso se marcarían los dos.
             const currentPath = window.location.pathname;
+            const currentFull = currentPath + window.location.search;
+            let mejor = null, mejorLargo = -1;
+
             sidebar.querySelectorAll('.nav-link:not([data-bs-toggle])').forEach(link => {
-                if (link.getAttribute('href') === currentPath) {
-                    link.classList.add('active');
-                    const parent = link.closest('.collapse');
-                    if (parent) {
-                        parent.classList.add('show');
-                        const t = sidebar.querySelector('[data-bs-toggle="collapse"][href="#' + parent.id + '"]');
-                        if (t) t.setAttribute('aria-expanded', 'true');
-                    }
+                const href = link.getAttribute('href') || '';
+                if (!href.startsWith('/')) return;
+
+                const [ruta, query] = href.split('?');
+                let coincide = false;
+
+                if (query) {
+                    coincide = (currentFull === href);
+                } else {
+                    coincide = (currentPath === ruta) ||
+                               (ruta !== '/' && currentPath.startsWith(ruta + '/'));
+                }
+
+                if (coincide && href.length > mejorLargo) {
+                    mejor = link;
+                    mejorLargo = href.length;
                 }
             });
+
+            if (mejor) {
+                mejor.classList.add('active');
+                const parent = mejor.closest('.collapse');
+                if (parent) {
+                    parent.classList.add('show');
+                    // El desplegable se abre con data-bs-target, no con href:
+                    // buscarlo por href nunca encontraba nada.
+                    const t = sidebar.querySelector(
+                        '[data-bs-toggle="collapse"][data-bs-target="#' + parent.id + '"]');
+                    if (t) t.setAttribute('aria-expanded', 'true');
+                }
+            }
 
             // Sync chevron arrow with Bootstrap collapse
             sidebar.querySelectorAll('[data-bs-toggle="collapse"]').forEach(t => {

@@ -1,0 +1,190 @@
+{# ═══════════════════════════════════════════════════════════════════════════
+   Fragmento del Centro de Reportes: barra de resultados, tabla, tarjetas y
+   paginación.
+
+   Sin `extends` ni `block` a propósito. La página completa lo trae con
+   {% include %} y el fetch de los filtros lo pide solo: así el render inicial y
+   el refresco por AJAX comparten exactamente el mismo HTML, y no hay dos
+   maquetados que se puedan desincronizar.
+
+   El mismo dataset se pinta dos veces —tabla para escritorio, tarjetas para
+   móvil— y el CSS decide cuál se ve. Es el patrón de inventario_fragment.html.
+   ═══════════════════════════════════════════════════════════════════════════ #}
+
+<div class="rep-results-bar">
+  <span class="rep-results-text">
+    {% if total %}
+      <strong>{{ total }}</strong> reporte{{ 's' if total != 1 }}
+    {% else %}
+      Sin resultados
+    {% endif %}
+  </span>
+  {% if filtros.tipo or filtros.estado or filtros.q or filtros.desde or filtros.hasta %}
+    <button type="button" class="rep-clear" onclick="repLimpiar()">
+      <i class="fas fa-times"></i> Quitar filtros
+    </button>
+  {% endif %}
+</div>
+
+{% if reportes %}
+
+  {# ── Escritorio ─────────────────────────────────────────── #}
+  <div class="rep-table-card">
+    <div class="rep-table-scroll">
+      <table class="rep-table">
+        <thead>
+          <tr>
+            <th>Folio</th>
+            <th>Tipo</th>
+            <th>Equipo</th>
+            <th>Área</th>
+            <th>Técnico</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th class="rep-col-acc">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in reportes %}
+          <tr class="rep-row rep-est-{{ r.estado }}">
+            <td><span class="rep-folio">{{ r.folio }}</span></td>
+            <td><span class="rep-tipo rep-tipo-{{ r.tipo }}">{{ etiq_tipo.get(r.tipo, r.tipo) }}</span></td>
+            <td>
+              {% if r.equipo_id %}
+                <div class="rep-eq-nom">{{ r.equipo_unidad or '—' }}</div>
+                <div class="rep-eq-sub">
+                  <span class="rep-inv">{{ r.numero_inventario or '' }}</span>
+                  {% if r.marca %}· {{ r.marca }}{% endif %}
+                  {% if r.modelo %} {{ r.modelo }}{% endif %}
+                </div>
+              {% else %}
+                <span class="rep-sin-eq">Sin equipo asociado</span>
+              {% endif %}
+            </td>
+            <td>{{ r.area_nombre or '—' }}</td>
+            <td>{{ r.tecnico_nombre or '—' }}</td>
+            <td class="rep-fecha">
+              {{ (r.fecha_liberacion or r.fecha).strftime('%d/%m/%Y') if (r.fecha_liberacion or r.fecha) else '—' }}
+            </td>
+            <td>
+              <span class="rep-badge rep-badge-{{ r.estado }}">
+                {{ estados.get(r.estado, r.estado) }}
+              </span>
+            </td>
+            <td class="rep-col-acc">
+              <div class="rep-acciones">
+                {# Un expediente sin liberar se retoma desde aquí. Sin este
+                   botón la única forma de volver al módulo de captura era
+                   escribir la URL a mano: quien salía de la pantalla se
+                   quedaba fuera de su propio trabajo. #}
+                {% if r.estado in ('borrador', 'en_proceso') and puede(ROL_BIOMEDICO) %}
+                <a class="rep-act rep-act-seguir"
+                   href="{{ url_for('reportes.editar', reporte_id=r.id) }}"
+                   data-tip="Continuar captura" aria-label="Continuar la captura de {{ r.folio }}">
+                  <i class="fas fa-pen-to-square"></i>
+                </a>
+                {% endif %}
+                <a class="rep-act" href="{{ url_for('reportes.ver', reporte_id=r.id) }}"
+                   data-tip="Abrir reporte" aria-label="Abrir reporte {{ r.folio }}">
+                  <i class="fas fa-eye"></i>
+                </a>
+                {% if r.archivo_pdf %}
+                <a class="rep-act rep-act-pdf"
+                   href="{{ url_for('reportes.archivo', reporte_id=r.id, descargar=1) }}"
+                   data-tip="Descargar PDF" aria-label="Descargar PDF de {{ r.folio }}">
+                  <i class="fas fa-file-pdf"></i>
+                </a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ── Móvil ──────────────────────────────────────────────── #}
+  <div class="rep-cards">
+    {% for r in reportes %}
+    <div class="rep-card rep-est-{{ r.estado }}">
+      <a class="rep-card-link" href="{{ url_for('reportes.ver', reporte_id=r.id) }}"
+         aria-label="Abrir reporte {{ r.folio }}"></a>
+      <div class="rep-card-top">
+        <span class="rep-folio">{{ r.folio }}</span>
+        <span class="rep-badge rep-badge-{{ r.estado }}">
+          {{ estados.get(r.estado, r.estado) }}
+        </span>
+      </div>
+      <div class="rep-card-tipo">
+        <span class="rep-tipo rep-tipo-{{ r.tipo }}">{{ etiq_tipo.get(r.tipo, r.tipo) }}</span>
+      </div>
+      <div class="rep-card-eq">
+        {% if r.equipo_id %}
+          {{ r.equipo_unidad or '—' }}
+          <div class="rep-eq-sub">
+            <span class="rep-inv">{{ r.numero_inventario or '' }}</span>
+            {% if r.marca %}· {{ r.marca }}{% endif %}
+          </div>
+        {% else %}
+          <span class="rep-sin-eq">Sin equipo asociado</span>
+        {% endif %}
+      </div>
+      <div class="rep-card-pie">
+        <span><i class="far fa-calendar"></i>
+          {{ (r.fecha_liberacion or r.fecha).strftime('%d/%m/%Y') if (r.fecha_liberacion or r.fecha) else '—' }}
+        </span>
+        {% if r.area_nombre %}<span><i class="fas fa-location-dot"></i> {{ r.area_nombre }}</span>{% endif %}
+      </div>
+      {% if r.estado in ('borrador', 'en_proceso') and puede(ROL_BIOMEDICO) %}
+      <a class="rep-card-seguir" href="{{ url_for('reportes.editar', reporte_id=r.id) }}">
+        <i class="fas fa-pen-to-square"></i> Continuar captura
+      </a>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ── Paginación ─────────────────────────────────────────── #}
+  {% set total_pages = (total / per_page)|round(0, 'ceil')|int %}
+  {% if total_pages > 1 %}
+  <div class="rep-pagination">
+    <span class="rep-pagination-info">
+      Página {{ page }} de {{ total_pages }}
+    </span>
+    <div class="rep-pagination-btns">
+      <button type="button" class="rep-pg{{ ' disabled' if page <= 1 }}"
+              {% if page > 1 %}data-pagina="{{ page - 1 }}"{% else %}disabled{% endif %}
+              aria-label="Página anterior">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      {% for p in range(1, total_pages + 1) %}
+        {% if p == 1 or p == total_pages or (p >= page - 1 and p <= page + 1) %}
+          <button type="button" class="rep-pg{{ ' active' if p == page }}"
+                  data-pagina="{{ p }}">{{ p }}</button>
+        {% elif p == page - 2 or p == page + 2 %}
+          <span class="rep-pg-elipsis">…</span>
+        {% endif %}
+      {% endfor %}
+      <button type="button" class="rep-pg{{ ' disabled' if page >= total_pages }}"
+              {% if page < total_pages %}data-pagina="{{ page + 1 }}"{% else %}disabled{% endif %}
+              aria-label="Página siguiente">
+        <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
+{% else %}
+
+  <div class="rep-empty">
+    <i class="fas fa-folder-open"></i>
+    <p>No hay reportes que coincidan con la búsqueda.</p>
+    {% if filtros.tipo or filtros.estado or filtros.q or filtros.desde or filtros.hasta %}
+      <button type="button" class="rep-btn rep-btn-outline" onclick="repLimpiar()">
+        Quitar filtros
+      </button>
+    {% endif %}
+  </div>
+
+{% endif %}

@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>BeneFusion eVP · Módulo de Capacitación</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f0f8fa;
+    --surface:#FFFFFF;
+    --surface-2:#e8f4f8;
+    --ink:#1e3a47;
+    --ink-soft:#6c8a96;
+    --accent:#3D90AE;
+    --accent-strong:#2C6C85;
+    --accent-soft:#e8f4f8;
+    --line:#cde6ef;
+    --crit:#B3261E;   --crit-bg:#FBEAE8;
+    --warn:#9A6300;   --warn-bg:#FCF1DA;
+    --low:#3A5B8C;    --low-bg:#E7ECF6;
+    --ok:#2e9e6b;     --ok-bg:#e8f8f2;
+    --screen-bg:#0c2e3a;
+    --screen-fg:#7fe3de;
+    --font-display: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-body: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SFMono-Regular", "Cascadia Code", Consolas, "Roboto Mono", monospace;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(61,144,174,.08), 0 6px 20px rgba(61,144,174,.12);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0c1b20; --surface:#12262c; --surface-2:#173038;
+      --ink:#e7f1f2; --ink-soft:#9fb7bd;
+      --accent:#63B6D1; --accent-strong:#8ED0E6; --accent-soft:#173241;
+      --line:#22424c;
+      --crit:#FF6B5E; --crit-bg:#3A1613;
+      --warn:#F0B429; --warn-bg:#3A2C0C;
+      --low:#7C9CD6;  --low-bg:#1B2740;
+      --ok:#4ADE9B;   --ok-bg:#0F2D20;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0c1b20; --surface:#12262c; --surface-2:#173038;
+    --ink:#e7f1f2; --ink-soft:#9fb7bd;
+    --accent:#63B6D1; --accent-strong:#8ED0E6; --accent-soft:#173241;
+    --line:#22424c;
+    --crit:#FF6B5E; --crit-bg:#3A1613;
+    --warn:#F0B429; --warn-bg:#3A2C0C;
+    --low:#7C9CD6;  --low-bg:#1B2740;
+    --ok:#4ADE9B;   --ok-bg:#0F2D20;
+  }
+  :root[data-theme="light"]{
+    --bg:#f0f8fa; --surface:#FFFFFF; --surface-2:#e8f4f8;
+    --ink:#1e3a47; --ink-soft:#6c8a96;
+    --accent:#3D90AE; --accent-strong:#2C6C85; --accent-soft:#e8f4f8;
+    --line:#cde6ef;
+    --crit:#B3261E; --crit-bg:#FBEAE8;
+    --warn:#9A6300; --warn-bg:#FCF1DA;
+    --low:#3A5B8C;  --low-bg:#E7ECF6;
+    --ok:#2e9e6b;   --ok-bg:#e8f8f2;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4{font-family:var(--font-display);font-weight:600;text-wrap:balance;color:var(--ink);margin:0 0 .5em;}
+  h1{font-size:2.1rem;line-height:1.15;}
+  h2{font-size:1.5rem;line-height:1.2;letter-spacing:-.01em;}
+  h3{font-size:1.15rem;line-height:1.3;}
+  p{margin:0 0 1em;max-width:70ch;}
+  a{color:var(--accent-strong);}
+  .eyebrow{
+    font-family:var(--font-body);
+    font-size:.72rem;
+    font-weight:700;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 .6em;
+    display:flex;align-items:center;gap:.5em;
+  }
+  .eyebrow::before{content:"";width:16px;height:2px;background:var(--accent);display:inline-block;}
+  code, .mono{font-family:var(--font-mono);}
+  button{font-family:inherit;}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;}
+  }
+
+  /* ---------- Topbar ---------- */
+  .topbar{
+    display:flex;align-items:center;gap:.9rem;
+    padding:.85rem 1.25rem;
+    background:var(--accent);
+    color:#fff;
+    border-bottom:3px solid rgba(255,255,255,.25);
+  }
+  .topbar-back{
+    display:inline-flex;align-items:center;gap:.4rem;
+    padding:.4rem .8rem;
+    background:rgba(255,255,255,.15);
+    border:1px solid rgba(255,255,255,.3);
+    border-radius:99px;
+    color:#fff;font-size:.78rem;font-weight:500;
+    text-decoration:none;flex:none;
+    transition:background .15s ease;
+  }
+  .topbar-back:hover{background:rgba(255,255,255,.28);color:#fff;}
+  .led{
+    width:10px;height:10px;border-radius:50%;
+    background:#fff;
+    box-shadow:0 0 0 3px rgba(255,255,255,.3);
+    animation:pulse 2.6s ease-in-out infinite;
+    flex:none;
+  }
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.45;}}
+  .topbar-title{font-family:var(--font-display);font-size:1.05rem;font-weight:600;letter-spacing:.01em;}
+  .topbar-sub{font-size:.78rem;color:rgba(255,255,255,.8);font-family:var(--font-mono);}
+  .topbar-spacer{flex:1;}
+  .topbar-progress{
+    display:flex;align-items:center;gap:.6rem;
+    font-family:var(--font-mono);font-size:.75rem;color:#BFE0DD;
+  }
+  .topbar-progress .bar{
+    width:110px;height:6px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden;
+  }
+  .topbar-progress .bar > span{
+    display:block;height:100%;background:var(--accent);width:0%;transition:width .4s ease;
+  }
+
+  /* ---------- Puerta de registro ---------- */
+  #regGate{
+    position:fixed;inset:0;z-index:9999;
+    display:flex;align-items:center;justify-content:center;
+    padding:1.5rem;
+    background:
+      radial-gradient(circle at 20% 15%, rgba(255,255,255,.22), transparent 45%),
+      linear-gradient(135deg, var(--accent), var(--accent-strong));
+  }
+  #regGate.hidden{display:none;}
+  .reg-card{
+    width:100%;max-width:440px;
+    background:var(--surface);
+    border-radius:14px;
+    box-shadow:0 24px 64px rgba(0,0,0,.4);
+    overflow:hidden;
+    animation:fadeUp .25s ease;
+  }
+  .reg-head{
+    background:var(--accent);color:#fff;
+    padding:1.4rem 1.6rem 1.2rem;
+  }
+  .reg-head .eyebrow{color:rgba(255,255,255,.85);}
+  .reg-head .eyebrow::before{background:rgba(255,255,255,.85);}
+  .reg-head h2{color:#fff;margin-bottom:.2rem;}
+  .reg-head p{color:rgba(255,255,255,.85);margin-bottom:0;font-size:.85rem;}
+  .reg-body{padding:1.4rem 1.6rem 1.6rem;}
+  .reg-field{margin-bottom:.9rem;}
+  .reg-field label{
+    display:block;font-size:.75rem;font-weight:700;color:var(--ink-soft);
+    text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem;
+  }
+  .reg-field input,
+  .reg-field select{
+    width:100%;padding:.55rem .7rem;
+    border:1.5px solid var(--line);border-radius:var(--radius);
+    background:var(--surface);color:var(--ink);
+    font-family:var(--font-body);font-size:.9rem;
+  }
+  .reg-field input:focus,
+  .reg-field select:focus{border-color:var(--accent);outline:none;}
+  .reg-actions{display:flex;flex-direction:column;gap:.6rem;margin-top:1.2rem;}
+  .reg-actions .btn-primary{width:100%;text-align:center;padding:.7rem 1rem;}
+  .reg-skip{
+    background:none;border:none;color:var(--ink-soft);
+    font-size:.82rem;text-decoration:underline;cursor:pointer;
+    text-align:center;padding:.3rem;
+  }
+  .reg-skip:hover{color:var(--accent-strong);}
+  .reg-note{font-size:.72rem;color:var(--ink-soft);margin-top:.9rem;margin-bottom:0;}
+  .reg-chip{
+    display:inline-flex;align-items:center;gap:.4rem;
+    background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+    border-radius:99px;padding:.3rem .7rem;
+    color:#fff;font-size:.75rem;font-weight:500;flex:none;
+  }
+
+  /* ---------- Shell / layout ---------- */
+  .shell{
+    display:grid;
+    grid-template-columns:260px 1fr;
+    min-height:calc(100vh - 58px);
+  }
+  .sidebar{
+    background:var(--surface);
+    border-right:1px solid var(--line);
+    padding:1.1rem .8rem;
+    display:flex;flex-direction:column;gap:1rem;
+    position:sticky;top:0;align-self:start;
+    height:calc(100vh - 58px);
+    overflow-y:auto;
+  }
+  .navlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem;}
+  .navlist button{
+    width:100%;
+    display:flex;align-items:center;gap:.65rem;
+    background:none;border:1px solid transparent;border-radius:var(--radius);
+    padding:.55rem .6rem;
+    text-align:left;cursor:pointer;
+    color:var(--ink-soft);
+    font-size:.88rem;
+  }
+  .navlist button .num{
+    font-family:var(--font-mono);font-size:.72rem;
+    width:1.5em;height:1.5em;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--surface-2);color:var(--ink-soft);flex:none;
+  }
+  .navlist button:hover{background:var(--surface-2);color:var(--ink);}
+  .navlist button.active{background:var(--accent-soft);color:var(--accent-strong);font-weight:600;border-color:color-mix(in srgb, var(--accent) 30%, transparent);}
+  .navlist button.active .num{background:var(--accent);color:#fff;}
+  .navlist button.done .num::after{content:"✓";}
+  .navlist button.done .num{background:var(--ok);color:#fff;font-size:0;}
+  .navlist button.done .num::after{font-size:.8rem;}
+  .sidebar-foot{
+    margin-top:auto;padding-top:.8rem;border-top:1px solid var(--line);
+    font-size:.72rem;color:var(--ink-soft);
+  }
+
+  main{padding:2.2rem clamp(1.2rem,4vw,3rem) 5rem;max-width:960px;}
+  .panel{display:none;animation:fade .25s ease;}
+  .panel.active{display:block;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  .lede{font-size:1.08rem;color:var(--ink-soft);max-width:68ch;}
+
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:1.2rem 1.3rem;box-shadow:var(--shadow);
+  }
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
+  @media (max-width:700px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+
+  .stat-row{display:flex;flex-wrap:wrap;gap:.7rem;margin:1.3rem 0;}
+  .stat{
+    flex:1 1 150px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:.85rem .95rem;
+  }
+  .stat .v{font-family:var(--font-mono);font-size:1.35rem;color:var(--accent-strong);font-variant-numeric:tabular-nums;}
+  .stat .l{font-size:.72rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;}
+
+  /* ---------- Pump mockup ---------- */
+  .pump{
+    display:grid;grid-template-columns:1.1fr .9fr;gap:1.5rem;align-items:start;margin:1.4rem 0;
+  }
+  @media (max-width:760px){.pump{grid-template-columns:1fr;}}
+  .pump-body{
+    background:linear-gradient(180deg,#3B4A50,#2A363B);
+    border-radius:10px;padding:1rem;box-shadow:var(--shadow);
+    position:relative;
+  }
+  .pump-handle{height:10px;width:60%;margin:0 auto .7rem;background:#20292D;border-radius:6px;}
+  .pump-screen{
+    background:var(--screen-bg);border-radius:4px;padding:.9rem 1rem;
+    font-family:var(--font-mono);color:var(--screen-fg);
+    min-height:92px;
+    box-shadow:inset 0 0 0 1px #08312D, inset 0 0 18px rgba(76,234,216,.08);
+  }
+  .pump-screen .sc-top{display:flex;justify-content:space-between;font-size:.68rem;opacity:.85;margin-bottom:.4rem;}
+  .pump-screen .sc-rate{font-size:1.5rem;letter-spacing:.02em;}
+  .pump-screen .sc-sub{font-size:.72rem;opacity:.8;margin-top:.3rem;}
+  .pump-keys{display:flex;gap:.5rem;margin-top:.8rem;}
+  .pump-keys span{
+    flex:1;height:26px;border-radius:3px;background:#4A585D;box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  .pump-hotspots{position:absolute;inset:0;}
+  .hotspot{
+    position:absolute;width:22px;height:22px;border-radius:50%;
+    background:var(--accent);color:#fff;border:2px solid #fff;
+    font-family:var(--font-mono);font-size:.68rem;font-weight:700;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+    box-shadow:0 0 0 3px rgba(0,0,0,.15);
+  }
+  .hotspot.active{background:#fff;color:var(--accent-strong);}
+  .pump-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.4rem;}
+  .pump-list li{
+    border:1px solid var(--line);border-radius:var(--radius);padding:.6rem .7rem;
+    background:var(--surface);cursor:pointer;font-size:.85rem;color:var(--ink-soft);
+    display:flex;gap:.6rem;
+  }
+  .pump-list li b{color:var(--ink);font-family:var(--font-mono);flex:none;}
+  .pump-list li.active{border-color:var(--accent);background:var(--accent-soft);color:var(--ink);}
+
+  /* ---------- Mode tabs ---------- */
+  .tabbar{display:flex;flex-wrap:wrap;gap:.4rem;margin:1rem 0;}
+  .tabbar button{
+    background:var(--surface);border:1px solid var(--line);border-radius:99px;
+    padding:.4rem .85rem;font-size:.78rem;color:var(--ink-soft);cursor:pointer;
+  }
+  .tabbar button.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+  .mode-panel{display:none;}
+  .mode-panel.active{display:block;}
+
+  /* ---------- Alarm cards ---------- */
+  .alarm-group h3{display:flex;align-items:center;gap:.5rem;margin-top:1.6rem;}
+  .badge{
+    font-family:var(--font-mono);font-size:.65rem;letter-spacing:.04em;text-transform:uppercase;
+    padding:.15rem .5rem;border-radius:99px;font-weight:700;
+  }
+  .badge.high{background:var(--crit-bg);color:var(--crit);}
+  .badge.mid{background:var(--warn-bg);color:var(--warn);}
+  .badge.low{background:var(--low-bg);color:var(--low);}
+  .alarm{
+    width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);
+    border-left:4px solid var(--line);border-radius:var(--radius);
+    padding:.7rem .9rem;margin-bottom:.5rem;cursor:pointer;
+  }
+  .alarm.high{border-left-color:var(--crit);}
+  .alarm.mid{border-left-color:var(--warn);}
+  .alarm.low{border-left-color:var(--low);}
+  .alarm-head{display:flex;justify-content:space-between;align-items:center;gap:1rem;font-weight:600;font-size:.9rem;}
+  .alarm-head .chev{font-family:var(--font-mono);color:var(--ink-soft);transition:transform .15s;}
+  .alarm[aria-expanded="true"] .chev{transform:rotate(90deg);}
+  .alarm-body{display:none;font-size:.85rem;color:var(--ink-soft);margin-top:.5rem;padding-top:.5rem;border-top:1px dashed var(--line);}
+  .alarm[aria-expanded="true"] .alarm-body{display:block;}
+
+  /* ---------- Procedure stepper ---------- */
+  .stepper{display:grid;grid-template-columns:230px 1fr;gap:1.4rem;margin-top:1.2rem;}
+  @media (max-width:760px){.stepper{grid-template-columns:1fr;}}
+  .steplist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.2rem;}
+  .steplist li{
+    font-size:.82rem;padding:.4rem .5rem;border-radius:var(--radius);color:var(--ink-soft);
+    display:flex;gap:.5rem;align-items:flex-start;
+  }
+  .steplist li .dot{width:6px;height:6px;border-radius:50%;background:var(--line);margin-top:.5em;flex:none;}
+  .steplist li.current{background:var(--accent-soft);color:var(--ink);font-weight:600;}
+  .steplist li.current .dot{background:var(--accent);}
+  .steplist li.past .dot{background:var(--ok);}
+  .step-detail{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:1.1rem 1.2rem;box-shadow:var(--shadow);}
+  .step-controls{display:flex;gap:.6rem;margin-top:1rem;}
+  .step-controls button{
+    background:var(--accent);color:#fff;border:none;border-radius:var(--radius);
+    padding:.5rem 1rem;font-size:.85rem;cursor:pointer;font-weight:600;
+  }
+  .step-controls button.ghost{background:none;border:1px solid var(--line);color:var(--ink-soft);}
+  .step-controls button:disabled{opacity:.4;cursor:not-allowed;}
+
+  /* ---------- Quiz ---------- */
+  .qcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:1.1rem 1.2rem;margin-bottom:.9rem;box-shadow:var(--shadow);}
+  .qcard legend{font-weight:600;font-size:.92rem;padding:0;margin-bottom:.6rem;font-family:var(--font-body);}
+  .qcard .opt{display:flex;align-items:flex-start;gap:.55rem;padding:.4rem 0;font-size:.86rem;color:var(--ink-soft);}
+  .qcard .opt input{margin-top:.28rem;}
+  .qcard.correct{border-color:var(--ok);}
+  .qcard.wrong{border-color:var(--crit);}
+  .qfeedback{display:none;margin-top:.6rem;font-size:.82rem;padding:.6rem .7rem;border-radius:var(--radius);}
+  .qcard.correct .qfeedback{display:block;background:var(--ok-bg);color:var(--ok);}
+  .qcard.wrong .qfeedback{display:block;background:var(--crit-bg);color:var(--crit);}
+  .quiz-actions{display:flex;gap:.7rem;align-items:center;margin-top:1.2rem;}
+  .btn-primary{background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:.65rem 1.3rem;font-weight:600;cursor:pointer;font-size:.9rem;}
+  .btn-primary:hover{background:var(--accent-strong);}
+  .score-panel{display:none;background:linear-gradient(135deg, var(--accent), var(--accent-strong));color:#fff;border-radius:var(--radius);padding:1.3rem 1.4rem;margin-top:1.2rem;}
+  .score-panel .big{font-family:var(--font-mono);font-size:2.2rem;color:#fff;font-variant-numeric:tabular-nums;}
+  .score-panel .eyebrow{color:rgba(255,255,255,.85);}
+  .score-panel .eyebrow::before{background:rgba(255,255,255,.85);}
+
+  table{border-collapse:collapse;width:100%;font-size:.85rem;}
+  th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);}
+  .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);}
+
+  ul.plain{padding-left:1.1em;color:var(--ink-soft);font-size:.92rem;}
+  ul.plain li{margin-bottom:.35em;}
+
+  .disclaimer{
+    margin-top:2.5rem;padding:1rem 1.2rem;border:1px dashed var(--line);border-radius:var(--radius);
+    font-size:.8rem;color:var(--ink-soft);background:var(--surface-2);
+  }
+  .sources{font-size:.82rem;color:var(--ink-soft);}
+  .sources li{margin-bottom:.3rem;}
+
+  @media (max-width:860px){
+    .shell{grid-template-columns:1fr;}
+    .sidebar{position:static;height:auto;flex-direction:row;overflow-x:auto;border-right:none;border-bottom:1px solid var(--line);}
+    .navlist{flex-direction:row;}
+    .navlist button{white-space:nowrap;}
+    .sidebar-foot{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<!-- Puerta de registro (demo, sin conexión a BD) -->
+<div id="regGate">
+  <div class="reg-card">
+    <div class="reg-head">
+      <p class="eyebrow">Antes de comenzar</p>
+      <h2>Regístrate para tu constancia</h2>
+      <p>Deja tus datos para llevar el registro de tu avance en este curso, o continúa sin registrarte.</p>
+    </div>
+    <div class="reg-body">
+      <form id="regForm">
+        <div class="reg-field">
+          <label for="regNombre">Nombre completo</label>
+          <input type="text" id="regNombre" name="nombre" placeholder="Ej. Ana Torres" required>
+        </div>
+        <div class="reg-field">
+          <label for="regArea">Área / Departamento</label>
+          <select id="regArea" name="area">
+            <option value="">Selecciona…</option>
+            <option>UCIN</option>
+            <option>UCI Adultos</option>
+            <option>Urgencias</option>
+            <option>Quirófano</option>
+            <option>Piso / Hospitalización</option>
+            <option>Ingeniería Biomédica</option>
+            <option>Otro</option>
+          </select>
+        </div>
+        <div class="reg-field">
+          <label for="regPuesto">Puesto</label>
+          <input type="text" id="regPuesto" name="puesto" placeholder="Ej. Enfermería, Técnico biomédico">
+        </div>
+        <div class="reg-actions">
+          <button type="submit" class="btn-primary">Comenzar capacitación</button>
+          <button type="button" class="reg-skip" id="regSkip">Saltar registro y continuar</button>
+        </div>
+      </form>
+      <p class="reg-note">Este registro es una demostración: por ahora se guarda solo en este navegador y no se envía a ningún servidor.</p>
+    </div>
+  </div>
+</div>
+
+<div id="courseRoot" style="display:none;">
+<header class="topbar">
+  <a href="{{ url_for('equipos.Capacitacion', numero_inventario=equipo.numero_inventario) }}" class="topbar-back">
+    <i class="fas fa-chevron-left"></i> Capacitación
+  </a>
+  <span class="led" aria-hidden="true"></span>
+  <div>
+    <div class="topbar-title">BeneFusion eVP</div>
+    <div class="topbar-sub">Módulo de capacitación interactiva · Bombas de infusión Mindray</div>
+  </div>
+  <div class="topbar-spacer"></div>
+  <span class="reg-chip" id="regChip" style="display:none;"><i class="fas fa-user-check"></i> <span id="regChipName"></span></span>
+  <div class="topbar-progress">
+    <span id="progressLabel">0 / 9 completado</span>
+    <span class="bar"><span id="progressBar"></span></span>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="sidebar" aria-label="Secciones del curso">
+    <ol class="navlist" id="navlist">
+      <li><button data-target="inicio" class="active"><span class="num">1</span> Introducción</button></li>
+      <li><button data-target="componentes"><span class="num">2</span> Componentes</button></li>
+      <li><button data-target="modos"><span class="num">3</span> Modos de infusión</button></li>
+      <li><button data-target="seguridad"><span class="num">4</span> Sistemas de seguridad</button></li>
+      <li><button data-target="alarmas"><span class="num">5</span> Alarmas</button></li>
+      <li><button data-target="procedimiento"><span class="num">6</span> Procedimiento</button></li>
+      <li><button data-target="mantenimiento"><span class="num">7</span> Batería y mantenimiento</button></li>
+      <li><button data-target="evaluacion"><span class="num">8</span> Evaluación final</button></li>
+      <li><button data-target="fuentes"><span class="num">9</span> Fuentes</button></li>
+    </ol>
+    <div class="sidebar-foot">Material de estudio no oficial. Consulte siempre el manual del fabricante y la política de su institución.</div>
+  </nav>
+
+  <main>
+
+    <!-- 1. INICIO -->
+    <section id="inicio" class="panel active">
+      <p class="eyebrow">Módulo 1 · Introducción</p>
+      <h1>Bombas de infusión Mindray BeneFusion eVP</h1>
+      <p class="lede">La <b>BeneFusion eVP</b> es una bomba de infusión volumétrica de la serie e de Mindray, diseñada para la administración controlada de fluidos y medicamentos por vía intravenosa en adultos, pediatría y neonatología. Forma pareja con la bomba de jeringa <b>eSP</b> dentro de la misma familia de producto, compartiendo interfaz, software de seguridad y estación de acoplamiento.</p>
+
+      <div class="stat-row">
+        <div class="stat"><div class="v">±5%</div><div class="l">Precisión de infusión (eVP)</div></div>
+        <div class="stat"><div class="v">0.1–1200</div><div class="l">mL/h rango de tasa</div></div>
+        <div class="stat"><div class="v">&lt;10 s</div><div class="l">Primera gota (SmartRapid™)</div></div>
+        <div class="stat"><div class="v">15 µL</div><div class="l">Burbuja mínima detectada</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>¿Para qué se usa?</h3>
+          <p style="margin-bottom:0">Administrar volúmenes grandes y medianos de fluidos, electrolitos, nutrición y fármacos con un caudal constante y controlado, en pacientes que requieren precisión, trazabilidad y protección frente a errores de dosificación.</p>
+        </div>
+        <div class="card">
+          <h3>¿Qué la diferencia?</h3>
+          <p style="margin-bottom:0">Pantalla táctil capacitiva de 3.5", doble sensor ultrasónico de aire, pinza automática anti-flujo libre, sistema de presión dinámica (DPS) y biblioteca de fármacos con límites de seguridad (SafeDose™ DERS).</p>
+        </div>
+      </div>
+
+      <h2 style="margin-top:2rem">Cómo usar este módulo</h2>
+      <p class="lede">Recorra las secciones en el panel izquierdo en el orden numerado. Cada sección visitada se marca automáticamente; al llegar al final complete la <b>evaluación</b> para verificar su comprensión. Su progreso se guarda en este navegador.</p>
+    </section>
+
+    <!-- 2. COMPONENTES -->
+    <section id="componentes" class="panel">
+      <p class="eyebrow">Módulo 2 · Anatomía del equipo</p>
+      <h2>Componentes principales</h2>
+      <p class="lede">Esquema ilustrativo del panel frontal. Seleccione cada punto numerado para ver su función.</p>
+
+      <div class="pump">
+        <div class="pump-body">
+          <div class="pump-handle"></div>
+          <div class="pump-screen">
+            <div class="sc-top"><span>eVP · CANAL 1</span><span id="scClock">RATE MODE</span></div>
+            <div class="sc-rate" id="scRate">125.0 <small style="font-size:.9rem">mL/h</small></div>
+            <div class="sc-sub" id="scSub">VTBI 500 mL · KVO 1.0 mL/h</div>
+          </div>
+          <div class="pump-keys"><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="pump-hotspots">
+            <button class="hotspot" style="top:14px;left:18px;" data-i="1">1</button>
+            <button class="hotspot" style="top:14px;right:18px;" data-i="2">2</button>
+            <button class="hotspot" style="top:96px;left:50%;transform:translateX(-50%);" data-i="3">3</button>
+            <button class="hotspot" style="bottom:14px;left:18px;" data-i="4">4</button>
+            <button class="hotspot" style="bottom:14px;right:18px;" data-i="5">5</button>
+          </div>
+        </div>
+
+        <ul class="pump-list" id="pumpList">
+          <li data-i="1"><b>1</b> Pantalla táctil capacitiva de 3.5": programación de parámetros, biblioteca de fármacos y visualización de alarmas.</li>
+          <li data-i="2"><b>2</b> Indicador LED de estado: color y parpadeo señalan funcionamiento normal, alarma o carga de batería.</li>
+          <li data-i="3"><b>3</b> Puerta del mecanismo peristáltico, con el sensor ultrasónico dual de burbujas de aire integrado en la vía.</li>
+          <li data-i="4"><b>4</b> Pinza automática de la línea: se cierra sola al abrir la puerta o retirar el set, evitando el flujo libre no controlado.</li>
+          <li data-i="5"><b>5</b> Puerto de alimentación AC y compartimento de batería interna recargable para uso portátil.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Otros elementos habituales</h3>
+        <ul class="plain">
+          <li><b>Sensor de gotas</b> (accesorio opcional): permite el modo Drip cuando se usa un set sin calibración específica para bomba.</li>
+          <li><b>Asa de transporte y pinza para palo de suero</b>, para fijar el equipo al soporte de infusión.</li>
+          <li><b>Puerto de comunicación / red</b>, usado para integración con el sistema central de monitorización BeneVision CMS.</li>
+          <li><b>Mecanismo de acoplamiento lateral</b>, en modelos multicanal, para formar racimos de varias bombas sincronizadas.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 3. MODOS -->
+    <section id="modos" class="panel">
+      <p class="eyebrow">Módulo 3 · Programación</p>
+      <h2>Modos de infusión</h2>
+      <p class="lede">La serie e de Mindray admite hasta diez modos de operación. Elija uno para ver cómo se programa y en qué contexto clínico se usa.</p>
+
+      <div class="tabbar" id="modeTabs" role="tablist"></div>
+      <div id="modePanels"></div>
+    </section>
+
+    <!-- 4. SEGURIDAD -->
+    <section id="seguridad" class="panel">
+      <p class="eyebrow">Módulo 4 · Prevención de errores</p>
+      <h2>Sistemas de seguridad</h2>
+      <p class="lede">La bomba combina protecciones mecánicas, sensóricas y de software agrupadas bajo la suite <b>SafeDose™</b>.</p>
+
+      <div class="grid-3">
+        <div class="card">
+          <h3>SafeDose™ DERS</h3>
+          <p style="margin-bottom:0">Sistema de reducción de errores de dosis: biblioteca de fármacos con límites blandos y duros por área clínica, y nomenclatura de fármacos codificada por color para verificación visual rápida.</p>
+        </div>
+        <div class="card">
+          <h3>Doble sensor ultrasónico de aire</h3>
+          <p style="margin-bottom:0">Detecta microburbujas desde 15 µL con dos transductores, reduciendo falsas alarmas y mejorando la seguridad en infusiones neonatales.</p>
+        </div>
+        <div class="card">
+          <h3>Pinza anti-flujo libre</h3>
+          <p style="margin-bottom:0">Clamp automático que bloquea la línea en cuanto se abre la puerta o se retira el set del mecanismo, evitando la administración accidental por gravedad.</p>
+        </div>
+        <div class="card">
+          <h3>DPS · Presión dinámica</h3>
+          <p style="margin-bottom:0">Monitoriza la presión de línea en tiempo real (aguas arriba y abajo), mostrando valor numérico y curva gráfica para anticipar oclusiones antes de que generen complicaciones.</p>
+        </div>
+        <div class="card">
+          <h3>SafeDose™ Info / CQI</h3>
+          <p style="margin-bottom:0">Software que automatiza la carga de parámetros de infusión y registra datos para la mejora continua de la calidad y seguridad de la medicación (CQI).</p>
+        </div>
+        <div class="card">
+          <h3>SmartRapid™</h3>
+          <p style="margin-bottom:0">Acorta el tiempo de arranque, entregando la primera gota de medicación en menos de 10 segundos tras encender el equipo, reduciendo demoras terapéuticas.</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:1.4rem">
+        <h3>Buenas prácticas del operador (no reemplazan el manual oficial)</h3>
+        <ul class="plain">
+          <li>Verifique siempre los <b>5 correctos</b>: paciente, medicamento, dosis, vía y hora, antes de iniciar cualquier infusión.</li>
+          <li>Confirme que la biblioteca de fármacos y los límites de dosis estén activados para el área clínica correspondiente.</li>
+          <li>No desactive alarmas ni sensores para "silenciar" un problema sin antes identificar su causa.</li>
+          <li>Ante alta sospecha de error de programación, realice doble verificación con otro profesional, según la política institucional.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 5. ALARMAS -->
+    <section id="alarmas" class="panel">
+      <p class="eyebrow">Módulo 5 · Respuesta a alarmas</p>
+      <h2>Sistema de alarmas</h2>
+      <p class="lede">Las alarmas se clasifican en tres niveles de prioridad. Toque cada alarma para ver su significado y la acción recomendada.</p>
+
+      <div class="alarm-group">
+        <h3><span class="badge high">Alta</span> Detienen la infusión</h3>
+        <div id="alarmsHigh"></div>
+
+        <h3><span class="badge mid">Media</span> Requieren atención pronta</h3>
+        <div id="alarmsMid"></div>
+
+        <h3><span class="badge low">Baja</span> Informativas</h3>
+        <div id="alarmsLow"></div>
+      </div>
+
+      <div class="card" style="margin-top:1.2rem">
+        <h3>Presión de línea (DPS)</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Estado</th><th>Significado</th></tr></thead>
+            <tbody>
+              <tr><td>Presión normal</td><td>Flujo sin restricciones, dentro del umbral configurado.</td></tr>
+              <tr><td>Presión cercana a oclusión</td><td>Advertencia temprana: la presión sube hacia el umbral de alarma; revisar la línea.</td></tr>
+              <tr><td>Presión de oclusión</td><td>Umbral superado: la bomba dispara alarma de alta prioridad y detiene la infusión.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. PROCEDIMIENTO -->
+    <section id="procedimiento" class="panel">
+      <p class="eyebrow">Módulo 6 · Práctica guiada</p>
+      <h2>Simulador de puesta en marcha</h2>
+      <p class="lede">Recorra los pasos típicos para iniciar una infusión de forma segura. Use los botones para avanzar y observe cómo cambia la pantalla simulada.</p>
+
+      <div class="stepper">
+        <ol class="steplist" id="stepList"></ol>
+        <div class="step-detail">
+          <div class="pump-screen" style="max-width:340px;margin-bottom:1rem;">
+            <div class="sc-top"><span>eVP · SIM</span><span id="stStatus">LISTO</span></div>
+            <div class="sc-rate" id="stRate" style="font-size:1.1rem;">—</div>
+            <div class="sc-sub" id="stSub">Presione "Siguiente paso"</div>
+          </div>
+          <h3 id="stepTitle">—</h3>
+          <p id="stepText" style="margin-bottom:0"></p>
+          <div class="step-controls">
+            <button class="ghost" id="stepPrev">◂ Paso anterior</button>
+            <button id="stepNext">Siguiente paso ▸</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. MANTENIMIENTO -->
+    <section id="mantenimiento" class="panel">
+      <p class="eyebrow">Módulo 7 · Cuidado del equipo</p>
+      <h2>Batería y mantenimiento básico</h2>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Alimentación</h3>
+          <p>El equipo funciona conectado a la red eléctrica (AC) o con su batería interna recargable para traslados y continuidad ante cortes de energía. La pantalla indica el modo de alimentación activo y el nivel de carga.</p>
+          <p style="margin-bottom:0">Cuando la batería está baja, se genera una alarma de <b>batería baja</b> (prioridad media); si se agota por completo, la alarma pasa a <b>prioridad alta</b> y la infusión puede detenerse. Mantenga el equipo conectado a la red cuando no esté en traslado.</p>
+        </div>
+        <div class="card">
+          <h3>Cuidado diario</h3>
+          <ul class="plain" style="margin-bottom:0">
+            <li>Inspeccione la carcasa, el cable de alimentación y la puerta del mecanismo antes de cada uso.</li>
+            <li>Limpie y desinfecte las superficies externas según el protocolo de control de infecciones de su institución.</li>
+            <li>No sumerja el equipo ni permita el ingreso de líquidos en la carcasa o los conectores.</li>
+            <li>Reporte cualquier daño visible, mensaje de error persistente o vencimiento de calibración a ingeniería biomédica.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:1rem">
+        <h3>Mantenimiento preventivo</h3>
+        <p style="margin-bottom:0">La verificación de precisión, la calibración y el mantenimiento preventivo periódico deben realizarse por personal técnico calificado, siguiendo el cronograma definido por el fabricante y el departamento de ingeniería biomédica de la institución. Un equipo fuera de su ciclo de mantenimiento no debe usarse en pacientes.</p>
+      </div>
+    </section>
+
+    <!-- 8. EVALUACIÓN -->
+    <section id="evaluacion" class="panel">
+      <p class="eyebrow">Módulo 8 · Verificación de conocimientos</p>
+      <h2>Evaluación final</h2>
+      <p class="lede">Responda las siguientes preguntas y presione "Calificar". Necesita 80% o más para aprobar. Puede reintentar cuantas veces lo necesite.</p>
+
+      <form id="quizForm"></form>
+
+      <div class="quiz-actions">
+        <button type="button" class="btn-primary" id="quizSubmit">Calificar evaluación</button>
+        <button type="button" class="ghost" id="quizReset" style="background:none;border:1px solid var(--line);color:var(--ink-soft);border-radius:var(--radius);padding:.65rem 1.1rem;cursor:pointer;">Reiniciar</button>
+      </div>
+
+      <div class="score-panel" id="scorePanel">
+        <div class="eyebrow">Resultado</div>
+        <div class="big" id="scoreBig">0%</div>
+        <p id="scoreMsg" style="color:rgba(255,255,255,.9);margin-top:.4rem;margin-bottom:0"></p>
+      </div>
+    </section>
+
+    <!-- 9. FUENTES -->
+    <section id="fuentes" class="panel">
+      <p class="eyebrow">Módulo 9 · Referencias</p>
+      <h2>Fuentes y aviso</h2>
+      <div class="disclaimer">
+        Este módulo es material de estudio elaborado con fines educativos a partir de documentación pública de Mindray sobre la serie BeneFusion e (eVP / eSP) y de la serie VP5, y de conocimientos generales de práctica clínica en infusión intravenosa. <b>No sustituye</b> las Instrucciones de Uso (IFU) oficiales del fabricante, la capacitación certificada por su institución, ni las políticas locales de administración de medicamentos. Ante cualquier duda operativa, consulte siempre el manual oficial del equipo específico instalado en su servicio.
+      </div>
+      <ul class="sources" style="margin-top:1.2rem">
+        <li><a href="https://www.mindray.com/en/products/infusion-system/benefusion-e-series" target="_blank" rel="noopener">Mindray — BeneFusion e Series (producto oficial)</a></li>
+        <li><a href="https://www.mindray.com/content/dam/xpace/en/site/mdr-sscp/e-series/KF-H-046-021167-00-eVP-Instruction-for-Use_20230712191005941.pdf" target="_blank" rel="noopener">Mindray — BeneFusion eVP / eVP ex / eVP Neo, Instrucciones de Uso (PDF)</a></li>
+        <li><a href="https://www.manualslib.com/manual/1977231/Mindray-Benefusion-Vp5.html" target="_blank" rel="noopener">Mindray BeneFusion VP5 — Manual del operador (ManualsLib)</a></li>
+        <li><a href="https://www.mindray.com/content/dam/xpace/en/site/mdr-sscp/ivp-and-uvp/kf-h-046-024481-00-uvp-instruction-for-use.pdf" target="_blank" rel="noopener">Mindray — BeneFusion uVP / uVP ex, Instrucciones de Uso (PDF)</a></li>
+        <li><a href="https://bfpcatalog.org/products/mindray-volumetric-infusion-pump-evp" target="_blank" rel="noopener">BFP Catalog — Mindray Volumetric Infusion Pump eVP</a></li>
+      </ul>
+    </section>
+
+  </main>
+</div>
+</div><!-- /#courseRoot -->
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- Puerta de registro (demo, solo localStorage) ---------- */
+  var REG_KEY = "mindray-evp-registro-v1";
+  var regGate    = document.getElementById("regGate");
+  var courseRoot = document.getElementById("courseRoot");
+  var regChip    = document.getElementById("regChip");
+  var regChipName = document.getElementById("regChipName");
+
+  function entrarAlCurso(){
+    regGate.classList.add("hidden");
+    courseRoot.style.display = "";
+  }
+
+  function mostrarChip(datos){
+    if(!datos || !datos.nombre) return;
+    regChipName.textContent = datos.area ? (datos.nombre + " · " + datos.area) : datos.nombre;
+    regChip.style.display = "inline-flex";
+  }
+
+  var registroPrevio = null;
+  try{ registroPrevio = JSON.parse(localStorage.getItem(REG_KEY) || "null"); }catch(e){}
+  if(registroPrevio && registroPrevio.nombre){
+    mostrarChip(registroPrevio);
+  }
+
+  document.getElementById("regForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var datos = {
+      nombre: document.getElementById("regNombre").value.trim(),
+      area: document.getElementById("regArea").value,
+      puesto: document.getElementById("regPuesto").value.trim(),
+      fecha: new Date().toISOString()
+    };
+    if(!datos.nombre) return;
+    try{ localStorage.setItem(REG_KEY, JSON.stringify(datos)); }catch(e){}
+    mostrarChip(datos);
+    entrarAlCurso();
+  });
+
+  document.getElementById("regSkip").addEventListener("click", function(){
+    entrarAlCurso();
+  });
+
+  /* ---------- Navigation ---------- */
+  var sections = ["inicio","componentes","modos","seguridad","alarmas","procedimiento","mantenimiento","evaluacion","fuentes"];
+  var STORAGE_KEY = "mindray-evp-course-progress-v1";
+  var visited = new Set();
+  try{
+    var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    if(Array.isArray(saved.visited)) visited = new Set(saved.visited);
+  }catch(e){}
+
+  var navButtons = Array.prototype.slice.call(document.querySelectorAll("#navlist button"));
+  var panels = {};
+  sections.forEach(function(id){ panels[id] = document.getElementById(id); });
+
+  function persist(){
+    var best = 0;
+    try{ best = (JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}").bestScore) || 0; }catch(e){}
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({visited:Array.from(visited), bestScore:best}));
+  }
+
+  function updateProgressUI(){
+    navButtons.forEach(function(btn){
+      var id = btn.getAttribute("data-target");
+      btn.classList.toggle("done", visited.has(id));
+    });
+    var pct = Math.round((visited.size / sections.length) * 100);
+    document.getElementById("progressLabel").textContent = visited.size + " / " + sections.length + " completado";
+    document.getElementById("progressBar").style.width = pct + "%";
+  }
+
+  function showSection(id){
+    sections.forEach(function(s){ panels[s].classList.toggle("active", s === id); });
+    navButtons.forEach(function(btn){ btn.classList.toggle("active", btn.getAttribute("data-target") === id); });
+    visited.add(id);
+    persist();
+    updateProgressUI();
+    panels[id].scrollIntoView({block:"start", behavior:"auto"});
+    window.scrollTo(0,0);
+  }
+
+  navButtons.forEach(function(btn){
+    btn.addEventListener("click", function(){ showSection(btn.getAttribute("data-target")); });
+  });
+  visited.add("inicio");
+  updateProgressUI();
+
+  /* ---------- Componentes hotspots ---------- */
+  var hotspots = Array.prototype.slice.call(document.querySelectorAll(".hotspot"));
+  var pumpItems = Array.prototype.slice.call(document.querySelectorAll("#pumpList li"));
+  function selectComponent(i){
+    hotspots.forEach(function(h){ h.classList.toggle("active", h.getAttribute("data-i") === i); });
+    pumpItems.forEach(function(li){ li.classList.toggle("active", li.getAttribute("data-i") === i); });
+  }
+  hotspots.forEach(function(h){ h.addEventListener("click", function(){ selectComponent(h.getAttribute("data-i")); }); });
+  pumpItems.forEach(function(li){ li.addEventListener("click", function(){ selectComponent(li.getAttribute("data-i")); }); });
+
+  /* ---------- Modos de infusión ---------- */
+  var modes = [
+    {id:"rate", name:"Tasa (Rate)", screen:{rate:"125.0 mL/h", sub:"VTBI 500 mL"},
+      desc:"El operador introduce directamente la tasa de infusión (mL/h) y, opcionalmente, el VTBI (volumen a infundir). Es el modo más habitual para fluidos e infusiones de mantenimiento."},
+    {id:"time", name:"Tiempo (Time)", screen:{rate:"04:00 h", sub:"VTBI 500 mL → 125 mL/h"},
+      desc:"Se define el VTBI y el tiempo total de infusión; la bomba calcula automáticamente la tasa necesaria. Útil cuando la orden médica especifica duración en vez de velocidad."},
+    {id:"weight", name:"Peso corporal", screen:{rate:"5 µg/kg/min", sub:"Peso 70 kg · Conc. 400 mg/250 mL"},
+      desc:"Se ingresan el peso del paciente, la concentración del fármaco y la dosis deseada por kilogramo (por minuto u hora); la bomba calcula la tasa en mL/h. Frecuente en fármacos vasoactivos y en pediatría/neonatología."},
+    {id:"dose", name:"Dosis (Dose)", screen:{rate:"10 mg/h", sub:"Conc. 4 mg/mL → 2.5 mL/h"},
+      desc:"Se programa la dosis deseada (p. ej. mg/h o mUI/h) junto con la concentración del preparado; la bomba traduce automáticamente la dosis a mL/h. Reduce el cálculo manual en fármacos titulables."},
+    {id:"sequential", name:"Secuencial", screen:{rate:"SEC 1/3", sub:"Bolsa A → B → C automático"},
+      desc:"Permite programar varias infusiones consecutivas (hasta un número limitado de segmentos) que se ejecutan una tras otra sin intervención manual, útil para esquemas de varias soluciones."},
+    {id:"intermittent", name:"Intermitente", screen:{rate:"CICLO 30 min", sub:"Cada 4 h · Vol 100 mL"},
+      desc:"Repite un ciclo de infusión a intervalos programados (por ejemplo, un antibiótico cada cierto número de horas), reanudando automáticamente sin reprogramar cada dosis."},
+    {id:"loading", name:"Dosis de carga", screen:{rate:"CARGA 300 mL/h", sub:"→ mantenimiento 50 mL/h"},
+      desc:"Administra un volumen o dosis inicial más alta (bolo de carga) a una tasa definida y luego pasa automáticamente a la tasa de mantenimiento programada."},
+    {id:"ramp", name:"Rampa (Ramp)", screen:{rate:"↗ 20→100 mL/h", sub:"En 30 min (up-ramp)"},
+      desc:"Incrementa o disminuye la tasa de forma gradual y progresiva durante un periodo definido, evitando cambios bruscos de flujo. Se usa en nutrición parenteral o al iniciar/retirar ciertos fármacos."},
+    {id:"micro", name:"Microinfusión", screen:{rate:"0.05 mL/h", sub:"Resolución 0.01 mL/h"},
+      desc:"Ofrece incrementos muy finos de tasa (hasta 0.01 mL/h) para volúmenes extremadamente pequeños, imprescindible en infusiones neonatales y pediátricas de alta precisión."},
+    {id:"drip", name:"Goteo (Drip)", screen:{rate:"30 gtt/min", sub:"Factor de goteo 20 gtt/mL"},
+      desc:"Programa la infusión en gotas por minuto usando un sensor de gotas, para sets de infusión estándar sin calibración electrónica específica de la bomba."}
+  ];
+
+  var modeTabs = document.getElementById("modeTabs");
+  var modePanels = document.getElementById("modePanels");
+  modes.forEach(function(m, idx){
+    var tab = document.createElement("button");
+    tab.textContent = m.name;
+    tab.setAttribute("role","tab");
+    tab.className = idx === 0 ? "active" : "";
+    tab.addEventListener("click", function(){
+      Array.prototype.forEach.call(modeTabs.children, function(c){ c.classList.remove("active"); });
+      tab.classList.add("active");
+      Array.prototype.forEach.call(modePanels.children, function(p){ p.classList.remove("active"); });
+      document.getElementById("modepanel-"+m.id).classList.add("active");
+    });
+    modeTabs.appendChild(tab);
+
+    var panel = document.createElement("div");
+    panel.className = "mode-panel" + (idx === 0 ? " active" : "");
+    panel.id = "modepanel-"+m.id;
+    panel.innerHTML =
+      '<div class="pump-screen" style="max-width:320px;margin:.8rem 0 1rem;">' +
+        '<div class="sc-top"><span>eVP</span><span>'+m.name.toUpperCase()+'</span></div>' +
+        '<div class="sc-rate" style="font-size:1.2rem;">'+m.screen.rate+'</div>' +
+        '<div class="sc-sub">'+m.screen.sub+'</div>' +
+      '</div>' +
+      '<p style="margin-bottom:0">'+m.desc+'</p>';
+    modePanels.appendChild(panel);
+  });
+
+  /* ---------- Alarmas ---------- */
+  var alarms = {
+    high: [
+      {t:"Oclusión aguas arriba (upstream)", d:"Obstrucción entre el contenedor de fluido y la bomba. La infusión se detiene; revise pinzas cerradas, torceduras o filtros obstruidos."},
+      {t:"Oclusión aguas abajo (downstream)", d:"Obstrucción entre la bomba y el paciente. La infusión se detiene; revise el catéter, la llave de tres vías y el sitio de venopunción."},
+      {t:"Burbuja / aire acumulado", d:"El sensor ultrasónico detectó aire en la línea. La infusión se detiene hasta purgar el aire; esta alarma se suprime automáticamente durante el cebado inicial."},
+      {t:"Batería agotada", d:"Se acabó la carga y no hay alimentación AC disponible. Conecte el equipo a la red eléctrica de inmediato."},
+      {t:"Puerta abierta", d:"La puerta del mecanismo no está correctamente cerrada. Ciérrela y verifique la carga del set antes de reanudar."},
+      {t:"Fin de infusión (Finish)", d:"Se alcanzó el VTBI programado. Confirme la orden médica sobre continuar en KVO, reprogramar o desconectar."},
+      {t:"Fin de KVO", d:"Se completó el periodo de mantenimiento a tasa KVO (mantener vena abierta). Evalúe al paciente y decida el siguiente paso."},
+      {t:"Error de sistema", d:"Fallo interno detectado por autodiagnóstico. Detenga el uso, documente el mensaje y notifique a ingeniería biomédica."}
+    ],
+    mid: [
+      {t:"Batería baja", d:"Queda carga limitada. Conecte el equipo a la red eléctrica en los próximos minutos."},
+      {t:"Fin de tiempo en espera (standby)", d:"El equipo estuvo inactivo el tiempo máximo permitido en espera. Verifique el estado antes de continuar."},
+      {t:"Presión cercana a oclusión", d:"La presión de línea se acerca al umbral de alarma. Revise la vía preventivamente."}
+    ],
+    low: [
+      {t:"Sin operación", d:"No se detectó interacción del usuario durante un tiempo prolongado; alerta informativa de bajo impacto clínico."},
+      {t:"Desconexión de AC", d:"El equipo pasó a funcionar con batería. Informativa si el traslado es planificado."},
+      {t:"Sin batería insertada", d:"No hay batería instalada; el equipo solo funcionará mientras esté conectado a la red eléctrica."}
+    ]
+  };
+
+  function renderAlarms(list, containerId, level){
+    var container = document.getElementById(containerId);
+    list.forEach(function(a){
+      var btn = document.createElement("button");
+      btn.className = "alarm " + level;
+      btn.setAttribute("aria-expanded","false");
+      btn.innerHTML =
+        '<span class="alarm-head">'+a.t+'<span class="chev">▸</span></span>' +
+        '<span class="alarm-body">'+a.d+'</span>';
+      btn.addEventListener("click", function(){
+        var open = btn.getAttribute("aria-expanded") === "true";
+        btn.setAttribute("aria-expanded", open ? "false" : "true");
+      });
+      container.appendChild(btn);
+    });
+  }
+  renderAlarms(alarms.high, "alarmsHigh", "high");
+  renderAlarms(alarms.mid, "alarmsMid", "mid");
+  renderAlarms(alarms.low, "alarmsLow", "low");
+
+  /* ---------- Procedimiento (stepper) ---------- */
+  var steps = [
+    {t:"1. Verificar la prescripción", d:'Confirme los "5 correctos": paciente, medicamento, dosis, vía y hora, antes de tocar el equipo.', st:"LISTO", rate:"—", sub:"Verificando orden médica"},
+    {t:"2. Inspeccionar el equipo", d:"Revise carcasa, cable de alimentación, batería y que la fecha de mantenimiento/calibración esté vigente.", st:"LISTO", rate:"—", sub:"Chequeo visual del equipo"},
+    {t:"3. Encender la bomba", d:"Al encender, SmartRapid™ realiza el autochequeo y prepara el equipo para entregar la primera gota en menos de 10 segundos.", st:"INICIANDO", rate:"…", sub:"Autochequeo en curso"},
+    {t:"4. Cargar el set de infusión", d:"Instale el set en el mecanismo peristáltico siguiendo la ruta marcada; el sistema verifica automáticamente que quedó bien colocado.", st:"CARGANDO SET", rate:"—", sub:"Verificación automática de carga"},
+    {t:"5. Purgar (cebar) la línea", d:"Elimine el aire de la línea antes de conectar al paciente. Durante el cebado, la alarma de aire en línea se suprime temporalmente.", st:"PURGANDO", rate:"—", sub:"Alarma de aire suprimida"},
+    {t:"6. Conectar al acceso vascular", d:"Conecte la línea al catéter del paciente y verifique la permeabilidad y ausencia de signos de infiltración.", st:"CONECTADO", rate:"—", sub:"Verificar sitio de punción"},
+    {t:"7. Elegir el modo de infusión", d:"Seleccione el modo adecuado (Tasa, Tiempo, Peso corporal, Dosis, etc.) según la orden médica y el fármaco.", st:"MODO", rate:"RATE", sub:"Seleccionando modo"},
+    {t:"8. Programar los parámetros", d:"Ingrese tasa, VTBI y, si corresponde, la tasa de KVO. Confirme que la biblioteca de fármacos (DERS) esté activa.", st:"PROGRAMANDO", rate:"125.0 mL/h", sub:"VTBI 500 mL"},
+    {t:"9. Doble verificación", d:"Para medicamentos de alto riesgo, realice doble chequeo con otro profesional según la política institucional antes de iniciar.", st:"VERIFICANDO", rate:"125.0 mL/h", sub:"Doble chequeo pendiente"},
+    {t:"10. Iniciar la infusión", d:"Presione iniciar y observe los primeros minutos: sitio de venopunción, comodidad del paciente y funcionamiento del equipo.", st:"INFUNDIENDO", rate:"125.0 mL/h", sub:"VTBI restante 500 mL"},
+    {t:"11. Monitorizar", d:"Vigile las alarmas y la presión de línea (DPS) durante toda la infusión; responda con prontitud ante cualquier alarma.", st:"MONITORIZANDO", rate:"125.0 mL/h", sub:"Presión: normal"},
+    {t:"12. Finalizar", d:'Al sonar la alarma "Finish", decida junto al equipo tratante si continuar en KVO, reprogramar o desconectar la línea.', st:"FINALIZADO", rate:"0.0 mL/h", sub:"VTBI completado"}
+  ];
+
+  var stepIdx = 0;
+  var stepListEl = document.getElementById("stepList");
+  steps.forEach(function(s, i){
+    var li = document.createElement("li");
+    li.innerHTML = '<span class="dot"></span><span>'+s.t+'</span>';
+    stepListEl.appendChild(li);
+  });
+
+  function renderStep(){
+    var s = steps[stepIdx];
+    Array.prototype.forEach.call(stepListEl.children, function(li, i){
+      li.classList.toggle("current", i === stepIdx);
+      li.classList.toggle("past", i < stepIdx);
+    });
+    document.getElementById("stepTitle").textContent = s.t;
+    document.getElementById("stepText").textContent = s.d;
+    document.getElementById("stStatus").textContent = s.st;
+    document.getElementById("stRate").textContent = s.rate;
+    document.getElementById("stSub").textContent = s.sub;
+    document.getElementById("stepPrev").disabled = stepIdx === 0;
+    document.getElementById("stepNext").textContent = stepIdx === steps.length - 1 ? "Reiniciar simulación" : "Siguiente paso ▸";
+  }
+  document.getElementById("stepNext").addEventListener("click", function(){
+    if(stepIdx === steps.length - 1){ stepIdx = 0; } else { stepIdx++; }
+    renderStep();
+  });
+  document.getElementById("stepPrev").addEventListener("click", function(){
+    if(stepIdx > 0){ stepIdx--; renderStep(); }
+  });
+  renderStep();
+
+  /* ---------- Quiz ---------- */
+  var quiz = [
+    {q:"¿Cuál es la precisión de infusión declarada para la BeneFusion eVP?", opts:["±1%","±5%","±10%","±15%"], c:1,
+      ex:"La eVP tiene una precisión declarada de ±5% (la bomba de jeringa eSP de la misma serie declara ±1.8%)."},
+    {q:"¿Qué tecnología permite entregar la primera gota en menos de 10 segundos tras encender la bomba?", opts:["SafeDose™ DERS","SmartRapid™","BeneVision CMS","Dynamic Pressure System"], c:1,
+      ex:"SmartRapid™ acorta el tiempo de arranque del equipo."},
+    {q:"¿Qué mecanismo evita el flujo libre no controlado al abrir la puerta del mecanismo?", opts:["El sensor de gotas","La biblioteca de fármacos","La pinza automática de la línea","El sensor ultrasónico de aire"], c:2,
+      ex:"La pinza (clamp) automática se cierra sola al abrir la puerta o retirar el set."},
+    {q:"¿Cuál es el tamaño mínimo de burbuja de aire que puede detectar el sensor ultrasónico dual?", opts:["1.5 mL","150 µL","15 µL","1.5 µL"], c:2,
+      ex:"El sensor ultrasónico dual detecta burbujas desde 15 µL."},
+    {q:"¿Qué sistema aplica límites blandos y duros de dosificación por área clínica?", opts:["SafeDose™ DERS","DPS","SmartRapid™","Modo Ramp"], c:0,
+      ex:"SafeDose™ DERS (Dose Error Reduction System) gestiona los límites de dosis por área clínica."},
+    {q:"En el modo Peso corporal, ¿qué datos ingresa el operador para que la bomba calcule la tasa?", opts:["Solo la tasa en mL/h","Peso del paciente, concentración del fármaco y dosis deseada","Solo el VTBI","El número de gotas por minuto"], c:1,
+      ex:"El modo Peso corporal calcula mL/h a partir del peso, la concentración y la dosis por kg."},
+    {q:"¿Qué modo incrementa o reduce la tasa de forma gradual durante un periodo definido?", opts:["Modo Secuencial","Modo Intermitente","Modo Rampa (Ramp)","Modo Goteo (Drip)"], c:2,
+      ex:"El modo Rampa evita cambios bruscos de flujo, útil por ejemplo en nutrición parenteral."},
+    {q:"Durante el cebado (purgado) de la línea, ¿qué alarma se suprime temporalmente?", opts:["Oclusión aguas arriba","Batería baja","Aire en línea / burbuja","Puerta abierta"], c:2,
+      ex:"Mientras se purga la línea, la alarma de aire/burbuja se suprime a propósito."},
+    {q:"¿Cuál de las siguientes es una alarma de prioridad ALTA?", opts:["Sin operación","Oclusión aguas arriba o abajo","Desconexión de AC","Sin batería insertada"], c:1,
+      ex:"Las oclusiones son alarmas de alta prioridad que detienen la infusión."},
+    {q:"¿Qué sistema muestra la presión de línea en tiempo real, en forma numérica y gráfica?", opts:["SafeDose™ Info","BeneVision CMS","DPS (Dynamic Pressure System)","SmartRapid™"], c:2,
+      ex:"El DPS monitoriza y grafica la presión de línea aguas arriba y abajo."},
+    {q:"¿Qué representa la tasa KVO?", opts:["La tasa máxima permitida por el equipo","Mantener la vena abierta a un flujo mínimo","La tasa de purgado inicial","La tasa durante una dosis de carga"], c:1,
+      ex:'KVO ("Keep Vein Open") mantiene la vía permeable a una tasa mínima ajustable, típicamente entre 0.1 y 5.0 mL/h.'},
+    {q:"Antes de iniciar cualquier infusión, ¿qué verificación clínica fundamental debe realizarse?", opts:["Solo confirmar la tasa en mL/h","Los \"5 correctos\" de administración de medicamentos","Solo verificar la batería","Solo verificar el modo de infusión"], c:1,
+      ex:"Los 5 correctos (paciente, medicamento, dosis, vía, hora) son la base de la administración segura."}
+  ];
+
+  var quizForm = document.getElementById("quizForm");
+  quiz.forEach(function(item, qi){
+    var fs = document.createElement("fieldset");
+    fs.className = "qcard";
+    fs.id = "q-"+qi;
+    fs.style.border = "1px solid var(--line)";
+    var legend = document.createElement("legend");
+    legend.textContent = (qi+1)+". "+item.q;
+    fs.appendChild(legend);
+    item.opts.forEach(function(opt, oi){
+      var label = document.createElement("label");
+      label.className = "opt";
+      label.innerHTML = '<input type="radio" name="q'+qi+'" value="'+oi+'"> <span>'+opt+'</span>';
+      fs.appendChild(label);
+    });
+    var fb = document.createElement("div");
+    fb.className = "qfeedback";
+    fb.id = "fb-"+qi;
+    fs.appendChild(fb);
+    quizForm.appendChild(fs);
+  });
+
+  function bestScore(){
+    try{ return (JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}").bestScore) || 0; }catch(e){ return 0; }
+  }
+  function saveBestScore(pct){
+    var current = bestScore();
+    var data = {visited:Array.from(visited), bestScore: Math.max(current, pct)};
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  document.getElementById("quizSubmit").addEventListener("click", function(){
+    var correct = 0;
+    quiz.forEach(function(item, qi){
+      var fs = document.getElementById("q-"+qi);
+      var checked = fs.querySelector('input[name="q'+qi+'"]:checked');
+      var fb = document.getElementById("fb-"+qi);
+      fs.classList.remove("correct","wrong");
+      if(!checked){
+        fb.textContent = "Sin responder. Respuesta correcta: " + item.opts[item.c] + ". " + item.ex;
+        fs.classList.add("wrong");
+        return;
+      }
+      var val = parseInt(checked.value, 10);
+      if(val === item.c){
+        correct++;
+        fb.textContent = "Correcto. " + item.ex;
+        fs.classList.add("correct");
+      } else {
+        fb.textContent = "Incorrecto. Respuesta correcta: " + item.opts[item.c] + ". " + item.ex;
+        fs.classList.add("wrong");
+      }
+    });
+    var pct = Math.round((correct / quiz.length) * 100);
+    saveBestScore(pct);
+    visited.add("evaluacion");
+    persist();
+    updateProgressUI();
+
+    var panel = document.getElementById("scorePanel");
+    panel.style.display = "block";
+    document.getElementById("scoreBig").textContent = pct + "%";
+    document.getElementById("scoreMsg").textContent = correct + " de " + quiz.length + " correctas — " +
+      (pct >= 80 ? "Aprobado. Buen dominio del contenido." : "No alcanzó el 80% requerido. Revise las secciones marcadas en rojo y vuelva a intentarlo.");
+    panel.scrollIntoView({behavior:"smooth", block:"nearest"});
+  });
+
+  document.getElementById("quizReset").addEventListener("click", function(){
+    quizForm.reset();
+    quiz.forEach(function(item, qi){
+      var fs = document.getElementById("q-"+qi);
+      fs.classList.remove("correct","wrong");
+    });
+    document.getElementById("scorePanel").style.display = "none";
+  });
+
+})();
+</script>
+</body>
+</html>
